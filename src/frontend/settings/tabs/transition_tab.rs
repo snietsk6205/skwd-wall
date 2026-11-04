@@ -189,6 +189,9 @@ pub(super) fn tab_transitions(builder: &mut Builder<'_>) {
 const SKETCH_ENABLED: &str = "transition.sketchEnabled";
 const SKETCH_STYLE: &str = "transition.sketchStyle";
 const SKETCH_DURATION: &str = "transition.sketchDurationMs";
+const SKETCH_VIDEOS: &str = "transition.sketchVideos";
+const SKETCH_SCENES: &str = "transition.sketchScenes";
+const ORIGIN: &str = "transition.origin";
 
 const SKETCH_STYLES: [(&str, &str); 7] = [
     ("pencil", "Pencil on paper"),
@@ -198,6 +201,13 @@ const SKETCH_STYLES: [(&str, &str); 7] = [
     ("ink-brush", "Ink brush"),
     ("charcoal", "Charcoal"),
     ("notebook", "Notebook pen"),
+];
+
+const ORIGINS: [(&str, &str); 4] = [
+    ("default", "Built-in"),
+    ("centre", "Centre"),
+    ("random", "Random"),
+    ("dense", "Busiest area"),
 ];
 
 fn sketch_style_desc(style: &str) -> &'static str {
@@ -212,45 +222,73 @@ fn sketch_style_desc(style: &str) -> &'static str {
     }
 }
 
+fn origin_desc(origin: &str) -> &'static str {
+    match origin {
+        "centre" => {
+            "Transitions that grow from a point (iris, ink, ripples, sand swirls) start in the middle of the screen."
+        }
+        "random" => "Every transition starts from a different random spot.",
+        "dense" => {
+            "Transitions start where the new wallpaper has the most detail, which is also where the sketch starts drawing."
+        }
+        _ => "Each transition uses its own starting spot, like the official app.",
+    }
+}
+
+fn chips(path: &str, options: &[(&str, &str)], current: String) -> Control {
+    Control::Chips {
+        path: String::from(path),
+        options: options
+            .iter()
+            .map(|(key, label)| ((*key).to_string(), (*label).to_string()))
+            .collect(),
+        current,
+        disabled: Vec::new(),
+        background: None,
+    }
+}
+
+fn known_or(value: String, options: &[(&str, &str)], fallback: &str) -> String {
+    if options.iter().any(|(key, _)| *key == value) { value } else { String::from(fallback) }
+}
+
 fn tab_sketch(builder: &mut Builder<'_>) {
     let cfg = builder.cfg;
     builder.card(
         "Sketch before transition",
         "Draw the new wallpaper as a sketch first, then run the transition chosen above from that sketch.",
     );
+    let origin = known_or(cfg.text(ORIGIN), &ORIGINS, "default");
+    builder.row("Start point", origin_desc(&origin), chips(ORIGIN, &ORIGINS, origin));
     builder.toggle(
         "Draw a sketch first",
-        "The outlines, details and shading are drawn stroke by stroke before the transition starts.",
+        "The outlines, details and shading are drawn stroke by stroke, then your chosen transition (sand, fade, ink, ...) reveals the real wallpaper.",
         SKETCH_ENABLED,
     );
     if !cfg.flag(SKETCH_ENABLED) {
         return;
     }
-    let style = cfg.text(SKETCH_STYLE);
-    let style = if SKETCH_STYLES.iter().any(|(key, _)| *key == style) {
-        style
-    } else {
-        String::from("pencil")
-    };
+    let style = known_or(cfg.text(SKETCH_STYLE), &SKETCH_STYLES, "pencil");
     builder.row(
         "Drawing style",
         sketch_style_desc(&style),
-        Control::Chips {
-            path: String::from(SKETCH_STYLE),
-            options: SKETCH_STYLES
-                .iter()
-                .map(|(key, label)| ((*key).to_string(), (*label).to_string()))
-                .collect(),
-            current: style,
-            disabled: Vec::new(),
-            background: None,
-        },
+        chips(SKETCH_STYLE, &SKETCH_STYLES, style),
     );
     builder.num(
         "Sketch duration",
-        "How long the drawing takes, 1000 to 20000 ms (default 6000). Sketch and transition together are capped at 10000 ms; Sand transitions become an ink-wash reveal.",
+        "How long the drawing takes, 1000 to 20000 ms (default 6000). Sketch and transition together are capped at 10000 ms.",
         SKETCH_DURATION,
         "ms",
+    );
+    builder.toggle_default_true(
+        "Also sketch videos",
+        "Off: video wallpapers use the plain transition. On: the video's first frame is drawn while it waits, then it starts playing.",
+        SKETCH_VIDEOS,
+    );
+    builder.toggle_default_true(
+        "Also sketch Wallpaper Engine scenes",
+        "Off: scenes use the plain transition.",
+        SKETCH_SCENES,
     );
 }
 

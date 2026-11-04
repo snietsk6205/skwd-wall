@@ -15,15 +15,23 @@ pub(crate) fn drive_transition_preview(app: &mut App) {
     let shader = if shader.is_empty() { String::from("random") } else { shader };
     let fill_mode = app.config.str_path(skwd_config::keys::display::FILL_MODE);
     let fill_mode = if fill_mode.is_empty() { String::from("fill") } else { fill_mode };
-    let duration =
-        app.config.num_path(skwd_config::keys::transition::DURATION_MS).max(300.0) as u64;
-    let duration = if app.config.flag_default_config("transition.sketchEnabled") {
-        let sketch = app.config.num_path("transition.sketchDurationMs");
-        let sketch = if sketch > 0.0 { sketch.clamp(1000.0, 20_000.0) as u64 } else { 6000 };
-        (duration + sketch).min(10_000)
+    let base =
+        app.config.num_path(skwd_config::keys::transition::DURATION_MS).clamp(300.0, 10_000.0)
+            as u64;
+    let sketch_env = preview_sketch_env(&app.config, base);
+    let duration = if sketch_env.is_empty() {
+        base
     } else {
-        duration
+        (base + preview_sketch_ms(&app.config)).min(10_000)
     };
+    let origin = app.config.str_path("transition.origin");
+    let env = [
+        ("SKWD_PAPER_SKETCH", sketch_env),
+        (
+            "SKWD_PAPER_TRANSITION_ORIGIN",
+            if origin.is_empty() { String::from("default") } else { origin },
+        ),
+    ];
     let Some((fallback, to)) = crate::infrastructure::preview::stock_pair(&app.config.cache_dir())
     else {
         return;
@@ -42,11 +50,33 @@ pub(crate) fn drive_transition_preview(app: &mut App) {
         &fill_mode,
         duration,
         frame_ms.max(4),
+        &env,
     );
     let first = app.panels.transition_preview.handle.is_none();
     if app.panels.transition_preview.take_frame() && first {
         app.invalidate_settings();
     }
+}
+
+fn preview_sketch_ms(config: &crate::infrastructure::config::Config) -> u64 {
+    let sketch = config.num_path("transition.sketchDurationMs");
+    if sketch > 0.0 { sketch.clamp(1000.0, 20_000.0) as u64 } else { 6000 }
+}
+
+/// Same `SKWD_PAPER_SKETCH` value the daemon gives its renderers, so the
+/// Settings preview shows the sketch exactly as the desktop will.
+fn preview_sketch_env(config: &crate::infrastructure::config::Config, base: u64) -> String {
+    if !config.flag_default_config("transition.sketchEnabled") || base >= 10_000 {
+        return String::new();
+    }
+    let style = config.str_path("transition.sketchStyle");
+    format!(
+        "style={};ms={};base={base};videos={};scenes={}",
+        if style.is_empty() { "pencil" } else { style.as_str() },
+        preview_sketch_ms(config),
+        u8::from(config.flag_default_true("transition.sketchVideos")),
+        u8::from(config.flag_default_true("transition.sketchScenes")),
+    )
 }
 
 pub(super) fn tick(app: &mut App, now: Instant, w: f32, h: f32) -> Task<Message> {

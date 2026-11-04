@@ -65,6 +65,7 @@ impl TransitionPreviewWorker {
         self.seen = 0;
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn ensure(
         &mut self,
         from: &str,
@@ -73,9 +74,12 @@ impl TransitionPreviewWorker {
         fill_mode: &str,
         duration_ms: u64,
         frame_ms: u64,
+        env: &[(&str, String)],
     ) {
+        let env_key: String =
+            env.iter().map(|(name, value)| format!("{name}={value}\u{0}")).collect();
         let key = format!(
-            "{shader}\u{0}{fill_mode}\u{0}{duration_ms}\u{0}{frame_ms}\u{0}{from}\u{0}{to}"
+            "{shader}\u{0}{fill_mode}\u{0}{duration_ms}\u{0}{frame_ms}\u{0}{from}\u{0}{to}\u{0}{env_key}"
         );
         if self.key == key && self.child.is_some() {
             return;
@@ -105,6 +109,7 @@ impl TransitionPreviewWorker {
             .arg(duration_ms.max(300).to_string())
             .arg("--preview-frame-ms")
             .arg(frame_ms.to_string())
+            .envs(env.iter().map(|(name, value)| (*name, value.as_str())))
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn();

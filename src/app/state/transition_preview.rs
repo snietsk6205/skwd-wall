@@ -12,6 +12,7 @@ impl TransitionPreviewState {
         self.handle = None;
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn ensure(
         &mut self,
         from: &str,
@@ -20,8 +21,9 @@ impl TransitionPreviewState {
         fill_mode: &str,
         duration_ms: u64,
         frame_ms: u64,
+        env: &[(&str, String)],
     ) {
-        self.worker.ensure(from, to, shader, fill_mode, duration_ms, frame_ms);
+        self.worker.ensure(from, to, shader, fill_mode, duration_ms, frame_ms, env);
     }
 
     pub(crate) fn take_frame(&mut self) -> bool {
