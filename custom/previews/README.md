@@ -9,3 +9,4 @@ Rendered with the real renderer (`skwd-wall-vk --preview-stream`, software Vulka
   turned off (plain inkwell at normal speed); digital style; iris from a random start point.
 - `phase1-sheet-ends.jpg`: fade from the finished charcoal sketch; inkwell ripple starting at
   the busiest area of the new wallpaper.
+- `phase1-settings.jpg`: the new Settings card (Motion → Sketch before transition), screenshot of the real app.
