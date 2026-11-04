@@ -20,6 +20,7 @@ SELF_HASH=$(sha256sum < "${BASH_SOURCE[0]}")
 main() {
     local owner=${SKWD_CUSTOM_OWNER:-snietsk6205}
     local branch=${SKWD_CUSTOM_BRANCH:-my-custom}
+    local git_base=${SKWD_CUSTOM_GIT_BASE:-https://github.com/$owner}
     local src=${SKWD_CUSTOM_SRC:-$HOME/.local/src/skwd-custom}
     local opt=$HOME/.local/opt/skwd-custom
     local unit_dir=${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/skwd-walld.service.d
@@ -63,7 +64,7 @@ main() {
     mkdir -p "$src"
     local repo
     for repo in skwd-wall skwd-deck skwd-paper; do
-        sync_repo "https://github.com/$owner/$repo.git" "$branch" "$src/$repo"
+        sync_repo "$git_base/$repo" "$branch" "$src/$repo"
     done
     maybe_restart_with_new_script "$src/skwd-wall/custom/install.sh" "$@"
     local version
