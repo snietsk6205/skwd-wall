@@ -38,6 +38,7 @@ pub struct BarShow {
     pub tagcloud: bool,
     pub download: bool,
     pub playlists: bool,
+    pub effects: bool,
     pub hidden: Option<bool>,
 }
 
@@ -58,6 +59,7 @@ impl BarShow {
             tagcloud: true,
             download: true,
             playlists: true,
+            effects: true,
             hidden: Some(false),
         }
     }

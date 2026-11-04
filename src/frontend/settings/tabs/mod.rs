@@ -22,6 +22,7 @@ mod system_tabs;
 pub(crate) use system_tabs::weather_category_label;
 mod theme_tabs;
 mod transition_tab;
+mod window_tab;
 
 pub(crate) use builder::RuntimeStatus;
 pub use builder::build_tab;

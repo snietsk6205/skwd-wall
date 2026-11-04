@@ -6,7 +6,71 @@ use crate::frontend::scene::layout::Mode;
 use super::super::*;
 use super::browser::browser_apply_current;
 use super::effects::effects_nav;
+use super::spatial_nav::{Dir, Rect, neighbour};
 use super::update_inner;
+
+/// Card rectangles for direction-aware arrow keys: every card's layout
+/// position in Grid mode, the cards on screen in Hex mode.
+fn spatial_rects(app: &App) -> Option<Vec<Rect>> {
+    match app.scene.mode {
+        Mode::Grid => Some(
+            app.scene
+                .grid_placements(
+                    app.library_session.library.catalog(),
+                    &app.library_session.filtered,
+                    app.scene.gp.total_w(),
+                )
+                .into_iter()
+                .map(Rect::from_place)
+                .collect(),
+        ),
+        Mode::Hex => Some(
+            app.scene
+                .render
+                .hits
+                .iter()
+                .map(|hit| Rect {
+                    index: hit.index,
+                    cx: hit.cx,
+                    cy: hit.cy,
+                    hw: hit.hw,
+                    hh: hit.hh,
+                })
+                .collect(),
+        ),
+        _ => None,
+    }
+}
+
+/// Moves to the card that is really in direction `dir`. `None` when this
+/// layout keeps index navigation or the neighbour is not known (off screen).
+fn spatial_move(app: &mut App, dir: Dir) -> Option<()> {
+    let rects = spatial_rects(app)?;
+    let next = neighbour(&rects, app.scene.current, dir)?;
+    app.scene.kb_nav = true;
+    app.scene.set_current(next, app.library_session.filtered.len());
+    app.retick();
+    Some(())
+}
+
+fn masonry(app: &App) -> bool {
+    app.scene.mode == Mode::Grid
+        && app.scene.gp.layout == crate::frontend::scene::layout::GridLayout::Masonry
+}
+
+/// Hex cards are numbered column by column, so Left/Right move a whole column.
+fn hex_side_step(app: &mut App, forward: bool) {
+    let count = app.library_session.filtered.len();
+    let rows = app.scene.hp.rows.max(1);
+    let cur = app.scene.current;
+    let next = if forward { cur + rows } else { cur.saturating_sub(rows) };
+    let next = if forward && next >= count { count.saturating_sub(1) } else { next };
+    if next != cur && (forward || cur >= rows) {
+        app.scene.kb_nav = true;
+        app.scene.set_current(next, count);
+        app.retick();
+    }
+}
 
 fn hand_nav_closes_flip(app: &mut App) -> bool {
     if app.scene.mode == Mode::Hand && app.scene.flip_open() && !app.menu_capturing() {
@@ -56,6 +120,16 @@ pub(super) fn key_prev(app: &mut App) -> Task<Message> {
     if !hand_nav_closes_flip(app) && (app.menu_capturing() || app.detail_open()) {
         return Task::none();
     }
+    if app.scene.mode == Mode::Hex {
+        if spatial_move(app, Dir::Left).is_none() {
+            hex_side_step(app, false);
+        }
+        return Task::none();
+    }
+    if masonry(app) {
+        spatial_move(app, Dir::Left);
+        return Task::none();
+    }
     app.scene.kb_nav = true;
     let cur = app.scene.current;
     if cur > 0 {
@@ -73,6 +147,16 @@ pub(super) fn key_next(app: &mut App) -> Task<Message> {
         return task;
     }
     if !hand_nav_closes_flip(app) && (app.menu_capturing() || app.detail_open()) {
+        return Task::none();
+    }
+    if app.scene.mode == Mode::Hex {
+        if spatial_move(app, Dir::Right).is_none() {
+            hex_side_step(app, true);
+        }
+        return Task::none();
+    }
+    if masonry(app) {
+        spatial_move(app, Dir::Right);
         return Task::none();
     }
     app.scene.kb_nav = true;
@@ -276,6 +360,13 @@ pub(super) fn key_up(app: &mut App) -> Task<Message> {
     if app.scene.mode == Mode::Collection {
         return key_prev(app);
     }
+    if app.scene.mode == Mode::Grid {
+        spatial_move(app, Dir::Up);
+        return Task::none();
+    }
+    if app.scene.mode == Mode::Hex && spatial_move(app, Dir::Up).is_some() {
+        return Task::none();
+    }
     if app.scene.mode == Mode::Hex && app.scene.hex_row > 0 {
         app.scene.kb_nav = true;
         let col = app.scene.current / app.scene.hp.rows.max(1);
@@ -285,15 +376,6 @@ pub(super) fn key_up(app: &mut App) -> Task<Message> {
             app.library_session.filtered.len(),
         );
         app.retick();
-    }
-    if app.scene.mode == Mode::Grid {
-        let cols = app.scene.gp.cols.max(1);
-        let cur = app.scene.current;
-        if cur >= cols {
-            app.scene.kb_nav = true;
-            app.scene.set_current(cur - cols, app.library_session.filtered.len());
-            app.retick();
-        }
     }
     Task::none()
 }
@@ -312,6 +394,13 @@ pub(super) fn key_down(app: &mut App) -> Task<Message> {
     if app.scene.mode == Mode::Collection {
         return key_next(app);
     }
+    if app.scene.mode == Mode::Grid {
+        spatial_move(app, Dir::Down);
+        return Task::none();
+    }
+    if app.scene.mode == Mode::Hex && spatial_move(app, Dir::Down).is_some() {
+        return Task::none();
+    }
     if app.scene.mode == Mode::Hex {
         let rows = app.scene.hp.rows.max(1);
         if app.scene.hex_row + 1 < rows {
@@ -322,15 +411,6 @@ pub(super) fn key_down(app: &mut App) -> Task<Message> {
                 app.scene.set_current(idx, app.library_session.filtered.len());
                 app.retick();
             }
-        }
-    }
-    if app.scene.mode == Mode::Grid {
-        let cols = app.scene.gp.cols.max(1);
-        let idx = app.scene.current + cols;
-        if idx < app.library_session.filtered.len() {
-            app.scene.kb_nav = true;
-            app.scene.set_current(idx, app.library_session.filtered.len());
-            app.retick();
         }
     }
     Task::none()

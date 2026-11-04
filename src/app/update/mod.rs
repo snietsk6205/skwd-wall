@@ -18,6 +18,7 @@ pub(in crate::app) mod settings_background;
 mod settings_folders;
 pub(in crate::app) mod settings_policy;
 mod settings_profiles;
+mod spatial_nav;
 mod tags;
 pub(crate) mod theme;
 mod ui_command;

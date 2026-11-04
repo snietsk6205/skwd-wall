@@ -20,7 +20,7 @@ impl SceneCore {
         if count == 0 {
             return None;
         }
-        let placements = self.grid_placements(ctx, total_w);
+        let placements = self.grid_placements(ctx.catalog, ctx.filtered, total_w);
         let content_h = placements.iter().map(|place| place.2 + place.4).fold(0.0_f32, f32::max);
         let max_scroll = (content_h - view_h).max(0.0);
         if self.layout_camera_anchor {
@@ -69,13 +69,17 @@ impl SceneCore {
         Some(frame)
     }
 
-    fn grid_placements(
+    /// Layout-space rectangles `(index, x, y, width, height)` of every card in
+    /// Grid mode. Keyboard navigation uses them to move to the card that is
+    /// really above or below, whatever the grid style.
+    pub(crate) fn grid_placements(
         &self,
-        ctx: &RebuildCtx<'_>,
+        catalog: &crate::domain::library::catalog::Catalog,
+        filtered: &[u32],
         total_w: f32,
     ) -> Vec<(usize, f32, f32, f32, f32)> {
         let gp = self.gp;
-        let count = ctx.filtered.len();
+        let count = filtered.len();
         let cols = gp.cols.max(1);
         let mut out = match gp.layout {
             GridLayout::Uniform | GridLayout::Brick | GridLayout::Cylinder => (0..count)
@@ -99,13 +103,13 @@ impl SceneCore {
             GridLayout::Masonry => {
                 let mut bottoms = vec![0.0_f32; cols];
                 let mut out = Vec::with_capacity(count);
-                for idx in 0..count {
+                for (idx, &stored) in filtered.iter().enumerate() {
                     let col = bottoms
                         .iter()
                         .enumerate()
                         .min_by(|a, b| a.1.total_cmp(b.1))
                         .map_or(0, |(col, _)| col);
-                    let item = &ctx.catalog.items[ctx.filtered[idx] as usize];
+                    let item = &catalog.items[stored as usize];
                     let aspect = if item.width > 0 && item.height > 0 {
                         item.width as f32 / item.height as f32
                     } else {
@@ -126,7 +130,7 @@ impl SceneCore {
                     let end = (start + cols).min(count);
                     let aspects: Vec<f32> = (start..end)
                         .map(|idx| {
-                            let item = &ctx.catalog.items[ctx.filtered[idx] as usize];
+                            let item = &catalog.items[filtered[idx] as usize];
                             if item.width > 0 && item.height > 0 {
                                 (item.width as f32 / item.height as f32).clamp(0.45, 2.5)
                             } else {
@@ -227,7 +231,8 @@ impl SceneCore {
         let hw = width * focus * 0.5;
         let hh = height * focus * 0.5;
         let radius = gp.corner_radius.clamp(0.0, hw.min(hh));
-        let border_width = gp.border_width.clamp(0.0, (hw.min(hh) - 1.0).max(0.0));
+        let ring = if is_cur { gp.border_width.max(gp.focus_width) } else { gp.border_width };
+        let border_width = ring.clamp(0.0, (hw.min(hh) - 1.0).max(0.0));
         let roll = self.flip_roll_for(store_idx, cell_x, cell_y);
         let outer = InstanceRaw {
             rect: [cell_x, cell_y, hw, hh],

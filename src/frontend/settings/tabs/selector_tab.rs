@@ -1042,6 +1042,11 @@ pub(super) fn tab_filter(builder: &mut Builder<'_>, folders: &[String]) {
         tr("settings-filter-show-playlists-desc"),
         keys::filter_bar::SHOW_PLAYLISTS,
     );
+    builder.toggle_default_true(
+        "Effects button",
+        "A button that opens the Effects studio (Palette, Duotone, ...) for the selected wallpaper. Keyboard: E, or Shift+right-click a card.",
+        keys::filter_bar::SHOW_EFFECTS,
+    );
     builder.toggle(
         tr("settings-filter-show-download-label"),
         tr("settings-filter-show-download-desc"),

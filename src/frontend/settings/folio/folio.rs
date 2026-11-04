@@ -276,6 +276,8 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
         weather_review,
     } = input;
     let ChromeCtx { viewport, scale, entrance, palette } = chrome;
+    let window = SettingsWindow::read(source.config);
+    let scale = window.scale.unwrap_or(scale);
     let motion = source.motion();
     let cards = source.cards(tab);
     let selected_section = selected_section.min(cards.len().saturating_sub(1));
@@ -289,7 +291,9 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
     });
     let reveal = crate::frontend::animation::smoothstep(entrance.clamp(0.0, 1.0));
     let branch_reveal = crate::frontend::animation::smoothstep(tab_transition.clamp(0.0, 1.0));
-    let (panel_width, panel_height) = crate::frontend::ui::folio_sheet_dims(viewport, scale);
+    let (panel_width, panel_height) = window.dims(viewport, scale);
+    let index_width =
+        FOLIO_INDEX_WIDTH * scale.max(0.9) * if window.compact_index { 0.8 } else { 1.0 };
     let tabs = visible_tabs(source.config);
     let active_tab = tabs.iter().position(|(key, _)| *key == tab).unwrap_or(0);
 
@@ -319,7 +323,8 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
             transition_preview,
             values: source.values,
             has_selected_preset,
-            available_width: panel_width - FOLIO_INDEX_WIDTH * scale.max(0.9),
+            available_width: panel_width - index_width,
+            one_column: window.one_column,
             scale,
             palette,
             fade: GLYPH_FADE,
@@ -353,7 +358,7 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
         )))
     });
     let body = row![
-        container(index).width(Length::Fixed(FOLIO_INDEX_WIDTH * scale.max(0.9))),
+        container(index).width(Length::Fixed(index_width)),
         container(page).width(Length::Fill),
     ]
     .spacing(0.0)
@@ -374,8 +379,9 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
         container(iced::widget::opaque(panel))
             .width(Length::Fill)
             .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill),
+            .align_x(window.align_x())
+            .align_y(window.align_y())
+            .padding(window.edge_gap(scale)),
     ];
     if let Some(capture) = keybind_capture {
         layers = layers.push(keybind_capture_layer(capture, scale, palette, reveal));
@@ -1289,6 +1295,7 @@ struct ReadingInput<'a> {
     values: &'a HashMap<String, String>,
     has_selected_preset: bool,
     available_width: f32,
+    one_column: bool,
     scale: f32,
     palette: &'a Palette,
     fade: f32,
@@ -1357,6 +1364,7 @@ fn reading_surface<'a>(input: ReadingInput<'a>, focus: FocusCtx<'_>) -> Element<
         values,
         has_selected_preset,
         available_width,
+        one_column,
         scale,
         palette,
         fade,
@@ -1402,6 +1410,7 @@ fn reading_surface<'a>(input: ReadingInput<'a>, focus: FocusCtx<'_>) -> Element<
     ]
     .spacing(12.0 * scale);
     let (content_width, column_width, single_column) = reading_columns(available_width, scale);
+    let single_column = single_column || one_column;
     let has_transition_preview = take_transition_preview(&mut settings);
     let paint = super::page::Paint { scale, palette, fade, motion };
     let controls = match page {
@@ -2382,5 +2391,70 @@ impl canvas::Program<Message> for Blueprint {
         let marker = crate::frontend::ui::diamond(centre, 7.0);
         frame.stroke(&marker, Stroke::default().with_color(accent).with_width(1.3));
         vec![frame.into_geometry()]
+    }
+}
+
+/// Size, place and layout of the Settings sheet (Settings → Picker →
+/// Settings window). Zero sizes and scale keep the automatic behaviour.
+struct SettingsWindow {
+    width: f32,
+    height: f32,
+    scale: Option<f32>,
+    position: String,
+    one_column: bool,
+    compact_index: bool,
+}
+
+impl SettingsWindow {
+    fn read(cfg: &dyn SettingsSource) -> Self {
+        use crate::contracts::settings::keys::settings_window as key;
+        let share = |path: &str| {
+            let value = cfg.number(path);
+            if value.is_finite() && value >= 20.0 { (value.min(100.0) / 100.0) as f32 } else { 0.0 }
+        };
+        let scale = cfg.number(key::SCALE);
+        Self {
+            width: share(key::WIDTH_PERCENT),
+            height: share(key::HEIGHT_PERCENT),
+            scale: (scale.is_finite() && scale >= 0.5).then(|| scale.min(2.0) as f32),
+            position: cfg.text(key::POSITION),
+            one_column: cfg.text(key::COLUMNS) == "one",
+            compact_index: cfg.flag(key::COMPACT_INDEX),
+        }
+    }
+
+    fn dims(&self, viewport: (f32, f32), scale: f32) -> (f32, f32) {
+        let (auto_width, auto_height) = crate::frontend::ui::folio_sheet_dims(viewport, scale);
+        let fit = |share: f32, screen: f32, auto: f32, floor: f32| {
+            if share > 0.0 { (screen * share).min(screen - 22.0).max(floor) } else { auto }
+        };
+        (
+            fit(self.width, viewport.0, auto_width, 220.0),
+            fit(self.height, viewport.1, auto_height, 160.0),
+        )
+    }
+
+    fn align_x(&self) -> iced::alignment::Horizontal {
+        match self.position.as_str() {
+            "left" => iced::alignment::Horizontal::Left,
+            "right" => iced::alignment::Horizontal::Right,
+            _ => iced::alignment::Horizontal::Center,
+        }
+    }
+
+    fn align_y(&self) -> iced::alignment::Vertical {
+        match self.position.as_str() {
+            "top" => iced::alignment::Vertical::Top,
+            "bottom" => iced::alignment::Vertical::Bottom,
+            _ => iced::alignment::Vertical::Center,
+        }
+    }
+
+    fn edge_gap(&self, scale: f32) -> f32 {
+        if matches!(self.position.as_str(), "left" | "right" | "top" | "bottom") {
+            11.0 * scale
+        } else {
+            0.0
+        }
     }
 }

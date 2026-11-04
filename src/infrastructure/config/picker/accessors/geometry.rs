@@ -15,6 +15,10 @@ impl Config {
         skwd_config::schema::setting::selector::GRID_STAGGER.read(self.root()) as f32 / 100.0
     }
 
+    pub fn grid_focus_width(&self) -> f32 {
+        self.num_at(skwd_config::keys::selector::GRID_FOCUS_WIDTH, 3.0).clamp(0.0, 12.0) as f32
+    }
+
     pub fn grid_selected_scale(&self) -> f32 {
         skwd_config::schema::setting::selector::GRID_SELECTED_SCALE.read(self.root()) as f32 / 100.0
     }

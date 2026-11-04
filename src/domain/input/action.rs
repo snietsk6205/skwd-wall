@@ -144,7 +144,7 @@ impl InputAction {
             Self::Reveal => "v",
             Self::Favourite => "f",
             Self::Effects => "ctrl+click",
-            Self::Studio => "shift+right-click",
+            Self::Studio => "shift+right-click, e",
             Self::SceneProperties => "shift+w",
             Self::Playlists => "p",
             Self::Settings => "shift+s",

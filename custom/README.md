@@ -76,4 +76,10 @@ restarting, the installer goes back to the previous state by itself.
 - **Start point** for transitions that grow from a point: built-in, centre,
   random, or the busiest area of the new wallpaper.
 
-Preview frames of the changes are in `custom/previews/`.
+- **Keyboard navigation fixed** in Grid (masonry, brick, justified, editorial) and Hex:
+  the arrow keys move to the card that is really above/below/beside.
+- **Effects studio** (Palette, Duotone, ...) on the **E** key and a new bar button.
+- **Settings → Picker → Settings window**: width, height, scale, position, one column,
+  narrow index. **Selection**: width of the ring around the selected card.
+
+Preview frames and screenshots are in `custom/previews/`.

@@ -46,12 +46,30 @@ Read this first in a new session.
   (plus the old `sketchEnabled`, `sketchStyle`, `sketchDurationMs`).
 - Picker (`skwd-wall`): Settings card + preview env (`app/update/lifecycle.rs`).
 
-## Phase 2 (in progress at the time of writing)
+## Phase 2 (done)
 - Keyboard navigation cause (upstream bug, also in the official build): Up/Down did
-  `index ± columns`, which is wrong for Grid styles masonry/brick/justified/editorial and
-  hex layouts with arc/twist/orbit/scatter. Fix: `app/update/spatial_nav.rs` picks the card
-  that is really in that direction (Grid: layout positions from `grid_placements`; Hex: the
-  cards on screen), with a remembered goal column.
+  `index ± columns`, wrong for Grid styles masonry/brick/justified/editorial and for hex layouts
+  (arc/twist/orbit/scatter; also Right moved *down* a hex column). Fix:
+  `app/update/spatial_nav.rs` (+ `spatial_nav/tests.rs`) picks the card that is really in that
+  direction (Grid: `grid_placements` positions; Hex: cards on screen) with a remembered goal
+  column. Grid Left/Right stay in reading order except in masonry.
+- Effects studio is easier to find: E key (`Studio` default `shift+right-click, e`) and a bar
+  button (`BarAction::Effects` → `Message::KeyStudio`, toggle `filterBar.show.effects`).
+  Note: upstream's `InputAction::Effects` is "Choose displays" (Ctrl+click); the Palette/Duotone
+  panel is the *Studio*.
+- Settings → Picker → "Selection" (`components.wallpaperSelector.gridFocusWidth`, default 3 px;
+  upstream marked the selected Grid card with a 1 px border) and "Settings window"
+  (`settingsWindow.widthPercent/heightPercent/scale/position/columns/compactIndex`), applied in
+  `frontend/settings/folio/folio.rs` (`SettingsWindow`). New sections are appended *after*
+  upstream's so `is_picker_layout_section` indexes stay valid.
+- All new keys are registered in `skwd-config` (key_catalog.rs, schema.rs, keys_tests.rs).
+
+## Open items for the next session
+- Selection ring: drawn only while `scene.kb_nav` is true; a mouse move clears it
+  (`app/update/picker.rs`). In the headless test it never showed, likely because sway sends a
+  pointer event; check on the real machine (does the ring appear after arrow keys?) and consider
+  ignoring pointer events that do not move the pointer.
+- Phases 3-5 not started (see REQUESTS.md and the session prompt).
 
 ## Testing in a cloud session
 - Software Vulkan (llvmpipe) works; `skwd-wall-vk --preview-stream` renders frames.

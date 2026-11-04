@@ -125,6 +125,10 @@ pub fn build_bar_with_tasks(
         push_item(&mut items, &mut x, scale, "\u{f0cb8}", true, false, Some(BarAction::Playlists));
     }
 
+    if show.effects {
+        push_item(&mut items, &mut x, scale, "\u{f0068}", true, false, Some(BarAction::Effects));
+    }
+
     push_item(&mut items, &mut x, scale, "\u{f0493}", true, false, Some(BarAction::Settings));
     push_item(&mut items, &mut x, scale, EYE_CLOSED, true, false, Some(BarAction::Stash));
 

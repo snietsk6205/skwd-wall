@@ -85,6 +85,7 @@ fn source_cards(
     cards.extend(collect(cfg, tab_performance));
     cards.extend(collect(cfg, tab_postprocessing));
     cards.extend(collect(cfg, tab_keybinds));
+    cards.extend(collect(cfg, super::super::window_tab::tab_window));
     cards.extend(collect(cfg, tab_language));
     cards.extend(collect(cfg, |builder| tab_theme(builder, backends)));
     cards.extend(collect(cfg, tab_integrations));

@@ -576,6 +576,8 @@ pub struct GridParams {
     pub layout: GridLayout,
     pub stagger: f32,
     pub selected_scale: f32,
+    /// Border width of the selected card (a 1 px border was hard to see).
+    pub focus_width: f32,
     pub flow_wave: f32,
     pub flow_frequency: f32,
     pub scatter: f32,
@@ -599,6 +601,7 @@ impl Default for GridParams {
             layout: GridLayout::Uniform,
             stagger: 0.5,
             selected_scale: 1.0,
+            focus_width: 3.0,
             flow_wave: 0.0,
             flow_frequency: 1.0,
             scatter: 0.0,
@@ -627,6 +630,7 @@ impl GridParams {
         self.layout = target.layout;
         self.stagger = lerp(self.stagger, target.stagger, amt);
         self.selected_scale = lerp(self.selected_scale, target.selected_scale, amt);
+        self.focus_width = lerp(self.focus_width, target.focus_width, amt);
         self.flow_wave = lerp(self.flow_wave, target.flow_wave, amt);
         self.flow_frequency = lerp(self.flow_frequency, target.flow_frequency, amt);
         self.scatter = lerp(self.scatter, target.scatter, amt);
@@ -648,6 +652,7 @@ impl GridParams {
             && self.layout == target.layout
             && feq(self.stagger, target.stagger)
             && feq(self.selected_scale, target.selected_scale)
+            && feq(self.focus_width, target.focus_width)
             && feq(self.flow_wave, target.flow_wave)
             && feq(self.flow_frequency, target.flow_frequency)
             && feq(self.scatter, target.scatter)

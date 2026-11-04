@@ -120,7 +120,11 @@ fn key_event_routing() {
         Some(Message::KeyFavourite)
     ));
     assert!(key_message(&km, &keyboard::Key::Character("i".into()), none, PICKER).is_none());
-    assert!(key_message(&km, &keyboard::Key::Character("e".into()), none, PICKER).is_none());
+    // Custom build: E opens the Effects studio (Palette, Duotone, ...).
+    assert!(matches!(
+        key_message(&km, &keyboard::Key::Character("e".into()), none, PICKER),
+        Some(Message::KeyStudio)
+    ));
     assert!(matches!(
         key_message(&km, &keyboard::Key::Character("?".into()), shift, PICKER),
         Some(Message::ToggleHelp)

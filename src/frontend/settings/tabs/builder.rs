@@ -364,6 +364,10 @@ fn compose_picker(
         tr("settings-keybinds-controls-card-desc"),
         segmented_rows(keys),
     );
+    // Custom build sections go last, so upstream section numbers stay valid.
+    for (card, rows) in collect(cfg, super::window_tab::tab_window) {
+        section(&mut out, card.title, card.subtitle, rows);
+    }
     out
 }
 

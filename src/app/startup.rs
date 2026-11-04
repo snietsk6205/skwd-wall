@@ -277,6 +277,7 @@ pub(crate) fn layout_params(config: &Config) -> LayoutParams {
         layout: GridLayout::from_key(&config.grid_layout()),
         stagger: config.grid_stagger(),
         selected_scale: config.grid_selected_scale(),
+        focus_width: config.grid_focus_width(),
         flow_wave: config.grid_flow_wave(),
         flow_frequency: config.grid_flow_frequency(),
         scatter: config.grid_scatter(),
