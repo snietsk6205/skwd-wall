@@ -1,0 +1,46 @@
+diff --git a/crates/skwd-wall-core/src/infrastructure/config/model/value/transition.rs b/crates/skwd-wall-core/src/infrastructure/config/model/value/transition.rs
+index 3f0a456..31fce96 100644
+--- a/crates/skwd-wall-core/src/infrastructure/config/model/value/transition.rs
++++ b/crates/skwd-wall-core/src/infrastructure/config/model/value/transition.rs
+@@ -2,6 +2,9 @@ use serde_json::Value;
+ 
+ use super::Config;
+ 
++const SKETCH_ENABLED: &str = "transition.sketchEnabled";
++const SKETCH_DURATION_MS: &str = "transition.sketchDurationMs";
++
+ #[derive(Clone, Copy)]
+ pub struct TransitionConfig<'a> {
+     config: &'a Config,
+@@ -76,10 +79,29 @@ impl<'a> TransitionConfig<'a> {
+     }
+ 
+     pub fn duration_ms(&self) -> u64 {
+-        self.config
++        let base = self
++            .config
+             .get(skwd_config::keys::transition::DURATION_MS)
+             .and_then(Value::as_f64)
+-            .map_or(600, |number| number.clamp(50.0, 10000.0) as u64)
++            .map_or(600, |number| number.clamp(50.0, 10000.0) as u64);
++        if base >= 10_000 { base } else { (base + self.sketch_ms()).min(10_000) }
++    }
++
++    /// Extra time for the "sketch before transition" prelude (0 when off).
++    /// The renderer draws the sketch during this time, then runs the chosen
++    /// transition from the finished sketch. Sketch plus transition is capped
++    /// at the 10 s the renderer protocol accepts.
++    pub fn sketch_ms(&self) -> u64 {
++        let enabled =
++            self.config.get(SKETCH_ENABLED).and_then(Value::as_bool).unwrap_or(false);
++        if !enabled {
++            return 0;
++        }
++        self.config
++            .get(SKETCH_DURATION_MS)
++            .and_then(Value::as_f64)
++            .filter(|number| number.is_finite())
++            .map_or(6000, |number| number.clamp(1000.0, 20_000.0) as u64)
+     }
+ 
+     pub fn active(&self) -> bool {

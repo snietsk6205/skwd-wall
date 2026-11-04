@@ -1,0 +1,717 @@
+diff --git a/crates/paper-shaders/src/effects/mod.rs b/crates/paper-shaders/src/effects/mod.rs
+index 88df706..36eacf1 100644
+--- a/crates/paper-shaders/src/effects/mod.rs
++++ b/crates/paper-shaders/src/effects/mod.rs
+@@ -1,6 +1,11 @@
+ mod catalog;
+ mod resources;
++mod sketch;
+ mod vulkan;
+ 
+ pub use catalog::{EFFECTS, effect_index};
++pub use sketch::{
++    SKETCH_REVEAL_INDEX, SKETCH_STYLES, sketch_code, sketch_effect_index, sketch_style_index,
++    sketch_variant, sketch_variant_sources,
++};
+ pub use vulkan::effect_frag_vk;
+diff --git a/crates/paper-shaders/src/effects/sketch.rs b/crates/paper-shaders/src/effects/sketch.rs
+new file mode 100644
+index 0000000..47f6c62
+--- /dev/null
++++ b/crates/paper-shaders/src/effects/sketch.rs
+@@ -0,0 +1,128 @@
++//! "Sketch first" prelude for wallpaper transitions.
++//!
++//! When enabled, a transition first draws the incoming wallpaper as a sketch
++//! (outlines, then details, then shading), and the chosen transition then runs
++//! from that finished sketch to the real wallpaper. Every effect gets a
++//! generated variant whose `u_tex_old` samples are replaced by the finished
++//! sketch, so any transition can follow the drawing.
++//!
++//! The renderer passes the style and the sketch share of the timeline in the
++//! `u_pid_base` push constant: `1 + style * 10000 + split_permille`.
++
++pub const SKETCH_LIB: &str = include_str!("sketch/lib.glsl");
++pub const SKETCH_REVEAL_FRAG: &str = include_str!("sketch/reveal.frag");
++
++pub const SKETCH_STYLES: [&str; 7] =
++    ["pencil", "digital", "chalk", "blueprint", "ink-brush", "charcoal", "notebook"];
++
++const SKETCH_HEADER: &str = "#version 330 core
++in vec2 v_uv;
++out vec4 frag;
++uniform sampler2D u_tex_old;
++uniform sampler2D u_tex_new;
++uniform float u_progress;
++uniform vec2 u_res;
++uniform int u_pid_base;
++";
++
++const SKETCH_DISPATCH: &str = "void main() {
++    float sk_p = clamp(u_progress, 0.0, 1.0);
++    sk_decode();
++    if (sk_p < sk_split) {
++        frag = vec4(sk_frame(v_uv, sk_p / sk_split), 1.0);
++        return;
++    }
++    fx_p = sk_split >= 0.999 ? 1.0 : clamp((sk_p - sk_split) / (1.0 - sk_split), 0.0, 1.0);
++    fx_main();
++}
++";
++
++const STD_UNIFORMS: [&str; 5] = [
++    "uniform sampler2D u_tex_old;",
++    "uniform sampler2D u_tex_new;",
++    "uniform float u_progress;",
++    "uniform vec2 u_res;",
++    "uniform int u_pid_base;",
++];
++
++pub fn sketch_style_index(name: &str) -> usize {
++    SKETCH_STYLES.iter().position(|style| *style == name).unwrap_or(0)
++}
++
++fn is_ident(byte: u8) -> bool {
++    byte.is_ascii_alphanumeric() || byte == b'_'
++}
++
++fn replace_word(text: &str, word: &str, replacement: &str) -> String {
++    let bytes = text.as_bytes();
++    let mut out = String::with_capacity(text.len());
++    let mut i = 0;
++    while i < text.len() {
++        if text[i..].starts_with(word) {
++            let end = i + word.len();
++            let before_ok = i == 0 || !is_ident(bytes[i - 1]);
++            let after_ok = end >= bytes.len() || !is_ident(bytes[end]);
++            if before_ok && after_ok {
++                out.push_str(replacement);
++                i = end;
++                continue;
++            }
++        }
++        let Some(ch) = text[i..].chars().next() else { break };
++        out.push(ch);
++        i += ch.len_utf8();
++    }
++    out
++}
++
++/// Builds the GL 3.3 source of `effect_gl` preceded by the sketch prelude.
++pub fn sketch_variant(effect_gl: &str) -> String {
++    let mut uniforms = String::new();
++    let mut body = String::new();
++    for line in effect_gl.lines() {
++        let trimmed = line.trim();
++        if trimmed.starts_with("#version")
++            || trimmed == "in vec2 v_uv;"
++            || trimmed == "out vec4 frag;"
++            || STD_UNIFORMS.contains(&trimmed)
++        {
++            continue;
++        }
++        if trimmed.starts_with("uniform ") {
++            uniforms.push_str(line);
++            uniforms.push('\n');
++            continue;
++        }
++        body.push_str(line);
++        body.push('\n');
++    }
++    let body = replace_word(&body, "u_progress", "fx_p")
++        .replace("void main()", "void fx_main()")
++        .replace("texture(u_tex_old,", "sk_final(");
++    format!("{SKETCH_HEADER}{uniforms}{SKETCH_LIB}float fx_p;\n{body}{SKETCH_DISPATCH}")
++}
++
++/// Sketch variants in pipeline order: one per entry of `EFFECTS`, then the
++/// ink-wash reveal used in place of fades and sand.
++pub fn sketch_variant_sources() -> Vec<String> {
++    super::EFFECTS
++        .iter()
++        .map(|(_, src)| sketch_variant(src))
++        .chain(std::iter::once(sketch_variant(SKETCH_REVEAL_FRAG)))
++        .collect()
++}
++
++/// Pipeline index of the sketch variant of effect `fx`.
++pub const fn sketch_effect_index(fx: usize) -> usize {
++    super::EFFECTS.len() + fx
++}
++
++/// Pipeline index of the ink-wash reveal variant.
++pub const SKETCH_REVEAL_INDEX: usize = super::EFFECTS.len() * 2;
++
++/// Push-constant code for a sketch prelude, see the module docs.
++pub fn sketch_code(style: usize, split: f32) -> i32 {
++    let style = style.min(SKETCH_STYLES.len() - 1) as i32;
++    let permille = (split.clamp(0.0, 0.95) * 1000.0).round() as i32;
++    1 + style * 10_000 + permille
++}
+diff --git a/crates/paper-shaders/src/effects/sketch/lib.glsl b/crates/paper-shaders/src/effects/sketch/lib.glsl
+new file mode 100644
+index 0000000..6cc6d8f
+--- /dev/null
++++ b/crates/paper-shaders/src/effects/sketch/lib.glsl
+@@ -0,0 +1,215 @@
++int sk_style;
++float sk_split;
++float sk_hash(vec2 p) {
++    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
++}
++float sk_noise(vec2 p) {
++    vec2 i = floor(p);
++    vec2 f = fract(p);
++    f = f * f * (3.0 - 2.0 * f);
++    return mix(mix(sk_hash(i), sk_hash(i + vec2(1.0, 0.0)), f.x),
++               mix(sk_hash(i + vec2(0.0, 1.0)), sk_hash(i + vec2(1.0, 1.0)), f.x), f.y);
++}
++float sk_fbm(vec2 p) {
++    float v = 0.0;
++    float amp = 0.5;
++    for (int i = 0; i < 4; i++) {
++        v += amp * sk_noise(p);
++        p *= 2.03;
++        amp *= 0.5;
++    }
++    return v;
++}
++void sk_decode() {
++    int code = u_pid_base - 1;
++    if (code < 0) {
++        sk_style = 0;
++        sk_split = 0.0;
++        return;
++    }
++    sk_style = code / 10000;
++    sk_split = clamp(float(code - sk_style * 10000) / 1000.0, 0.0, 0.95);
++}
++float sk_luma(vec2 q) {
++    return dot(texture(u_tex_new, q).rgb, vec3(0.299, 0.587, 0.114));
++}
++vec2 sk_sobel(vec2 q, vec2 s) {
++    float tl = sk_luma(q + vec2(-s.x, s.y));
++    float tc = sk_luma(q + vec2(0.0, s.y));
++    float tr = sk_luma(q + vec2(s.x, s.y));
++    float ml = sk_luma(q + vec2(-s.x, 0.0));
++    float mr = sk_luma(q + vec2(s.x, 0.0));
++    float bl = sk_luma(q + vec2(-s.x, -s.y));
++    float bc = sk_luma(q + vec2(0.0, -s.y));
++    float br = sk_luma(q + vec2(s.x, -s.y));
++    return vec2((tr + 2.0 * mr + br) - (tl + 2.0 * ml + bl),
++                (tl + 2.0 * tc + tr) - (bl + 2.0 * bc + br));
++}
++float sk_width() {
++    if (sk_style == 4 || sk_style == 5) return 1.8;
++    if (sk_style == 2) return 1.4;
++    return 1.0;
++}
++vec3 sk_ground(vec2 uv, vec2 pos, vec2 px, vec2 res, float s) {
++    float grain = sk_noise(px / 2.2);
++    float fibre = sk_fbm(pos * 9.0);
++    if (sk_style == 1) {
++        vec3 c = mix(vec3(0.045, 0.05, 0.065), vec3(0.075, 0.08, 0.10), 1.0 - length(uv - 0.5));
++        return c * (0.97 + 0.03 * step(0.5, fract(px.y / 3.0)));
++    }
++    if (sk_style == 2) {
++        vec3 c = vec3(0.16, 0.23, 0.19) * (0.86 + 0.22 * sk_fbm(pos * 3.0));
++        return c + vec3(0.05) * smoothstep(0.62, 0.9, sk_fbm(pos * 1.7 + 4.0)) + 0.012 * grain;
++    }
++    if (sk_style == 3) {
++        vec3 c = vec3(0.10, 0.29, 0.53) * (0.94 + 0.08 * fibre);
++        vec2 g1 = abs(fract(px / (28.0 * s)) - 0.5) * 28.0 * s;
++        vec2 g2 = abs(fract(px / (140.0 * s)) - 0.5) * 140.0 * s;
++        float minor = 1.0 - smoothstep(0.0, 1.0, min(g1.x, g1.y));
++        float major = 1.0 - smoothstep(0.0, 1.4, min(g2.x, g2.y));
++        return c + vec3(0.55, 0.7, 0.9) * (minor * 0.07 + major * 0.14) ;
++    }
++    if (sk_style == 4) {
++        return vec3(0.955, 0.94, 0.895) * (0.96 + 0.04 * fibre) - 0.03 * smoothstep(0.7, 0.95, sk_noise(pos * 60.0));
++    }
++    if (sk_style == 5) {
++        return vec3(0.85, 0.83, 0.79) * (0.93 + 0.05 * grain + 0.04 * fibre);
++    }
++    if (sk_style == 6) {
++        vec3 c = vec3(0.985, 0.98, 0.965) * (0.985 + 0.015 * grain);
++        float rule = 1.0 - smoothstep(0.0, 1.3 * s, abs(fract(px.y / (36.0 * s)) - 0.5) * 36.0 * s);
++        float margin = 1.0 - smoothstep(0.0, 1.5 * s, abs(uv.x - 0.085) * res.x);
++        c = mix(c, vec3(0.55, 0.72, 0.88), rule * 0.45);
++        return mix(c, vec3(0.88, 0.35, 0.38), margin * 0.6);
++    }
++    return vec3(0.945, 0.93, 0.90) * (0.965 + 0.035 * grain);
++}
++vec3 sk_ink_colour(vec3 src) {
++    if (sk_style == 1) {
++        float m = max(max(src.r, src.g), src.b);
++        vec3 tint = m > 0.001 ? src / m : vec3(1.0);
++        return mix(vec3(0.35, 0.85, 1.0), tint, 0.55);
++    }
++    if (sk_style == 2) return vec3(0.93, 0.94, 0.90);
++    if (sk_style == 3) return vec3(0.90, 0.95, 1.0);
++    if (sk_style == 4) return vec3(0.05, 0.05, 0.06);
++    if (sk_style == 5) return vec3(0.12, 0.11, 0.11);
++    if (sk_style == 6) return vec3(0.13, 0.22, 0.58);
++    return vec3(0.22, 0.21, 0.24);
++}
++float sk_draw_time(vec2 pos, vec2 focus, vec2 tangent, float start, float span, float seed) {
++    float cs = 0.34;
++    vec2 g = floor(pos / cs);
++    vec2 best = vec2(0.0);
++    vec2 bestId = vec2(0.0);
++    float bd = 1e9;
++    for (int j = -1; j <= 1; j++) {
++        for (int i = -1; i <= 1; i++) {
++            vec2 id = g + vec2(float(i), float(j));
++            vec2 c = (id + 0.2 + 0.6 * vec2(sk_hash(id + seed), sk_hash(id + seed + 17.3))) * cs;
++            float d = length(pos - c);
++            if (d < bd) {
++                bd = d;
++                best = c;
++                bestId = id;
++            }
++        }
++    }
++    float ang = sk_hash(bestId + seed + 3.1) * 6.2831;
++    vec2 dir = vec2(cos(ang), sin(ang));
++    vec2 t = dot(tangent, dir) < 0.0 ? -tangent : tangent;
++    vec2 flow = normalize(mix(dir, t, 0.7) + vec2(1e-4));
++    float along = clamp(dot(pos - best, flow) / (cs * 1.3) + 0.5, 0.0, 1.0);
++    float across = dot(pos - best, vec2(-flow.y, flow.x));
++    float stroke = sk_hash(vec2(floor(across * 30.0), bestId.x * 7.0 + bestId.y + seed));
++    float order = clamp(length(best - focus) / 1.25 + 0.25 * sk_hash(bestId + seed + 9.7), 0.0, 1.0);
++    return start + span * (0.55 * order + 0.3 * stroke * 0.5 + 0.3 * along * (0.6 + 0.4 * stroke));
++}
++vec3 sk_frame(vec2 uv, float q) {
++    vec2 res = max(u_res, vec2(1.0));
++    vec2 asp = vec2(res.x / res.y, 1.0);
++    vec2 pos = uv * asp;
++    vec2 px = uv * res;
++    vec2 focus = vec2(0.5, 0.45) * asp;
++    float scale = max(1.0, res.y / 1080.0) * sk_width();
++    vec2 s1 = scale / res;
++    vec2 g = sk_sobel(uv, s1) * 0.75 + sk_sobel(uv, s1 * 2.0) * 0.25;
++    float mag = length(g);
++    vec3 src = texture(u_tex_new, uv).rgb;
++    float lum = dot(src, vec3(0.299, 0.587, 0.114));
++    float dark = 1.0 - lum;
++    float m = mag * mix(0.75, 1.25, dark);
++    float outline = smoothstep(0.42, 0.9, m);
++    float detail = smoothstep(0.14, 0.42, m) * (1.0 - outline);
++    vec2 tangent = mag > 0.0001 ? vec2(-g.y, g.x) / mag : vec2(1.0, 0.0);
++    float tOut = sk_draw_time(pos, focus, tangent, 0.07, 0.55, 1.0);
++    float tDet = sk_draw_time(pos, focus, tangent, 0.32, 0.50, 5.0);
++    float tSh = sk_draw_time(pos, focus, vec2(0.7071, 0.7071), 0.55, 0.40, 11.0);
++    float rOut = smoothstep(tOut, tOut + 0.012, q);
++    float rDet = smoothstep(tDet, tDet + 0.012, q);
++    float rSh = smoothstep(tSh, tSh + 0.05, q);
++    float tipOut = rOut * (1.0 - smoothstep(0.0, 0.05, q - tOut));
++    float tipDet = rDet * (1.0 - smoothstep(0.0, 0.05, q - tDet));
++    float pressure = 0.72 + 0.28 * sk_noise(vec2(dot(pos, tangent) * 40.0, dot(pos, vec2(-tangent.y, tangent.x)) * 5.0));
++    float lines = outline * rOut + detail * rDet * 0.75;
++    float tip = max(outline * tipOut, detail * tipDet * 0.75);
++    vec2 r12 = 9.0 * scale / res;
++    float around = 0.125 * (sk_luma(uv + vec2(r12.x, 0.0)) + sk_luma(uv - vec2(r12.x, 0.0))
++        + sk_luma(uv + vec2(0.0, r12.y)) + sk_luma(uv - vec2(0.0, r12.y))
++        + sk_luma(uv + r12 * 0.7071) + sk_luma(uv - r12 * 0.7071)
++        + sk_luma(uv + vec2(r12.x, -r12.y) * 0.7071) + sk_luma(uv + vec2(-r12.x, r12.y) * 0.7071));
++    float subject = 1.0 - smoothstep(0.35, 0.85, length(pos - focus));
++    float tone = clamp(smoothstep(0.03, 0.2, around - lum) + smoothstep(0.55, 0.95, dark) * 0.35 * subject, 0.0, 1.0);
++    float tone2 = smoothstep(0.12, 0.3, around - lum);
++    float hs = 6.0 * max(1.0, res.y / 1080.0);
++    float wob = (sk_noise(px / 45.0) - 0.5) * 2.5;
++    float h1 = smoothstep(0.55, 0.95, sin((dot(px, vec2(0.7071, 0.7071)) + wob * hs) / hs * 6.2831) * 0.5 + 0.5);
++    float h2 = smoothstep(0.55, 0.95, sin((dot(px, vec2(-0.7071, 0.7071)) + wob * hs) / hs * 6.2831) * 0.5 + 0.5);
++    float hatch = (h1 * tone + h2 * tone2 * 0.7) * (0.6 + 0.4 * sk_noise(px / 25.0));
++    vec3 ground = sk_ground(uv, pos, px, res, max(1.0, res.y / 1080.0));
++    vec3 ink = sk_ink_colour(src);
++    vec3 col = ground;
++    if (sk_style == 1) {
++        float glow = smoothstep(0.08, 0.5, length(sk_sobel(uv, s1 * 3.0))) * max(rOut, rDet);
++        col += ink * glow * 0.22;
++        col = mix(col, src * 0.35 + ground, rSh * smoothstep(0.1, 0.9, lum) * 0.35);
++        col += ink * lines * pressure * 0.95;
++        col += vec3(1.0) * tip * 0.8;
++    } else if (sk_style == 2) {
++        float chalk = smoothstep(0.2, 0.62, sk_noise(px / 1.6) * 0.6 + sk_noise(px / 5.0) * 0.4);
++        col = mix(col, ink, hatch * rSh * 0.22 * chalk);
++        col = mix(col, ink, clamp(lines * pressure * chalk * 1.15, 0.0, 1.0));
++        col = mix(col, vec3(1.0), tip * 0.6);
++    } else if (sk_style == 3) {
++        col = mix(col, ink, clamp(lines * 1.05, 0.0, 1.0));
++        col += vec3(0.6, 0.85, 1.0) * tip * 0.55;
++    } else if (sk_style == 4) {
++        float wash = max(tone, smoothstep(0.55, 0.95, dark) * 0.5) * rSh * (0.55 + 0.45 * sk_fbm(pos * 5.0));
++        col = mix(col, vec3(0.42, 0.42, 0.44), wash * 0.45);
++        col = mix(col, ink, clamp(lines * (0.85 + 0.3 * pressure), 0.0, 1.0));
++        col = mix(col, ink, tip * 0.4);
++    } else if (sk_style == 5) {
++        float grit = smoothstep(0.15, 0.55, sk_noise(px / 1.4));
++        float smudge = tone * rSh * (0.6 + 0.4 * sk_fbm(pos * 4.0));
++        col = mix(col, ink, smudge * 0.55);
++        col = mix(col, ink, clamp(lines * pressure * (0.6 + 0.5 * grit), 0.0, 1.0));
++        col = mix(col, ink * 0.5, tip * 0.5);
++    } else if (sk_style == 6) {
++        col = mix(col, ink, hatch * rSh * 0.45);
++        col = mix(col, ink, clamp(lines * pressure * 0.95, 0.0, 1.0));
++        col = mix(col, ink * 0.6, tip * 0.6);
++    } else {
++        col = mix(col, ink, hatch * rSh * 0.32);
++        col = mix(col, ink, clamp(lines * pressure * 0.88, 0.0, 1.0));
++        col = mix(col, ink * 0.35, tip * 0.7);
++    }
++    if (q < 0.16) {
++        vec3 old = texture(u_tex_old, uv).rgb;
++        float cover = smoothstep(0.0, 0.1, q + (sk_fbm(pos * 3.0 + 9.1) - 0.5) * 0.06);
++        col = mix(old, col, cover);
++    }
++    return col;
++}
++vec4 sk_final(vec2 uv) {
++    return vec4(sk_frame(uv, 1.0), 1.0);
++}
+diff --git a/crates/paper-shaders/src/effects/sketch/reveal.frag b/crates/paper-shaders/src/effects/sketch/reveal.frag
+new file mode 100644
+index 0000000..3d35199
+--- /dev/null
++++ b/crates/paper-shaders/src/effects/sketch/reveal.frag
+@@ -0,0 +1,47 @@
++#version 330 core
++in vec2 v_uv;
++out vec4 frag;
++uniform sampler2D u_tex_old;
++uniform sampler2D u_tex_new;
++uniform float u_progress;
++uniform vec2 u_res;
++float rv_hash(vec2 p) {
++    return fract(sin(dot(p, vec2(269.5, 183.3))) * 43758.5453);
++}
++float rv_noise(vec2 p) {
++    vec2 i = floor(p);
++    vec2 f = fract(p);
++    f = f * f * (3.0 - 2.0 * f);
++    return mix(mix(rv_hash(i), rv_hash(i + vec2(1.0, 0.0)), f.x),
++               mix(rv_hash(i + vec2(0.0, 1.0)), rv_hash(i + vec2(1.0, 1.0)), f.x), f.y);
++}
++float rv_fbm(vec2 p) {
++    float v = 0.0;
++    float amp = 0.5;
++    for (int i = 0; i < 4; i++) {
++        v += amp * rv_noise(p);
++        p *= 2.0;
++        amp *= 0.5;
++    }
++    return v;
++}
++void main() {
++    float p = clamp(u_progress, 0.0, 1.0);
++    vec4 b = texture(u_tex_new, v_uv);
++    if (p >= 1.0) {
++        frag = b;
++        return;
++    }
++    vec4 a = texture(u_tex_old, v_uv);
++    vec2 res = max(u_res, vec2(1.0));
++    vec2 asp = vec2(res.x / res.y, 1.0);
++    vec2 pos = v_uv * asp;
++    float d = length((v_uv - vec2(0.5, 0.45)) * asp) + (rv_fbm(pos * 3.0 + vec2(1.3, 7.7)) - 0.5) * 0.35;
++    float e = p * p * (3.0 - 2.0 * p);
++    float radius = e * 1.45;
++    float reveal = smoothstep(radius, radius - 0.07, d) * step(0.0001, p);
++    float rim = exp(-abs(d - radius) * 40.0) * step(0.0001, p) * (1.0 - p);
++    vec3 col = mix(a.rgb, b.rgb, reveal);
++    col = mix(col, col * 0.8, rim * 0.55);
++    frag = vec4(col, 1.0);
++}
+diff --git a/crates/paper-shaders/src/lib.rs b/crates/paper-shaders/src/lib.rs
+index 32b94ec..5912a3b 100644
+--- a/crates/paper-shaders/src/lib.rs
++++ b/crates/paper-shaders/src/lib.rs
+@@ -3,7 +3,10 @@
+ mod effects;
+ mod sand;
+ 
+-pub use effects::{EFFECTS, effect_frag_vk, effect_index};
++pub use effects::{
++    EFFECTS, SKETCH_REVEAL_INDEX, SKETCH_STYLES, effect_frag_vk, effect_index, sketch_code,
++    sketch_effect_index, sketch_style_index, sketch_variant, sketch_variant_sources,
++};
+ pub use sand::{
+     Dialect, SAND_A_ONLY_BELOW, SAND_B_ONLY_FROM, SAND_BASE_FRAG_GL, SAND_BASE_FRAG_VK,
+     SAND_GRAIN_FRAG_GL, SAND_GRAIN_FRAG_VK, SAND_GRAIN_GH, SAND_GRAIN_GW, SAND_GRAIN_INSTANCES,
+diff --git a/crates/paper-vk/build.rs b/crates/paper-vk/build.rs
+index a41060d..1d36367 100644
+--- a/crates/paper-vk/build.rs
++++ b/crates/paper-vk/build.rs
+@@ -49,6 +49,17 @@ fn main() {
+             "    include_bytes!(concat!(env!(\"OUT_DIR\"), \"/fx_{idx}.frag.spv\")),\n"
+         ));
+     }
++    let base = paper_shaders::EFFECTS.len();
++    for (offset, gl_src) in paper_shaders::sketch_variant_sources().iter().enumerate() {
++        let idx = base + offset;
++        let frag = format!("{out}/fx_{idx}.frag");
++        std::fs::write(&frag, paper_shaders::effect_frag_vk(gl_src))
++            .unwrap_or_else(|_| panic!("write sketch fx {idx}"));
++        compile(&frag, &format!("{out}/fx_{idx}.frag.spv"));
++        table.push_str(&format!(
++            "    include_bytes!(concat!(env!(\"OUT_DIR\"), \"/fx_{idx}.frag.spv\")),\n"
++        ));
++    }
+     table.push_str("];\n");
+     std::fs::write(format!("{out}/effects_gen.rs"), table).expect("write effects table");
+ }
+diff --git a/crates/paper-vk/src/app/scene.rs b/crates/paper-vk/src/app/scene.rs
+index 2e4989a..c85e6eb 100644
+--- a/crates/paper-vk/src/app/scene.rs
++++ b/crates/paper-vk/src/app/scene.rs
+@@ -45,8 +45,12 @@ fn scene_fade_step(ratio: Option<f32>, first_frame: bool) -> SceneFadeStep {
+     SceneFadeStep { mix, render_transition: true, finish_after_commit: mix >= 1.0 }
+ }
+ 
++fn scene_duration_cap() -> u64 {
++    if crate::sketch::current().is_some() { 10_000 } else { 4000 }
++}
++
+ fn scene_swap_duration(duration_ms: u64) -> Option<u64> {
+-    (duration_ms > 0).then(|| duration_ms.clamp(80, 4000))
++    (duration_ms > 0).then(|| duration_ms.clamp(80, scene_duration_cap()))
+ }
+ 
+ struct LayerFx {
+@@ -4414,7 +4418,7 @@ pub(super) fn run_scene(
+     let mut fade_ms = start_fade
+         .as_ref()
+         .filter(|sf| !sf.from.is_empty())
+-        .map_or(0u64, |sf| sf.duration_ms.clamp(80, 4000));
++        .map_or(0u64, |sf| sf.duration_ms.clamp(80, scene_duration_cap()));
+     if fade_ms > 0
+         && let Some(sf) = &start_fade
+         && let Err(err) = load_from_frame(&mut group, &sf.from)
+diff --git a/crates/paper-vk/src/main.rs b/crates/paper-vk/src/main.rs
+index 61c397b..63c7013 100644
+--- a/crates/paper-vk/src/main.rs
++++ b/crates/paper-vk/src/main.rs
+@@ -14,6 +14,7 @@ mod probe;
+ mod sandbox;
+ #[cfg(feature = "shared-device")]
+ mod shared;
++mod sketch;
+ mod surface;
+ mod timing;
+ mod vk;
+diff --git a/crates/paper-vk/src/sketch.rs b/crates/paper-vk/src/sketch.rs
+new file mode 100644
+index 0000000..a1aed54
+--- /dev/null
++++ b/crates/paper-vk/src/sketch.rs
+@@ -0,0 +1,130 @@
++//! "Sketch before transition": reads the picker's settings from skwd-wall's
++//! config file so every transition path in this renderer can prepend the
++//! progressive sketch without changing how transitions are requested.
++//!
++//! The daemon already lengthens the transition by the sketch duration, so the
++//! sketch's share of the timeline is `sketch / (sketch + transition)`.
++
++use std::path::PathBuf;
++use std::sync::{Mutex, PoisonError};
++use std::time::{Duration, Instant, SystemTime};
++
++use serde_json::Value;
++
++const RECHECK: Duration = Duration::from_millis(400);
++const DEFAULT_SKETCH_MS: f64 = 6000.0;
++
++#[derive(Clone, Copy, Debug, PartialEq)]
++pub(crate) struct Sketch {
++    pub(crate) style: usize,
++    pub(crate) split: f32,
++}
++
++impl Sketch {
++    pub(crate) fn code(self) -> i32 {
++        paper_shaders::sketch_code(self.style, self.split)
++    }
++}
++
++struct Cache {
++    checked: Option<Instant>,
++    modified: Option<SystemTime>,
++    value: Option<Sketch>,
++}
++
++static CACHE: Mutex<Cache> = Mutex::new(Cache { checked: None, modified: None, value: None });
++
++fn env(name: &str) -> Option<String> {
++    std::env::var(name).ok().filter(|value| !value.is_empty())
++}
++
++fn config_path() -> PathBuf {
++    if let Some(dir) = env("SKWD_WALL_V2_CONFIG") {
++        return PathBuf::from(dir).join("config.json");
++    }
++    let base = env("XDG_CONFIG_HOME")
++        .unwrap_or_else(|| format!("{}/.config", env("HOME").unwrap_or_else(|| "/".into())));
++    PathBuf::from(base).join("skwd-wall-v2").join("config.json")
++}
++
++fn number(section: &Value, key: &str) -> Option<f64> {
++    let value = section.get(key)?;
++    value.as_f64().or_else(|| value.as_str()?.trim().parse().ok()).filter(|n: &f64| n.is_finite())
++}
++
++pub(crate) fn parse(text: &str) -> Option<Sketch> {
++    let root: Value = serde_json::from_str(text).ok()?;
++    let section = root.get("transition")?;
++    if !section.get("sketchEnabled").and_then(Value::as_bool).unwrap_or(false) {
++        return None;
++    }
++    if !section.get("enabled").and_then(Value::as_bool).unwrap_or(true) {
++        return None;
++    }
++    let style = paper_shaders::sketch_style_index(
++        section.get("sketchStyle").and_then(Value::as_str).unwrap_or("pencil"),
++    );
++    let sketch_ms = number(section, "sketchDurationMs")
++        .unwrap_or(DEFAULT_SKETCH_MS)
++        .clamp(1000.0, 20_000.0);
++    let base_ms = number(section, "durationMs").unwrap_or(600.0).clamp(50.0, 10_000.0);
++    Some(Sketch { style, split: (sketch_ms / (sketch_ms + base_ms)) as f32 })
++}
++
++/// Current sketch settings, re-read at most every 400 ms and only when the
++/// config file changed. `None` when the feature is off or unreadable.
++pub(crate) fn current() -> Option<Sketch> {
++    let mut cache = CACHE.lock().unwrap_or_else(PoisonError::into_inner);
++    let now = Instant::now();
++    if cache.checked.is_some_and(|at| now.duration_since(at) < RECHECK) {
++        return cache.value;
++    }
++    cache.checked = Some(now);
++    let path = config_path();
++    let modified = std::fs::metadata(&path).and_then(|meta| meta.modified()).ok();
++    if modified.is_some() && modified == cache.modified {
++        return cache.value;
++    }
++    cache.modified = modified;
++    cache.value = std::fs::read_to_string(&path).ok().and_then(|text| parse(&text));
++    cache.value
++}
++
++/// Inverse of `t * t * (3 - 2t)`, used to recover linear progress from the
++/// eased mix value that fade transitions are rendered with.
++pub(crate) fn unease(mix: f32) -> f32 {
++    let mix = mix.clamp(0.0, 1.0);
++    (0.5 - ((1.0 - 2.0 * mix).asin() / 3.0).sin()).clamp(0.0, 1.0)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn disabled_or_missing_is_none() {
++        assert_eq!(parse("{}"), None);
++        assert_eq!(parse(r#"{"transition":{"sketchEnabled":false}}"#), None);
++        assert_eq!(parse(r#"{"transition":{"sketchEnabled":true,"enabled":false}}"#), None);
++        assert_eq!(parse("not json"), None);
++    }
++
++    #[test]
++    fn split_follows_durations() {
++        let sketch = parse(
++            r#"{"transition":{"sketchEnabled":true,"sketchStyle":"chalk","sketchDurationMs":6000,"durationMs":2000}}"#,
++        )
++        .unwrap();
++        assert_eq!(sketch.style, 2);
++        assert!((sketch.split - 0.75).abs() < 1e-6);
++    }
++
++    #[test]
++    fn unease_inverts_smoothstep() {
++        for step in 0..=20 {
++            let t = step as f32 / 20.0;
++            let eased = t * t * (3.0 - 2.0 * t);
++            assert!((unease(eased) - t).abs() < 1e-3, "t={t}");
++        }
++    }
++}
+diff --git a/crates/paper-vk/src/vk/draw/shared/targets.rs b/crates/paper-vk/src/vk/draw/shared/targets.rs
+index 0a59834..eca0303 100644
+--- a/crates/paper-vk/src/vk/draw/shared/targets.rs
++++ b/crates/paper-vk/src/vk/draw/shared/targets.rs
+@@ -337,6 +337,19 @@ impl Renderer {
+         uv_b: [f32; 4],
+         mix: f32,
+     ) -> Result<()> {
++        if let Some(sketch) = crate::sketch::current() {
++            return self.render_effect_code_to(
++                rt,
++                export,
++                src_a,
++                uv_a,
++                src_b,
++                uv_b,
++                crate::sketch::unease(mix),
++                paper_shaders::SKETCH_REVEAL_INDEX,
++                sketch.code(),
++            );
++        }
+         let uv_a = src_a.texture_uv(uv_a);
+         let uv_b = src_b.texture_uv(uv_b);
+         self.ensure_transition_pipelines()?;
+@@ -392,6 +405,26 @@ impl Renderer {
+         uv_b: [f32; 4],
+         progress: f32,
+         fx: usize,
++    ) -> Result<()> {
++        let (fx, code) = match crate::sketch::current() {
++            Some(sketch) => (paper_shaders::sketch_effect_index(fx), sketch.code()),
++            None => (fx, 0),
++        };
++        self.render_effect_code_to(rt, export, src_a, uv_a, src_b, uv_b, progress, fx, code)
++    }
++
++    #[cfg(feature = "shared-device")]
++    fn render_effect_code_to(
++        &mut self,
++        rt: &RenderTarget,
++        export: &mut ExportImage,
++        src_a: &Src,
++        uv_a: [f32; 4],
++        src_b: &Src,
++        uv_b: [f32; 4],
++        progress: f32,
++        fx: usize,
++        code: i32,
+     ) -> Result<()> {
+         let uv_a = src_a.texture_uv(uv_a);
+         let uv_b = src_b.texture_uv(uv_b);
+@@ -432,7 +465,7 @@ impl Renderer {
+             res: [self.extent.width as f32, self.extent.height as f32],
+             progress: progress.clamp(0.0, 1.0),
+             style: fx as i32,
+-            pid_base: 0,
++            pid_base: code,
+             fill: crate::fill_flag(),
+             rgba_a: i32::from(matches!(src_a, Src::Rgba(_))),
+             rgba_b: i32::from(matches!(src_b, Src::Rgba(_))),
+@@ -486,6 +519,19 @@ impl Renderer {
+         progress: f32,
+         style: i32,
+     ) -> Result<()> {
++        if let Some(sketch) = crate::sketch::current() {
++            return self.render_effect_code_to(
++                rt,
++                export,
++                src_a,
++                uv_a,
++                src_b,
++                uv_b,
++                progress,
++                paper_shaders::SKETCH_REVEAL_INDEX,
++                sketch.code(),
++            );
++        }
+         let uv_a = src_a.texture_uv(uv_a);
+         let uv_b = src_b.texture_uv(uv_b);
+         self.ensure_transition_pipelines()?;
