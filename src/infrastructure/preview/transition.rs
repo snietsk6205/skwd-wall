@@ -76,8 +76,10 @@ impl TransitionPreviewWorker {
         frame_ms: u64,
         env: &[(&str, String)],
     ) {
-        let env_key: String =
-            env.iter().map(|(name, value)| format!("{name}={value}\u{0}")).collect();
+        let env_key: String = env
+            .iter()
+            .map(|(name, value)| [*name, "=", value.as_str(), "\u{0}"].concat())
+            .collect();
         let key = format!(
             "{shader}\u{0}{fill_mode}\u{0}{duration_ms}\u{0}{frame_ms}\u{0}{from}\u{0}{to}\u{0}{env_key}"
         );

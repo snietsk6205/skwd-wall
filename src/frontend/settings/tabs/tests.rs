@@ -1663,6 +1663,7 @@ fn transition_style_section() {
             "Launch",
             "Picker motion",
             "Wallpaper transitions",
+            "Sketch before transition",
             "Transition performance"
         ]
     );

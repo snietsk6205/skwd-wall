@@ -186,12 +186,12 @@ pub(super) fn tab_transitions(builder: &mut Builder<'_>) {
     );
 }
 
-const SKETCH_ENABLED: &str = "transition.sketchEnabled";
-const SKETCH_STYLE: &str = "transition.sketchStyle";
-const SKETCH_DURATION: &str = "transition.sketchDurationMs";
-const SKETCH_VIDEOS: &str = "transition.sketchVideos";
-const SKETCH_SCENES: &str = "transition.sketchScenes";
-const ORIGIN: &str = "transition.origin";
+const SKETCH_ENABLED: &str = keys::transition::SKETCH_ENABLED;
+const SKETCH_STYLE: &str = keys::transition::SKETCH_STYLE;
+const SKETCH_DURATION: &str = keys::transition::SKETCH_DURATION_MS;
+const SKETCH_VIDEOS: &str = keys::transition::SKETCH_VIDEOS;
+const SKETCH_SCENES: &str = keys::transition::SKETCH_SCENES;
+const ORIGIN: &str = keys::transition::ORIGIN;
 
 const SKETCH_STYLES: [(&str, &str); 7] = [
     ("pencil", "Pencil on paper"),

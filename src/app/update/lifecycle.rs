@@ -24,7 +24,7 @@ pub(crate) fn drive_transition_preview(app: &mut App) {
     } else {
         (base + preview_sketch_ms(&app.config)).min(10_000)
     };
-    let origin = app.config.str_path("transition.origin");
+    let origin = app.config.str_path(skwd_config::keys::transition::ORIGIN);
     let env = [
         ("SKWD_PAPER_SKETCH", sketch_env),
         (
@@ -59,23 +59,24 @@ pub(crate) fn drive_transition_preview(app: &mut App) {
 }
 
 fn preview_sketch_ms(config: &crate::infrastructure::config::Config) -> u64 {
-    let sketch = config.num_path("transition.sketchDurationMs");
+    let sketch = config.num_path(skwd_config::keys::transition::SKETCH_DURATION_MS);
     if sketch > 0.0 { sketch.clamp(1000.0, 20_000.0) as u64 } else { 6000 }
 }
 
 /// Same `SKWD_PAPER_SKETCH` value the daemon gives its renderers, so the
 /// Settings preview shows the sketch exactly as the desktop will.
 fn preview_sketch_env(config: &crate::infrastructure::config::Config, base: u64) -> String {
-    if !config.flag_default_config("transition.sketchEnabled") || base >= 10_000 {
+    if !config.flag_default_config(skwd_config::keys::transition::SKETCH_ENABLED) || base >= 10_000
+    {
         return String::new();
     }
-    let style = config.str_path("transition.sketchStyle");
+    let style = config.str_path(skwd_config::keys::transition::SKETCH_STYLE);
     format!(
         "style={};ms={};base={base};videos={};scenes={}",
         if style.is_empty() { "pencil" } else { style.as_str() },
         preview_sketch_ms(config),
-        u8::from(config.flag_default_true("transition.sketchVideos")),
-        u8::from(config.flag_default_true("transition.sketchScenes")),
+        u8::from(config.flag_default_true(skwd_config::keys::transition::SKETCH_VIDEOS)),
+        u8::from(config.flag_default_true(skwd_config::keys::transition::SKETCH_SCENES)),
     )
 }
 
