@@ -122,6 +122,8 @@ pub(super) fn tab_transitions(builder: &mut Builder<'_>) {
         );
     }
 
+    tab_sketch(builder);
+
     builder.card(
         tr("settings-transitions-preview-card"),
         tr("settings-transitions-preview-card-desc"),
@@ -181,6 +183,74 @@ pub(super) fn tab_transitions(builder: &mut Builder<'_>) {
         tr("settings-transitions-sharp-label"),
         tr("settings-transitions-sharp-desc"),
         keys::transition::SAND_SHARP,
+    );
+}
+
+const SKETCH_ENABLED: &str = "transition.sketchEnabled";
+const SKETCH_STYLE: &str = "transition.sketchStyle";
+const SKETCH_DURATION: &str = "transition.sketchDurationMs";
+
+const SKETCH_STYLES: [(&str, &str); 7] = [
+    ("pencil", "Pencil on paper"),
+    ("digital", "Digital screen"),
+    ("chalk", "Chalkboard"),
+    ("blueprint", "Blueprint"),
+    ("ink-brush", "Ink brush"),
+    ("charcoal", "Charcoal"),
+    ("notebook", "Notebook pen"),
+];
+
+fn sketch_style_desc(style: &str) -> &'static str {
+    match style {
+        "digital" => "Glowing lines on a dark screen, tinted with the wallpaper's colours.",
+        "chalk" => "Grainy white chalk on a green board.",
+        "blueprint" => "Crisp white lines over a blue engineering grid.",
+        "ink-brush" => "Bold black brush strokes with a soft ink wash on rice paper.",
+        "charcoal" => "Thick smudgy strokes and soft shadows on toothy paper.",
+        "notebook" => "Blue ballpoint lines and cross-hatching on lined school paper.",
+        _ => "Graphite outlines, details and light hatching on cream paper.",
+    }
+}
+
+fn tab_sketch(builder: &mut Builder<'_>) {
+    let cfg = builder.cfg;
+    builder.card(
+        "Sketch before transition",
+        "Draw the new wallpaper as a sketch first, then run the transition chosen above from that sketch.",
+    );
+    builder.toggle(
+        "Draw a sketch first",
+        "The outlines, details and shading are drawn stroke by stroke before the transition starts.",
+        SKETCH_ENABLED,
+    );
+    if !cfg.flag(SKETCH_ENABLED) {
+        return;
+    }
+    let style = cfg.text(SKETCH_STYLE);
+    let style = if SKETCH_STYLES.iter().any(|(key, _)| *key == style) {
+        style
+    } else {
+        String::from("pencil")
+    };
+    builder.row(
+        "Drawing style",
+        sketch_style_desc(&style),
+        Control::Chips {
+            path: String::from(SKETCH_STYLE),
+            options: SKETCH_STYLES
+                .iter()
+                .map(|(key, label)| ((*key).to_string(), (*label).to_string()))
+                .collect(),
+            current: style,
+            disabled: Vec::new(),
+            background: None,
+        },
+    );
+    builder.num(
+        "Sketch duration",
+        "How long the drawing takes, 1000 to 20000 ms (default 6000). Sketch and transition together are capped at 10000 ms; Sand transitions become an ink-wash reveal.",
+        SKETCH_DURATION,
+        "ms",
     );
 }
 

@@ -511,6 +511,12 @@ fn compose_motion(cfg: &dyn SettingsSource) -> Vec<(Card, Vec<Row>)> {
     );
     section(
         &mut out,
+        "Sketch before transition",
+        "Draw the new wallpaper as a sketch first, then run the chosen transition from it.",
+        take_card(&mut transitions, "Sketch before transition"),
+    );
+    section(
+        &mut out,
         tr("settings-section-transition-performance"),
         tr("settings-transitions-sand-card-desc"),
         take_card(&mut transitions, tr("settings-transitions-sand-card")),

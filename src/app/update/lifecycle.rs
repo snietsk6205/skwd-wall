@@ -17,6 +17,13 @@ pub(crate) fn drive_transition_preview(app: &mut App) {
     let fill_mode = if fill_mode.is_empty() { String::from("fill") } else { fill_mode };
     let duration =
         app.config.num_path(skwd_config::keys::transition::DURATION_MS).max(300.0) as u64;
+    let duration = if app.config.flag_default_config("transition.sketchEnabled") {
+        let sketch = app.config.num_path("transition.sketchDurationMs");
+        let sketch = if sketch > 0.0 { sketch.clamp(1000.0, 20_000.0) as u64 } else { 6000 };
+        (duration + sketch).min(10_000)
+    } else {
+        duration
+    };
     let Some((fallback, to)) = crate::infrastructure::preview::stock_pair(&app.config.cache_dir())
     else {
         return;
