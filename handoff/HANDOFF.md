@@ -110,8 +110,17 @@ Read this first in a new session.
   --transition-from OLD --shader NAME --preview-size 384x216 --preview-once --stream-no-header`
   with `SKWD_PAPER_PREVIEW_TEST=steps=30` (raw RGBA on stdout) and tiles them with ImageMagick.
 
+## Phase 5 (done): designer pass
+- Research, ranked list of what was added and what to do next: `handoff/DESIGN.md`.
+- Bar layout button: `BarAction::CycleLayout` → `Message::CycleMode`, group "layout" in
+  `bar/order.rs`, key `filterBar.show.layout` (default true; Filter & search → Buttons).
+- Bar quick setup: `ActionId::BarPreset(minimal)` (Settings → Picker → Bar).
+
 ## Open items for the next session
-- Phases 4-5 (see REQUESTS.md and the session prompt) unless noted as done below.
+- See "Suggested next steps" in `handoff/DESIGN.md` (full-resolution Showcase preview,
+  Spectrum colour-wheel layout, transition shuffle list, day/night pairs, hover tilt,
+  translations).
+- Not yet tried on the user's real Hyprland machine; ask for feedback first.
 
 ## Testing in a cloud session
 - Scripts from the last session (recreate in the scratchpad): a headless sway + `skwd-walld` +

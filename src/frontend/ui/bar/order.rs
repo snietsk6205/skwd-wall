@@ -1,7 +1,7 @@
 //! Custom build: the order of the bar's button groups (`filterBar.order`).
 
 /// Every button group, in upstream's order.
-pub const BAR_GROUPS: [&str; 17] = [
+pub const BAR_GROUPS: [&str; 18] = [
     "types",
     "orient",
     "resolution",
@@ -17,6 +17,7 @@ pub const BAR_GROUPS: [&str; 17] = [
     "audio",
     "playlists",
     "effects",
+    "layout",
     "settings",
     "stash",
 ];
@@ -39,6 +40,7 @@ pub fn bar_group_label(group: &str) -> &'static str {
         "audio" => "Audio",
         "playlists" => "Playlists",
         "effects" => "Effects studio",
+        "layout" => "Switch layout",
         "settings" => "Settings",
         "stash" => "Hide picker",
         _ => "Unknown",

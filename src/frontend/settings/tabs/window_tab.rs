@@ -59,6 +59,11 @@ fn tab_bar(builder: &mut Builder<'_>) {
         "Automatic keeps the bar next to the cards. Top and Bottom pin it to that screen edge; Left and Right make it a vertical rail on that side.",
         chips(keys::filter_bar::ANCHOR, &BAR_ANCHORS, &anchor),
     );
+    builder.action_chips(
+        "Quick setup",
+        "Minimal keeps only the folder menu, favourites, effects, layout switch, settings and the type and sort buttons. Everything turns every button back on. Single buttons are under Filter & search → Buttons.",
+        &[(ActionId::BarPreset(true), "Minimal"), (ActionId::BarPreset(false), "Everything")],
+    );
     builder.card(
         "Bar order",
         "Move button groups earlier (left or up) or later (right or down). Groups that are switched off keep their place.",

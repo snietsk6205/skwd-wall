@@ -1055,6 +1055,11 @@ pub(super) fn tab_filter(builder: &mut Builder<'_>, folders: &[String]) {
         "A button that opens the Effects studio (Palette, Duotone, ...) for the selected wallpaper. Keyboard: E, or Shift+right-click a card.",
         keys::filter_bar::SHOW_EFFECTS,
     );
+    builder.toggle_default_true(
+        "Layout button",
+        "A button that switches to the next picker layout (Coverflow, Showcase, Grid, ...). Keyboard: M, and Shift+M goes back.",
+        keys::filter_bar::SHOW_LAYOUT,
+    );
     builder.toggle(
         tr("settings-filter-show-download-label"),
         tr("settings-filter-show-download-desc"),

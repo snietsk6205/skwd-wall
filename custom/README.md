@@ -106,6 +106,9 @@ restarting, the installer goes back to the previous state by itself.
   and *Vortex* (swirls out of the old picture into the new one). Ripple, Honeycomb and Vortex
   follow the transition start point (centre, random, busiest area). They also work after the
   sketch.
+- **Layout button** in the bar (it switches to the next layout, like the M key) and
+  **Settings → Picker → Bar → Quick setup**: *Minimal* (only the essential buttons) or
+  *Everything*.
 - **Two new opening animations** (Settings → Launch → Animation): *Cascade* (cards rise in one
   after another from the left) and *Bloom* (cards grow in from the centre outwards).
 

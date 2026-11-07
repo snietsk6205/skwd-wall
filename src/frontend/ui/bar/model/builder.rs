@@ -133,6 +133,10 @@ pub fn build_bar_with_tasks(
                 let action = Some(BarAction::Effects);
                 push_item(&mut items, &mut x, scale, "\u{f0068}", true, false, action);
             }
+            "layout" if show.layout => {
+                let action = Some(BarAction::CycleLayout);
+                push_item(&mut items, &mut x, scale, "\u{f0547}", true, false, action);
+            }
             "settings" => {
                 let action = Some(BarAction::Settings);
                 push_item(&mut items, &mut x, scale, "\u{f0493}", true, false, action);

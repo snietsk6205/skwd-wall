@@ -45,6 +45,8 @@ pub struct BarShow {
     pub download: bool,
     pub playlists: bool,
     pub effects: bool,
+    /// Custom build: the layout-switch button.
+    pub layout: bool,
     pub hidden: Option<bool>,
     /// Custom build: the order of the button groups (see `bar::order`).
     pub order: Vec<&'static str>,
@@ -68,6 +70,7 @@ impl BarShow {
             download: true,
             playlists: true,
             effects: true,
+            layout: false,
             hidden: Some(false),
             order: super::super::order::BAR_GROUPS.to_vec(),
         }

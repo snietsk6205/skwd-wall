@@ -59,6 +59,8 @@ pub enum ActionId {
     MoveBarGroup(&'static str, bool),
     /// Custom build: put the bar's button groups back in upstream's order.
     ResetBarOrder,
+    /// Custom build: show only the essential bar buttons (`true`) or all of them.
+    BarPreset(bool),
 }
 
 impl ActionId {

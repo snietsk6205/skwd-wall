@@ -13,12 +13,17 @@ pub enum BarAction {
     Download,
     Playlists,
     Effects,
+    /// Custom build: switch to the next picker layout (like the M key).
+    CycleLayout,
     Random,
     TagCloud,
     ThemePanel,
     Audio,
     AudioPanel,
-    TaskControl { id: String, action: crate::contracts::daemon::TaskControl },
+    TaskControl {
+        id: String,
+        action: crate::contracts::daemon::TaskControl,
+    },
     ThemeBackendToggle,
     ThemeOpt(&'static str, &'static str),
     ThemePinSettings,

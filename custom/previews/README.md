@@ -27,3 +27,4 @@ Rendered with the real renderer (`skwd-wall-vk --preview-stream`, software Vulka
   (`skwd-wall-vk --preview-stream`), 7 frames each from start to end: ripple, honeycomb, burn,
   page-curl, blinds, slide, vortex.
 - `phase4-cascade-opening.jpg`: the new *Cascade* opening animation caught mid-way (left cards in place, right ones still rising in).
+- `phase5-minimal-bar-layout-button.jpg`: the bar after Quick setup → Minimal, with the new layout button (arrows, left of Settings).

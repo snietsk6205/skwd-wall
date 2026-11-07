@@ -712,3 +712,43 @@ fn bar_order_buttons_move_groups_and_reset() {
     let _ = update(&mut app, Message::Settings(SettingsMsg::Run(ActionId::ResetBarOrder)));
     assert_eq!(crate::frontend::ui::bar_order(&order(&app))[0], "types");
 }
+
+#[test]
+fn bar_layout_button_and_minimal_preset() {
+    use crate::frontend::settings::{ActionId, SettingsMsg};
+    let mut app = test_app();
+    let show = crate::app::view::bar_show(&app);
+    assert!(show.layout, "the layout button shows by default");
+    let model = crate::frontend::ui::build_bar_with_tasks(
+        &app.library_session.filters,
+        &[],
+        false,
+        0,
+        0,
+        1.0,
+        false,
+        false,
+        false,
+        &show,
+        0.0,
+        false,
+        false,
+        None,
+        &[],
+    );
+    assert!(
+        model
+            .items
+            .iter()
+            .any(|item| matches!(item.action, Some(crate::frontend::ui::BarAction::CycleLayout)))
+    );
+    let mode = app.config.display_mode();
+    let _ = update(&mut app, Message::CycleMode { backwards: false });
+    assert_ne!(app.config.display_mode(), mode, "the button's message switches the layout");
+    let _ = update(&mut app, Message::Settings(SettingsMsg::Run(ActionId::BarPreset(true))));
+    let show = crate::app::view::bar_show(&app);
+    assert!(!show.colors && !show.orient && !show.tagcloud && show.favourites && show.layout);
+    let _ = update(&mut app, Message::Settings(SettingsMsg::Run(ActionId::BarPreset(false))));
+    let show = crate::app::view::bar_show(&app);
+    assert!(show.colors && show.orient && show.tagcloud);
+}

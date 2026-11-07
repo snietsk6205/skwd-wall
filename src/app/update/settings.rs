@@ -1800,6 +1800,27 @@ pub(super) fn settings_run(app: &mut App, id: ActionId) -> Task<Message> {
             app.invalidate_settings();
             app.retick();
         }
+        ActionId::BarPreset(minimal) => {
+            use skwd_config::keys::filter_bar as bar;
+            for key in [
+                bar::SHOW_ORIENT,
+                bar::SHOW_RESOLUTION,
+                bar::SHOW_COLORS,
+                bar::SHOW_THEME,
+                bar::SHOW_TAG_CLOUD,
+                bar::SHOW_DOWNLOAD,
+                bar::SHOW_PLAYLISTS,
+                bar::SHOW_RANDOM,
+            ] {
+                app.config.save_key(key, json!(!minimal));
+            }
+            for key in [bar::SHOW_FOLDER, bar::SHOW_FAVOURITES, bar::SHOW_EFFECTS, bar::SHOW_LAYOUT]
+            {
+                app.config.save_key(key, json!(true));
+            }
+            app.invalidate_settings();
+            app.retick();
+        }
         ActionId::ResetBarOrder => {
             app.config.save_key(skwd_config::keys::filter_bar::ORDER, json!(""));
             app.invalidate_settings();
