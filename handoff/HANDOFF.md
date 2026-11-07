@@ -116,6 +116,16 @@ Read this first in a new session.
   `bar/order.rs`, key `filterBar.show.layout` (default true; Filter & search → Buttons).
 - Bar quick setup: `ActionId::BarPreset(minimal)` (Settings → Picker → Bar).
 
+## Gotcha: give the user full paths
+- The installer does **not** put `~/.local/opt/skwd-custom/bin` on PATH, so `skwd-helm` and
+  `skwd-wall-v2` typed in a shell are the **official** programs (the user hit this in M1:
+  `skwd-helm ui bench` printed `sent: bench` from the official helm). Always give
+  `~/.local/opt/skwd-custom/bin/<program>`. The picker stays resident after closing: stop it
+  with `pkill -x skwd-wall-v2` before starting it with different env. Over SSH, start GUI
+  programs in the Hyprland session with `hyprctl -i 0 dispatch exec "<full path>"`.
+- Possible small improvement (not done): `skwd-helm ui bench` could detect the official picker
+  (it gives an empty reply to `perf-query`) and say so instead of waiting 2 minutes.
+
 ## Session rule (from the user, applies to every session)
 - **One milestone per session.** When it is done: full build, tests, screenshots, commit, push
   to `my-custom`, update this file, then stop and give the user the exact prompt for the next

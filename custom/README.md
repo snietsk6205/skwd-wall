@@ -114,15 +114,49 @@ restarting, the installer goes back to the previous state by itself.
 
 - **Faster settings** (M1): changing a setting no longer waits for the disk. The config file is
   written in the background (quick clicks are merged into one write), so the picker stays
-  smooth even on btrfs. To compare with the old behaviour, start the picker with
-  `SKWD_WALL_SYNC_CONFIG=1`.
+  smooth even on btrfs.
 - **Performance overlay** (Settings → Performance → Power): FPS, frame time, CPU use and how
-  long the last settings change took, in a corner. Or run `skwd-helm ui perf on` / `off`.
-- **Benchmark**: `skwd-helm ui bench` moves the picker by itself for about 40 seconds and prints
-  a report (also saved in `~/.cache/skwd-wall-v2/bench/latest.txt`). It never changes your
-  settings.
+  long the last settings change took, in a corner.
+- **Benchmark**: moves the picker by itself for about 40 seconds and prints a report (also saved
+  in `~/.cache/skwd-wall-v2/bench/latest.txt`). It never changes your settings.
 - **Low-power mode** (Settings → Performance → Power): cheap versions of all heavy effects (no
   blurred backdrops or reflections, no sketch before transitions, no hover video previews, the
   battery FPS limit all the time).
+
+### Important: use the full path for the custom programs
+
+The custom programs live in `~/.local/opt/skwd-custom/bin/`, which is not on your PATH. Typing
+just `skwd-helm` or `skwd-wall-v2` runs the **official** programs. Over SSH, start the custom
+picker inside your Hyprland session like this (the first line stops any picker that is running;
+the picker keeps running in the background after you close it):
+
+```bash
+pkill -x skwd-wall-v2
+```
+
+```bash
+hyprctl -i 0 dispatch exec "$HOME/.local/opt/skwd-custom/bin/skwd-wall-v2"
+```
+
+Then run the benchmark (do not touch the mouse or keyboard for about 40 seconds):
+
+```bash
+~/.local/opt/skwd-custom/bin/skwd-helm ui bench
+```
+
+To compare with the old, slower way of saving settings, start the picker like this instead and
+run the benchmark again:
+
+```bash
+pkill -x skwd-wall-v2
+```
+
+```bash
+hyprctl -i 0 dispatch exec "env SKWD_WALL_SYNC_CONFIG=1 $HOME/.local/opt/skwd-custom/bin/skwd-wall-v2"
+```
+
+Your Hyprland shortcut must also use the full path, or it opens the official picker. Find it
+with `grep -rn skwd ~/.config/hypr/` and change it to
+`bind = SUPER, N, exec, ~/.local/opt/skwd-custom/bin/skwd-wall-v2`, then run `hyprctl reload`.
 
 Preview frames and screenshots are in `custom/previews/`.
