@@ -121,8 +121,11 @@ Read this first in a new session.
   `skwd-wall-v2` typed in a shell are the **official** programs (the user hit this in M1:
   `skwd-helm ui bench` printed `sent: bench` from the official helm). Always give
   `~/.local/opt/skwd-custom/bin/<program>`. The picker stays resident after closing: stop it
-  with `pkill -x skwd-wall-v2` before starting it with different env. Over SSH, start GUI
-  programs in the Hyprland session with `hyprctl -i 0 dispatch exec "<full path>"`.
+  with `pkill -x skwd-wall-v2` before starting it with different env. Over SSH, start the
+  picker with `WAYLAND_DISPLAY=wayland-1 setsid -f <full path> >/dev/null 2>&1` (socket name
+  from `ls /run/user/(id -u)/`). Do NOT use `hyprctl dispatch exec`: the user's Hyprland uses
+  the new Lua config, where `hyprctl dispatch` expects Lua (`hl.dispatch(...)`). The user's
+  shell is fish (`(cmd)` substitution; `VAR=value cmd` works).
 - Possible small improvement (not done): `skwd-helm ui bench` could detect the official picker
   (it gives an empty reply to `perf-query`) and say so instead of waiting 2 minutes.
 
