@@ -128,40 +128,22 @@ restarting, the installer goes back to the previous state by itself.
 The custom programs live in `~/.local/opt/skwd-custom/bin/`, which is not on your PATH. Typing
 just `skwd-helm` or `skwd-wall-v2` runs the **official** programs.
 
-Over SSH, first find the name of your desktop's display (usually `wayland-1`; ignore the
-`.lock` line):
+The picker takes over the screen and keyboard while it is open, and closing it ends the
+program, so start it and the benchmark with **one** command (in a terminal on the laptop or
+over SSH; `wayland-1` is your display's name, see `ls /run/user/(id -u)/`):
 
 ```bash
-ls /run/user/(id -u)/ | grep wayland
+pkill -x skwd-wall-v2; WAYLAND_DISPLAY=wayland-1 ~/.local/opt/skwd-custom/bin/skwd-wall-v2 >/dev/null 2>&1 & sleep 3; ~/.local/opt/skwd-custom/bin/skwd-helm ui bench
 ```
 
-(That is fish syntax; in bash write `$(id -u)` instead of `(id -u)`.) Then stop any picker that
-is running (it keeps running in the background after you close it) and start the custom one on
-the laptop's screen, using the display name you found:
+Do not touch the laptop for about 45 seconds while the picker moves by itself. When it stops
+moving, press Esc to close it; the report is printed in the terminal and saved in
+`~/.cache/skwd-wall-v2/bench/latest.txt` (older runs: `ls ~/.cache/skwd-wall-v2/bench/`).
+
+To compare with the old, slower way of saving settings:
 
 ```bash
-pkill -x skwd-wall-v2
-```
-
-```bash
-WAYLAND_DISPLAY=wayland-1 setsid -f ~/.local/opt/skwd-custom/bin/skwd-wall-v2 >/dev/null 2>&1
-```
-
-Then run the benchmark (do not touch the mouse or keyboard for about 40 seconds):
-
-```bash
-~/.local/opt/skwd-custom/bin/skwd-helm ui bench
-```
-
-To compare with the old, slower way of saving settings, start the picker like this instead and
-run the benchmark again:
-
-```bash
-pkill -x skwd-wall-v2
-```
-
-```bash
-WAYLAND_DISPLAY=wayland-1 SKWD_WALL_SYNC_CONFIG=1 setsid -f ~/.local/opt/skwd-custom/bin/skwd-wall-v2 >/dev/null 2>&1
+pkill -x skwd-wall-v2; WAYLAND_DISPLAY=wayland-1 SKWD_WALL_SYNC_CONFIG=1 ~/.local/opt/skwd-custom/bin/skwd-wall-v2 >/dev/null 2>&1 & sleep 3; ~/.local/opt/skwd-custom/bin/skwd-helm ui bench
 ```
 
 Your Hyprland shortcut must also use the full path, or it opens the official picker. Find it

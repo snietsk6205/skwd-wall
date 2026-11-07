@@ -126,6 +126,13 @@ Read this first in a new session.
   from `ls /run/user/(id -u)/`). Do NOT use `hyprctl dispatch exec`: the user's Hyprland uses
   the new Lua config, where `hyprctl dispatch` expects Lua (`hl.dispatch(...)`). The user's
   shell is fish (`(cmd)` substitution; `VAR=value cmd` works).
+- On the user's machine the picker grabs the keyboard and covers the screen while open, and
+  closing it exits the process (`exit_picker` → `hard_exit`), so the user cannot type a second
+  command while it is open. Benchmark one-liner that works (fish and bash):
+  `pkill -x skwd-wall-v2; WAYLAND_DISPLAY=wayland-1 ~/.local/opt/skwd-custom/bin/skwd-wall-v2 >/dev/null 2>&1 & sleep 3; ~/.local/opt/skwd-custom/bin/skwd-helm ui bench`
+  User's machine (from their log): NVIDIA GPU, 988 wallpapers, Noctalia shell also running.
+- Possible small improvement (not done): `skwd-helm ui bench` could start the picker itself when
+  none is running.
 - Possible small improvement (not done): `skwd-helm ui bench` could detect the official picker
   (it gives an empty reply to `perf-query`) and say so instead of waiting 2 minutes.
 
