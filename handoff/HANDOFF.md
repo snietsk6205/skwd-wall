@@ -136,6 +136,33 @@ Read this first in a new session.
 - Possible small improvement (not done): `skwd-helm ui bench` could detect the official picker
   (it gives an empty reply to `perf-query`) and say so instead of waiting 2 minutes.
 
+## User's machine and M1 benchmark results (2026-11-08)
+- Lenovo LOQ 15IAX9: i5-12450HX, RTX 3050 6GB Laptop + Intel UHD (ADL-S), 23 GB RAM, btrfs,
+  1920x1080 @ 1.5x scale (picker sees 1280x720), **144 Hz**, Hyprland 0.57.1 (Lua config),
+  fish 4.9, kitty, Noctalia shell. The picker runs on the **Intel iGPU**. 988 wallpapers.
+- `skwd-helm ui bench` (new build): idle CPU 0.4 %; navigate p50/p95 12.6/14.8 ms, smooth
+  99.5 %, CPU 19 %; settings click: update.settings ~1.0 ms, view.settings 0.45 ms,
+  init_inputs 0.7 ms, apply_layout 0.2 ms; slider p95 17.5 ms, smooth 97 %; **layouts p99
+  ~200 ms (smooth 86 %)**; one synchronous config save on their btrfs disk: **10.9 ms** (the
+  old per-click UI stall that M1 moved off the UI thread).
+- What the numbers mean / known flaws of the benchmark (fix in M1b):
+  - The `SKWD_WALL_SYNC_CONFIG=1` comparison run is identical by design: the bench runs on a
+    transient config, so it never saves. The old per-click cost is the "config save" line.
+  - "settings-click smooth 46 %, p95 149 ms" is an artefact: the clicks are 150 ms apart and
+    nothing animates between them, so the gap between frames is the click spacing. Measure
+    click-to-next-frame latency instead.
+  - The 3-4 idle redraws are the benchmark's own polling (`skwd-helm` sends `perf-query` every
+    second and each query runs update + view). Without polling idle is 0 redraws (checked in
+    the cloud: 0 CPU ticks in 5 s).
+  - Navigation runs at ~80 fps on the 144 Hz screen (p50 12.6 ms): check the picker FPS cap /
+    tick interval (`general.maxFps` default?) — maybe allow matching the refresh rate.
+- **Real problem found: switching layouts has a ~200 ms hitch** (p99 206 ms, once per switch,
+  9 switches). CPU spans stay small (update max 2 ms, tick max 0.6 ms), so it is on the
+  render side: likely first-use wgpu pipeline creation / shader compile for each layout on
+  Intel Mesa, or thumbnail atlas re-uploads for the new card sizes. Fix idea: pre-warm every
+  layout's pipelines in the background after startup, and spread atlas uploads over frames.
+  Add a render-side span (prepare/upload time) to prove which.
+
 ## Session rule (from the user, applies to every session)
 - **One milestone per session.** When it is done: full build, tests, screenshots, commit, push
   to `my-custom`, update this file, then stop and give the user the exact prompt for the next
@@ -143,7 +170,9 @@ Read this first in a new session.
 
 ## Roadmap agreed with the user (priority order; one per session)
 - **M1 Speed (done, Phase 6 below).**
-- **M2 Window size everywhere (next).** The Settings window size/position/scale must apply to
+- **M1b Speed follow-up (recommended next, small):** fix the ~200 ms layout-switch hitch and the
+  benchmark flaws listed in "User's machine and M1 benchmark results".
+- **M2 Window size everywhere.** The Settings window size/position/scale must apply to
   every panel that opens over the picker: Shape/layout studio, playlists, card picker, theme
   designer, effects studio, schedule editor, tag cloud, scene properties, downloads browser,
   audio mixer. The picker itself keeps filling the screen.
