@@ -10,3 +10,5 @@ settings-launch-motion-label = 动效
 settings-launch-motion-desc = 选择器界面共用的节奏。可在动效设置中更改“快速”“标准”和“慢速”的速度。
 settings-launch-fade-from-label = 淡入起点
 settings-launch-fade-from-desc = 入场动画开始时的不透明度（百分比）。0 表示从完全透明开始。
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

@@ -10,3 +10,5 @@ settings-launch-motion-label = Hareket
 settings-launch-motion-desc = Paylaşılan seçici arayüzü hızı. Hareket ayarlarında Hızlı, Standart ve Yavaş hızlarını değiştirin.
 settings-launch-fade-from-label = Başlangıç opaklığı
 settings-launch-fade-from-desc = Girişin başladığı opaklık, yüzde olarak.
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

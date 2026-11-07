@@ -15,6 +15,8 @@ pub(super) fn tab_launch(builder: &mut Builder<'_>) {
             ("fade", tr("settings-launch-animation-fade")),
             ("rise", tr("settings-launch-animation-rise")),
             ("zoom", tr("settings-launch-animation-zoom")),
+            ("cascade", tr("settings-launch-animation-cascade")),
+            ("bloom", tr("settings-launch-animation-bloom")),
         ],
         anim,
     );

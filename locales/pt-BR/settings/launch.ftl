@@ -10,3 +10,5 @@ settings-launch-motion-label = Movimento
 settings-launch-motion-desc = O ritmo compartilhado da interface do seletor. Altere os pesos Rápido, Padrão e Lento nas configurações de Movimento.
 settings-launch-fade-from-label = Esmaecer a partir de
 settings-launch-fade-from-desc = Opacidade inicial da entrada, em porcentagem. 0 começa totalmente transparente.
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

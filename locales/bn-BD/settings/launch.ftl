@@ -10,3 +10,5 @@ settings-launch-motion-label = গতি
 settings-launch-motion-desc = পিকার UI-এর ভাগ করা গতি। দ্রুত, মানক ও ধীর ওজন গতি সেটিংসে বদলান।
 settings-launch-fade-from-label = ফেড শুরু
 settings-launch-fade-from-desc = প্রবেশ যে অস্বচ্ছতা থেকে শুরু হয়, শতাংশে। 0 পুরোপুরি স্বচ্ছ থেকে উঠে আসে।
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

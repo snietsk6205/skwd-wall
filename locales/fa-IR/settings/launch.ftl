@@ -10,3 +10,5 @@ settings-launch-motion-label = حرکت
 settings-launch-motion-desc = سرعت مشترک رابط انتخابگر. مقدارهای سریع، معمولی و آهسته را در تنظیمات حرکت تغییر دهید.
 settings-launch-fade-from-label = آغاز محوشدن از
 settings-launch-fade-from-desc = میزان کدری در آغاز ورود، به درصد. مقدار ۰ یعنی انتخابگر در ابتدا کاملاً نامرئی است.
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

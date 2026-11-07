@@ -10,3 +10,5 @@ settings-launch-motion-label = गति
 settings-launch-motion-desc = पिकर UI की साझा गति। तेज़, मानक और धीमा वेट Motion सेटिंग्स में बदलें।
 settings-launch-fade-from-label = फ़ेड की शुरुआत
 settings-launch-fade-from-desc = प्रवेश जिस अपारदर्शिता से शुरू होता है, प्रतिशत में। 0 पूरी तरह पारदर्शी से उभरता है।
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

@@ -99,4 +99,14 @@ restarting, the installer goes back to the previous state by itself.
 - The selection ring in Grid stays visible when the mouse is nudged by a few pixels
   while you use the arrow keys.
 
+- **Seven new wallpaper transitions** (Settings → Motion → Wallpaper transitions, and in the
+  Random mix): *Ripple* (water rings), *Honeycomb* (hexagon tiles turn over in a wave, like
+  Noctalia's), *Burn* (the old picture burns away along glowing embers), *Page curl*, *Blinds*
+  (slanted shutters open one after another), *Slide* (the new picture slides over the old one)
+  and *Vortex* (swirls out of the old picture into the new one). Ripple, Honeycomb and Vortex
+  follow the transition start point (centre, random, busiest area). They also work after the
+  sketch.
+- **Two new opening animations** (Settings → Launch → Animation): *Cascade* (cards rise in one
+  after another from the left) and *Bloom* (cards grow in from the centre outwards).
+
 Preview frames and screenshots are in `custom/previews/`.

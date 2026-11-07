@@ -94,6 +94,22 @@ Read this first in a new session.
   Mode labels `settings-selector-mode-coverflow/showcase` added to all 14 locales (English text
   everywhere: untranslated).
 
+## Phase 4 (done): transitions and UI animations
+- Renderer (`skwd-paper`): `paper-shaders/src/effects/resources/custom.rs` adds `ripple`,
+  `honeycomb`, `burn`, `page-curl`, `blinds`, `slide`, `vortex` (GLSL 330 dialect like upstream;
+  `paper-vk/build.rs` compiles every entry of `EFFECTS` with glslc). `ripple`, `honeycomb`,
+  `vortex` have start-point edits in `ORIGIN_EFFECTS` (`effects/vulkan.rs`). "random" picks
+  from them automatically.
+- Daemon (`skwd-deck`): `wall-proto/src/transitions.rs` lists them (family Warp/Wipe/Break), so
+  the daemon accepts them and the Settings list/families show them (labels come from the key).
+- Picker: `LaunchAnim::{Cascade, Bloom}` (`frontend/scene/transition.rs`, `stagger_entrance`):
+  per-card delay by x (Cascade) or distance from the centre (Bloom); swaps the layouts'
+  `entrance` opacity for the card's own; moves projected quads too; the backdrop only fades.
+  Locale keys `settings-launch-animation-cascade/bloom` in all 14 locales (English text).
+- Preview sheets: a small script renders N frames via `skwd-wall-vk --preview-stream NEW
+  --transition-from OLD --shader NAME --preview-size 384x216 --preview-once --stream-no-header`
+  with `SKWD_PAPER_PREVIEW_TEST=steps=30` (raw RGBA on stdout) and tiles them with ImageMagick.
+
 ## Open items for the next session
 - Phases 4-5 (see REQUESTS.md and the session prompt) unless noted as done below.
 

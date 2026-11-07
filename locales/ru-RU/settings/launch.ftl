@@ -10,3 +10,5 @@ settings-launch-motion-label = Движение
 settings-launch-motion-desc = Общий темп интерфейса окна выбора. Скорости «Быстро», «Обычно» и «Медленно» меняются в настройках движения.
 settings-launch-fade-from-label = Начальная непрозрачность
 settings-launch-fade-from-desc = Непрозрачность в начале появления, в процентах. 0 означает появление из полностью прозрачного состояния.
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

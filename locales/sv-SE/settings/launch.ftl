@@ -10,3 +10,5 @@ settings-launch-motion-label = Rörelse
 settings-launch-motion-desc = Väljarens delade UI-tempo. Ändra vikterna Snabb, Standard och Långsam i Rörelse-inställningarna.
 settings-launch-fade-from-label = Tona från
 settings-launch-fade-from-desc = Opacitet som entrén börjar från, i procent. 0 stiger från helt genomskinlig.
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

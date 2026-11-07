@@ -3632,3 +3632,11 @@ fn showcase_has_one_big_preview_and_a_filmstrip() {
         }
     }
 }
+
+#[test]
+fn entrance_flag_copies_match_the_renderer() {
+    assert_eq!(
+        (crate::frontend::scene::BACKDROP_FLAG, crate::frontend::scene::PROJECTED_FLAG),
+        (crate::rendering::scene::BACKDROP, crate::rendering::scene::PROJECTED)
+    );
+}

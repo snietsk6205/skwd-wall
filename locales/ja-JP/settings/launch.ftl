@@ -10,3 +10,5 @@ settings-launch-motion-label = モーション
 settings-launch-motion-desc = ピッカー UI 共通のテンポです。「速い」「標準」「遅い」の重みはモーション設定で変更します。
 settings-launch-fade-from-label = フェード開始値
 settings-launch-fade-from-desc = 表示開始時の不透明度（パーセント）。0 は完全に透明な状態から現れます。
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

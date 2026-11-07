@@ -10,3 +10,5 @@ settings-launch-motion-label = الحركة
 settings-launch-motion-desc = وتيرة واجهة المنتقي المشتركة. غيّر أوزان «سريع» و«قياسي» و«بطيء» في إعدادات الحركة.
 settings-launch-fade-from-label = التلاشي من
 settings-launch-fade-from-desc = الشفافية التي يبدأ منها الدخول، بالنسبة المئوية. 0 يبدأ من شفافية كاملة.
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

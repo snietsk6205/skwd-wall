@@ -10,3 +10,5 @@ settings-launch-motion-label = حرکت
 settings-launch-motion-desc = پکر UI کی مشترکہ رفتار۔ تیز، معیاری اور سست وزن حرکت کی ترتیبات میں بدلیں۔
 settings-launch-fade-from-label = فیڈ کی ابتدا
 settings-launch-fade-from-desc = داخلہ جس شفافیت سے شروع ہو، فیصد میں۔ 0 مکمل شفاف سے ابھرتا ہے۔
+settings-launch-animation-cascade = Cascade
+settings-launch-animation-bloom = Bloom

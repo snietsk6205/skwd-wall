@@ -23,3 +23,7 @@ Rendered with the real renderer (`skwd-wall-vk --preview-stream`, software Vulka
 - `phase3-settings-layout.jpg`: Settings → Picker → Layout with the Coverflow controls.
 - `phase3-settings-bar.jpg`: Settings → Picker → Bar and Bar order.
 - `phase3-grid-selection-ring.jpg`: Grid after arrow keys: the selection ring stays visible.
+- `phase4-transitions.jpg`: the seven new transitions, rendered by the real renderer
+  (`skwd-wall-vk --preview-stream`), 7 frames each from start to end: ripple, honeycomb, burn,
+  page-curl, blinds, slide, vortex.
+- `phase4-cascade-opening.jpg`: the new *Cascade* opening animation caught mid-way (left cards in place, right ones still rising in).
