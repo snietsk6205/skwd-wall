@@ -40,7 +40,17 @@ impl Config {
     }
 
     pub fn battery_saver_active(&self) -> bool {
-        self.on_battery && skwd_config::battery_saver_enabled(&self.data)
+        skwd_config::saver_active(&self.data, self.on_battery)
+    }
+
+    /// Low-power mode: cheap versions of every heavy picker effect.
+    pub fn low_power(&self) -> bool {
+        skwd_config::low_power_enabled(&self.data)
+    }
+
+    /// Show the performance overlay (also forced on by `SKWD_WALL_HUD=1`).
+    pub fn perf_overlay(&self) -> bool {
+        self.bool_false_unless_true(skwd_config::keys::performance::OVERLAY)
     }
 
     pub fn frame_interval(&self) -> std::time::Duration {

@@ -71,3 +71,7 @@ settings-performance-capture-we-label = تمام WE وال پیپرز میں ک�
 settings-performance-capture-we-desc = نیٹو سین پس منظر میں کیپچر کریں۔ درست کیپچر دوبارہ استعمال کریں اور سین ناکام ہو تو موجودہ پیش منظر رکھیں۔ آپ روک کر بعد میں جاری رکھ سکتے ہیں۔
 settings-performance-capture-we-action = تھمب نیلز بنائیں
 settings-performance-capture-we-stop = روکیں
+settings-performance-low-power-label = کم بجلی موڈ
+settings-performance-low-power-desc = Use the cheap version of every heavy effect: no blurred backdrops or reflections, simple opening animations, no sketch before transitions, and the battery FPS and video limits all the time.
+settings-performance-overlay-label = کارکردگی اوورلے
+settings-performance-overlay-desc = Show FPS, frame time, CPU use and the cost of the last settings change in a corner (it refreshes once a second). For a full report run: skwd-helm ui bench

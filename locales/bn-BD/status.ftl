@@ -26,3 +26,4 @@ status-bug-report-saved = বাগ রিপোর্ট সংরক্ষি�
 status-bug-report-failed = বাগ রিপোর্ট সংরক্ষণ করা যায়নি। আসল ত্রুটি জানতে লগ দেখুন।
 status-keybinds-reset = নিয়ন্ত্রণ ডিফল্টে ফিরিয়ে আনা হয়েছে।
 
+status-bench-done = Benchmark finished. Report: { $path }

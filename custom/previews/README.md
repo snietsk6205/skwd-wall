@@ -28,3 +28,5 @@ Rendered with the real renderer (`skwd-wall-vk --preview-stream`, software Vulka
   page-curl, blinds, slide, vortex.
 - `phase4-cascade-opening.jpg`: the new *Cascade* opening animation caught mid-way (left cards in place, right ones still rising in).
 - `phase5-minimal-bar-layout-button.jpg`: the bar after Quick setup → Minimal, with the new layout button (arrows, left of Settings).
+- `phase6-performance-overlay.jpg`: the performance overlay (top right). Cloud screenshot with software rendering, so FPS shows "--" or 0 and CPU is high; on a real GPU it shows the real numbers.
+- `phase6-settings-power.jpg`: Settings → Performance → Power with the new Low-power mode and Performance overlay switches.

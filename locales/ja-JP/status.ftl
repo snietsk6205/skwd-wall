@@ -25,3 +25,4 @@ status-demo-filtered = デモ用の壁紙がフィルターで除外されてい
 status-bug-report-saved = バグレポートを保存しました: { $path }
 status-bug-report-failed = バグレポートを保存できませんでした。実際のエラーはログを確認してください。
 status-keybinds-reset = 操作設定をデフォルトに戻しました。
+status-bench-done = ベンチマークが完了しました。レポート: { $path }

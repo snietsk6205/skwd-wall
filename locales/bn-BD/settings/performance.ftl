@@ -71,3 +71,7 @@ settings-performance-capture-we-label = সব WE ওয়ালপেপার
 settings-performance-capture-we-desc = নেটিভ সিন ব্যাকগ্রাউন্ডে ক্যাপচার করুন। বৈধ ক্যাপচার পুনর্ব্যবহার করে এবং কোনো সিন ব্যর্থ হলে বিদ্যমান প্রিভিউ রাখে। আপনি থামিয়ে পরে চালিয়ে যেতে পারেন।
 settings-performance-capture-we-action = থাম্বনেইল তৈরি করুন
 settings-performance-capture-we-stop = থামান
+settings-performance-low-power-label = লো-পাওয়ার মোড
+settings-performance-low-power-desc = Use the cheap version of every heavy effect: no blurred backdrops or reflections, simple opening animations, no sketch before transitions, and the battery FPS and video limits all the time.
+settings-performance-overlay-label = পারফরম্যান্স ওভারলে
+settings-performance-overlay-desc = Show FPS, frame time, CPU use and the cost of the last settings change in a corner (it refreshes once a second). For a full report run: skwd-helm ui bench

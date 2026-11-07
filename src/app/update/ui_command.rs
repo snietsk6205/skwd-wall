@@ -593,6 +593,19 @@ pub(super) fn run_ui_command(app: &mut App, cmd: &str) -> Task<Message> {
                 Task::none()
             }
         },
+        "bench" => super::bench::start(app),
+        "bench-step" => super::bench::step(app),
+        "perf" => {
+            let enabled = match arg.as_str() {
+                "on" | "overlay" => true,
+                "off" => false,
+                _ => !app.config.perf_overlay(),
+            };
+            app.config
+                .save_key(skwd_config::keys::performance::OVERLAY, serde_json::json!(enabled));
+            app.retick();
+            Task::none()
+        }
         "pick" => super::update_inner(app, Message::ApplyCurrent),
         "set" => {
             let mut it = arg.splitn(2, char::is_whitespace);

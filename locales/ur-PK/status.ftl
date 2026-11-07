@@ -26,3 +26,4 @@ status-bug-report-saved = بگ رپورٹ محفوظ ہو گئی: { $path }
 status-bug-report-failed = بگ رپورٹ محفوظ نہیں ہو سکی۔ اصل خرابی کے لیے لاگ دیکھیں۔
 status-keybinds-reset = کنٹرول طے شدہ پر بحال ہو گئے۔
 
+status-bench-done = Benchmark finished. Report: { $path }

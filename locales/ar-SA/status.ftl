@@ -26,3 +26,4 @@ status-bug-report-saved = حُفظ تقرير الخطأ: { $path }
 status-bug-report-failed = تعذّر حفظ تقرير الخطأ. راجع السجل لمعرفة الخطأ الفعلي.
 status-keybinds-reset = أُعيدت عناصر التحكم إلى الافتراضيات.
 
+status-bench-done = Benchmark finished. Report: { $path }

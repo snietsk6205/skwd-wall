@@ -26,3 +26,4 @@ status-bug-report-saved = Rapport de bogue enregistré : { $path }
 status-bug-report-failed = Impossible d'enregistrer le rapport de bogue. Consultez le journal pour connaître l'erreur réelle.
 status-keybinds-reset = Commandes restaurées aux valeurs par défaut.
 
+status-bench-done = Banc d’essai terminé. Rapport : { $path }

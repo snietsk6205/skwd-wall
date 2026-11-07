@@ -112,4 +112,17 @@ restarting, the installer goes back to the previous state by itself.
 - **Two new opening animations** (Settings → Launch → Animation): *Cascade* (cards rise in one
   after another from the left) and *Bloom* (cards grow in from the centre outwards).
 
+- **Faster settings** (M1): changing a setting no longer waits for the disk. The config file is
+  written in the background (quick clicks are merged into one write), so the picker stays
+  smooth even on btrfs. To compare with the old behaviour, start the picker with
+  `SKWD_WALL_SYNC_CONFIG=1`.
+- **Performance overlay** (Settings → Performance → Power): FPS, frame time, CPU use and how
+  long the last settings change took, in a corner. Or run `skwd-helm ui perf on` / `off`.
+- **Benchmark**: `skwd-helm ui bench` moves the picker by itself for about 40 seconds and prints
+  a report (also saved in `~/.cache/skwd-wall-v2/bench/latest.txt`). It never changes your
+  settings.
+- **Low-power mode** (Settings → Performance → Power): cheap versions of all heavy effects (no
+  blurred backdrops or reflections, no sketch before transitions, no hover video previews, the
+  battery FPS limit all the time).
+
 Preview frames and screenshots are in `custom/previews/`.

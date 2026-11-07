@@ -68,10 +68,14 @@ pub fn hud<'a, Message: 'a>(
     let surface = pal.surface;
     let primary = pal.primary;
     container(
-        text(format!("{}\n\n{}", snapshot.metrics, snapshot.daemon))
-            .size(11.0 * scale)
-            .color(with_alpha(pal.surface_text, 0.95))
-            .font(iced::Font::MONOSPACE),
+        text(if snapshot.daemon.is_empty() {
+            snapshot.metrics.clone()
+        } else {
+            format!("{}\n\n{}", snapshot.metrics, snapshot.daemon)
+        })
+        .size(11.0 * scale)
+        .color(with_alpha(pal.surface_text, 0.95))
+        .font(iced::Font::MONOSPACE),
     )
     .padding(8.0 * scale)
     .style(move |_theme| container::Style {

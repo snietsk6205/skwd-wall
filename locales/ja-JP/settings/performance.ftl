@@ -71,3 +71,7 @@ settings-performance-capture-we-label = すべての WE 壁紙にキャプチャ
 settings-performance-capture-we-desc = ネイティブシーンをバックグラウンドでキャプチャします。有効なキャプチャは再利用し、シーンが失敗した場合は既存のプレビューを残します。停止して後で続行できます。
 settings-performance-capture-we-action = サムネイルを生成
 settings-performance-capture-we-stop = 停止
+settings-performance-low-power-label = 省電力モード
+settings-performance-low-power-desc = 重い効果をすべて軽量版にします。ぼかし背景や反射なし、シンプルな開始アニメーション、トランジション前のスケッチなし、バッテリー時の FPS と動画の制限を常に適用します。
+settings-performance-overlay-label = パフォーマンス表示
+settings-performance-overlay-desc = 隅に FPS、フレーム時間、CPU 使用率、直前の設定変更のコストを表示します（1 秒ごとに更新）。詳しいレポート: skwd-helm ui bench

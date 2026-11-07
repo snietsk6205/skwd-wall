@@ -4,6 +4,7 @@ mod demo;
 mod input;
 mod library;
 mod panels;
+mod perf;
 mod preview;
 mod runtime;
 mod settings;
@@ -19,6 +20,7 @@ pub(crate) use demo::DemoSession;
 pub(crate) use input::InputState;
 pub(crate) use library::LibrarySession;
 pub(crate) use panels::PanelsState;
+pub(crate) use perf::{BenchPhase, BenchRun, PerfState};
 pub(crate) use preview::PreviewResources;
 pub(crate) use runtime::AppRuntimeState;
 pub(crate) use settings::{

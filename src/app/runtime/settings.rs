@@ -94,6 +94,7 @@ impl App {
     }
 
     pub(in crate::app) fn init_settings_inputs(&mut self) {
+        let _perf = crate::infrastructure::observability::perf::span("settings.init_inputs");
         self.panels.settings.inputs.clear();
         let backends = self.theme.backends.clone().unwrap_or_default();
         let cards = settings::build_tab_with_runtime_status(
@@ -176,6 +177,7 @@ impl App {
     }
 
     pub(in crate::app) fn apply_layout(&mut self) {
+        let _perf = crate::infrastructure::observability::perf::span("apply_layout");
         let layout = layout_params(&self.config);
         let animate = self.scene.mode == layout.mode;
         if !animate {
@@ -218,6 +220,7 @@ impl App {
     }
 
     pub(in crate::app) fn adopt_external_config(&mut self) -> bool {
+        let _perf = crate::infrastructure::observability::perf::span("config.adopt");
         let outdoor_mode_before = self.outdoor_mode();
         let source_roots_before = skwd_config::library_folders(self.config.root());
         let profiles_before = profile_config(&self.config);

@@ -5,7 +5,7 @@ use futures_channel::mpsc::UnboundedSender;
 use crate::infrastructure::observability::metrics::Metrics;
 use crate::infrastructure::runtime::{FrameClock, Wake};
 
-use super::DemoSession;
+use super::{DemoSession, PerfState};
 
 pub(crate) struct AppRuntimeState {
     pub(crate) picker_output: Option<String>,
@@ -13,6 +13,7 @@ pub(crate) struct AppRuntimeState {
     pub(crate) stashed: bool,
     pub(crate) toast: Option<(String, Instant)>,
     pub(crate) metrics: Metrics,
+    pub(crate) perf: PerfState,
     pub(crate) last_animation_tick: Option<Instant>,
     pub(crate) last_tick: Option<Instant>,
     pub(crate) next_animation_tick: Option<Instant>,
@@ -31,6 +32,7 @@ impl AppRuntimeState {
             stashed: false,
             toast: None,
             metrics: Metrics::new(),
+            perf: PerfState::default(),
             last_animation_tick: None,
             last_tick: None,
             next_animation_tick: None,

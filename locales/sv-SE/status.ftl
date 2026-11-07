@@ -25,3 +25,4 @@ status-demo-filtered = Demobakgrunden är bortfiltrerad: { $key }
 status-bug-report-saved = Felrapporten sparades: { $path }
 status-bug-report-failed = Kunde inte spara felrapporten. Kontrollera loggen för det faktiska felet.
 status-keybinds-reset = Kontrollerna återställdes till standard.
+status-bench-done = Prestandatestet är klart. Rapport: { $path }

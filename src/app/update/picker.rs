@@ -55,7 +55,7 @@ pub(super) fn mouse_moved(app: &mut App, x: f32, y: f32) -> Task<Message> {
             app.scene.hand_pointer(x, y, hit);
         }
         Mode::Depth | Mode::Grid | Mode::Collection | Mode::Coverflow | Mode::Showcase => {
-            app.scene.hover = hit
+            app.scene.hover = hit;
         }
     }
     if changed {

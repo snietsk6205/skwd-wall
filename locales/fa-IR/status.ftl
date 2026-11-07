@@ -26,3 +26,4 @@ status-bug-report-saved = گزارش خطا ذخیره شد: { $path }
 status-bug-report-failed = ذخیرهٔ گزارش خطا ممکن نشد. دلیل دقیق را در گزارش برنامه ببینید.
 status-keybinds-reset = کنترل‌ها به پیش‌فرض بازگردانده شدند.
 
+status-bench-done = Benchmark finished. Report: { $path }

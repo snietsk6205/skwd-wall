@@ -71,3 +71,7 @@ settings-performance-capture-we-label = افزودن تصاویر بندانگش
 settings-performance-capture-we-desc = از صحنه‌های بومی در پس‌زمینه تصویر بگیرید. تصویرهای معتبر موجود را دوباره استفاده کنید و اگر صحنه‌ای ناموفق بود، پیش‌نمایش قبلی را نگه دارید. می‌توانید کار را متوقف کنید و بعداً ادامه دهید.
 settings-performance-capture-we-action = ساخت تصاویر بندانگشتی
 settings-performance-capture-we-stop = توقف
+settings-performance-low-power-label = حالت کم‌مصرف
+settings-performance-low-power-desc = Use the cheap version of every heavy effect: no blurred backdrops or reflections, simple opening animations, no sketch before transitions, and the battery FPS and video limits all the time.
+settings-performance-overlay-label = نمایه کارایی
+settings-performance-overlay-desc = Show FPS, frame time, CPU use and the cost of the last settings change in a corner (it refreshes once a second). For a full report run: skwd-helm ui bench

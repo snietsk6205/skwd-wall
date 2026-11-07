@@ -25,3 +25,4 @@ status-demo-filtered = 演示壁纸已被筛选掉：{ $key }
 status-bug-report-saved = 错误报告已保存：{ $path }
 status-bug-report-failed = 无法保存错误报告。请查看日志了解具体错误。
 status-keybinds-reset = 控制已恢复为默认设置。
+status-bench-done = 性能测试完成。报告：{ $path }

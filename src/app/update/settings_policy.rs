@@ -172,6 +172,7 @@ fn sync_picker_runtime(app: &mut App, path: &str) {
     if path.starts_with("videoPreview.")
         || path == skwd_config::keys::general::MAX_FPS
         || path == skwd_config::keys::performance::BATTERY_SAVER
+        || path == skwd_config::keys::performance::LOW_POWER
         || path == skwd_config::keys::performance::BATTERY_FPS
     {
         app.scene.set_preview_config(

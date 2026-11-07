@@ -7,6 +7,7 @@ use super::super::*;
 
 pub(super) fn settings_layer(app: &App) -> Element<'_, Message> {
     crate::zone!("settings_layer");
+    let _perf = crate::infrastructure::observability::perf::span("view.settings");
     let source = app.settings_source_ctx();
     let focus = settings::FocusCtx {
         keyboard_focus: app.panels.settings.focus,

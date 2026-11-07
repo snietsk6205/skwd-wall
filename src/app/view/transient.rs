@@ -83,11 +83,72 @@ pub(super) fn help_layer(app: &App) -> Option<Element<'_, Message>> {
 #[cfg(test)]
 mod tests;
 
+fn perf_overlay_text(app: &App) -> String {
+    use crate::infrastructure::observability::perf;
+    let state = &app.runtime_state.perf;
+    let (fps, p50, p95) = state.frame_stats();
+    let span = |name: &str| perf::stat(name);
+    let click = span("update.settings");
+    let view = span("view");
+    let settings_view = span("view.settings");
+    let layout = span("apply_layout");
+    let inputs = span("settings.init_inputs");
+    let save = span("config.save");
+    let tick = span("tick");
+    // No recent animation frames to measure (idle, or frames over 100 ms).
+    let frames = if fps > 0.0 {
+        format!("FPS {fps:>5.1}   frame p50 {p50:>5.1} ms  p95 {p95:>5.1} ms")
+    } else {
+        String::from("FPS    --   (nothing animating right now)")
+    };
+    let mut text = format!(
+        "{frames}\n\
+         CPU {:>5.1} %   redraws {}\n\
+         settings click  last {:>6.2}  avg {:>6.2}  max {:>6.2} ms\n\
+         settings view   last {:>6.2}  avg {:>6.2}  max {:>6.2} ms\n\
+         whole view      last {:>6.2}  avg {:>6.2}  max {:>6.2} ms\n\
+         frame tick      last {:>6.2}  avg {:>6.2}  max {:>6.2} ms\n\
+         layout {:>5.2}  inputs {:>5.2}  config save {:>5.2} ms (avg)\n\
+         low power {}   battery saver {}",
+        state.cpu.percent,
+        crate::app::view::view_count(),
+        click.last_ms(),
+        click.mean_ms(),
+        click.max_ms(),
+        settings_view.last_ms(),
+        settings_view.mean_ms(),
+        settings_view.max_ms(),
+        view.last_ms(),
+        view.mean_ms(),
+        view.max_ms(),
+        tick.last_ms(),
+        tick.mean_ms(),
+        tick.max_ms(),
+        layout.mean_ms(),
+        inputs.mean_ms(),
+        save.mean_ms(),
+        if app.config.low_power() { "on" } else { "off" },
+        if app.config.battery_saver_active() { "active" } else { "off" },
+    );
+    if state.bench.is_some() {
+        text.push_str("\nbenchmark running...");
+    }
+    if app.runtime_state.metrics.hud_enabled {
+        text.push_str("\n\n");
+        text.push_str(&app.runtime_state.metrics.hud_lines());
+    }
+    text
+}
+
 pub(super) fn hud_layer(app: &App) -> Option<Element<'_, Message>> {
-    app.runtime_state.metrics.hud_enabled.then(|| {
+    (app.runtime_state.metrics.hud_enabled || app.config.perf_overlay()).then(|| {
         let hud = crate::contracts::presentation::HudSnapshot {
-            metrics: app.runtime_state.metrics.hud_lines(),
-            daemon: app.daemon.diagnostic.clone(),
+            metrics: perf_overlay_text(app),
+            daemon: if app.runtime_state.metrics.hud_enabled {
+                app.daemon.diagnostic.clone()
+            } else {
+                String::new()
+            },
         };
         container(crate::frontend::ui::hud(&hud, app.palette(), app.config.ui_scale()))
             .width(Length::Fill)

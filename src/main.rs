@@ -148,6 +148,7 @@ fn main() {
 }
 
 pub fn hard_exit(code: i32) -> ! {
+    infrastructure::config::writer::flush();
     flush_obs_guards();
     unsafe { libc::_exit(code) }
 }

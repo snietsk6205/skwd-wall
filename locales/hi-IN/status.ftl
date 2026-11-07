@@ -26,3 +26,4 @@ status-bug-report-saved = बग रिपोर्ट सहेजी गई: {
 status-bug-report-failed = बग रिपोर्ट सहेजी नहीं जा सकी। असली त्रुटि के लिए लॉग देखें।
 status-keybinds-reset = नियंत्रण डिफ़ॉल्ट पर बहाल किए गए।
 
+status-bench-done = Benchmark finished. Report: { $path }

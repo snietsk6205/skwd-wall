@@ -116,11 +116,104 @@ Read this first in a new session.
   `bar/order.rs`, key `filterBar.show.layout` (default true; Filter & search → Buttons).
 - Bar quick setup: `ActionId::BarPreset(minimal)` (Settings → Picker → Bar).
 
-## Open items for the next session
-- See "Suggested next steps" in `handoff/DESIGN.md` (full-resolution Showcase preview,
-  Spectrum colour-wheel layout, transition shuffle list, day/night pairs, hover tilt,
-  translations).
-- Not yet tried on the user's real Hyprland machine; ask for feedback first.
+## Session rule (from the user, applies to every session)
+- **One milestone per session.** When it is done: full build, tests, screenshots, commit, push
+  to `my-custom`, update this file, then stop and give the user the exact prompt for the next
+  session in a copyable box. Stop early (work pushed + noted here) if the session gets long.
+
+## Roadmap agreed with the user (priority order; one per session)
+- **M1 Speed (done, Phase 6 below).**
+- **M2 Window size everywhere (next).** The Settings window size/position/scale must apply to
+  every panel that opens over the picker: Shape/layout studio, playlists, card picker, theme
+  designer, effects studio, schedule editor, tag cloud, scene properties, downloads browser,
+  audio mixer. The picker itself keeps filling the screen.
+  Notes from M1's reading (saves time): most panels build their sheet with
+  `frontend/ui/misc/folio.rs` `folio_sheet()` and size it with `frontend/ui/misc/layout.rs`
+  `folio_sheet_dims(viewport, scale)` (1390x870 x scale, minus 22 px), then centre it
+  (`.center_x/.center_y`) over an `inert_backdrop` scrim. Users: playlists, theme designer,
+  schedule editor, scene properties, audio panel, effects `displays.rs`; the effects studio
+  (`effects/presentation/studio.rs`) and `monitor.rs` copy the same pattern by hand. The
+  Settings window logic lives in `frontend/settings/folio/folio.rs` `struct SettingsWindow`
+  (dims/align/edge_gap). Plan: move it to `frontend/ui` as a shared `SheetWindow` (thread-local
+  set by `app/view/composition.rs` each view, since frontend may not read config), make
+  `folio_sheet_dims` and a new `place_sheet()` use it, pass the window scale to every panel in
+  `app/view/panels.rs`. Separate cases: the Shape/layout studio (`picker_layout_workbench`,
+  full-height side panel; `post_update.rs` insets the picker by `picker_layout_studio_width`),
+  the downloads browser (`frontend/browser/view.rs`), tag cloud, card picker.
+- **M3 Transitions:** many more original ones; families, favourites, search, live preview per
+  transition; play several in turns (in order / shuffled / random without repeats); combine two
+  (A then B, blend, split screen, one as a mask for the other, more); reuse the sketch code's
+  offscreen freeze/cache for multi-pass.
+- **M4 Sketch:** genuinely different original styles (only pencil is good today); controls for
+  drawing order (by brightness/depth layers, edges first, one continuous line, scribble,
+  stipple), stroke width, hatch direction, paper texture, colour vs mono, speed; tick several
+  styles/orders and pick a different one each time.
+- **M5 Style editor and themes** (wmkeyboard's approach, ideas only, MIT Kotlin): style editor
+  with live preview for every visual part, per-element styles, built-in presets, export/import/
+  share themes; a settings search/reference that finds every option; simple vs advanced view;
+  every layout deeply customisable (cards, spacing, shapes, shadows, glow, tilt, reflections,
+  motion curves).
+- **M6 Bar:** three clearly different bars (floating dock, minimal top strip, side rail with
+  labels) as presets with screenshots; per-button icon/label/size/colour/hover effect; button
+  order by drag.
+- **M7 New features:** research, ranked list, build the best: full-resolution Space-bar peek
+  (thumbnails are 640x360), colour-wheel mood layout, wallpaper history scrub, day/night pairs,
+  shareable theme packs.
+
+## Phase 6 = M1 (done): speed, performance overlay, benchmark, low-power mode
+- **Measured cause of the settings lag:** every settings click saved `config.json` on the UI
+  thread: clone + pretty JSON + write + **two fsyncs** (file and folder). The benchmark measured
+  27 ms per save in the cloud container; on btrfs (CachyOS default) or a busy disk it is often
+  more. Each save also made the daemon reload its whole config (and refresh power, playback,
+  rotation, weather, playlists) and the picker re-read and re-parse the file it had just
+  written. Everything else a click does on the CPU is small: update 0.2-0.6 ms,
+  `init_settings_inputs` 0.3 ms, building the Settings view 0.3 ms, `apply_layout` < 0.2 ms.
+  Idle picker and daemon: 0 CPU ticks in 5 s (no idle work, no continuous redraw).
+- **Fix: background config writer** `src/infrastructure/config/writer/` (+ tests). `persist()`
+  now serialises and hands the text to a writer thread; saves within 120 ms are merged into one
+  write (max delay 600 ms), so a burst of clicks causes one disk write and one daemon reload.
+  `writer::flush()` runs before **every** daemon request (`ipc/client.rs` `call`) and in
+  `hard_exit`, so the daemon never acts on an older config. `Config::reload()` skips while our
+  own write is pending (it would undo the user's newer change) and skips parsing when the file
+  hash equals our last save (`last_saved`, FNV-1a). Unit tests write synchronously (`cfg!(test)`).
+  `SKWD_WALL_SYNC_CONFIG=1` restores the old synchronous save for A/B comparison.
+- **Timing spans** `src/infrastructure/observability/perf/` (+ tests): `perf::span("name")`
+  costs two clock reads + one lock; steps over 4 ms are logged at debug level
+  (`SKWD_WALL_LOG=debug`). Instrumented: `update.{frame,settings,mouse,other}`, `view`,
+  `view.settings`, `tick`, `apply_layout`, `settings.init_inputs`, `config.save`,
+  `config.reload`, `config.adopt`, `config.write_disk` (writer thread), `config.flush_wait`.
+- **Performance overlay**: Settings → Performance → Power → "Performance overlay" (key
+  `performance.overlay`; also `skwd-helm ui perf on|off`; `SKWD_WALL_HUD=1` still works and
+  adds the old memory lines). Shows FPS, frame p50/p95, CPU %, redraws, cost of the last settings
+  click / view / tick, layout/inputs/save averages. It is drawn by the existing HUD
+  (`app/view/transient.rs` `hud_layer`); while it is on, the picker redraws ~once a second
+  (`schedule_frame` in `runtime/ticks.rs`) so the CPU figure stays current. Frame stats come from
+  `PerfState::on_frame` (`app/state/perf.rs`), called from `run_tick`.
+- **Benchmark**: `skwd-helm ui bench` sends `bench` to the picker, polls the new `perf-query`
+  socket query and prints the report (also saved to `~/.cache/skwd-wall-v2/bench/latest.txt`
+  and `.json`, plus dated copies). Script in `src/app/update/bench.rs`: idle 3 s, 24 arrow-key
+  steps, 12 settings toggles (`filterBar.show.layout`), 30 slider steps (`gridFocusWidth`),
+  every layout for 1.1 s, idle 3 s; it runs on a transient config copy (nothing is saved) and
+  measures one real config save separately (`Config::measure_save`, writes a probe file next
+  to config.json). `skwd-helm ui perf` prints live spans as JSON.
+- **Low-power mode**: Settings → Performance → Power → "Low-power mode" (`performance.lowPower`).
+  `skwd-config` `saver_active()` = low power OR (battery saver AND on battery), used by
+  `effective_picker_fps`, `effective_video_idle_seconds`, `effective_gpu_preference` ("low"),
+  `effective_wallpaper_performance`; picker `battery_saver_active()` uses it (no hover video
+  previews, FPS cap = battery FPS). Picker: no Coverflow reflection, no blurred backdrop in
+  Coverflow/Showcase/Hand (`app/startup.rs`). Daemon: no sketch before transitions
+  (`value/transition/sketch.rs`, key spelled out there because of the deck layer guard).
+- New keys (skwd-deck `skwd-config`): `performance.lowPower`, `performance.overlay`
+  (key_catalog, schema, keys_tests, power_tests). Locale keys
+  `settings-performance-{low-power,overlay}-{label,desc}` in all 14 locales (translated for
+  most; ar/fa/hi/bn/ur descriptions are English). Helper: `handoff/tools/add_locale_keys.py
+  <file.ftl> <keys.json>` adds/replaces keys in every locale.
+- **Not measurable here (no GPU):** real frame pacing. With llvmpipe every frame of the 1080p
+  picker costs 100-250 ms of CPU, so frame gaps/CPU % in the cloud report are meaningless; the
+  per-step CPU costs (update/view/tick spans) are valid. Ask the user for their bench report.
+- Not done in M1 (candidates if the user's numbers show a need): caching the Settings cards
+  between frames (`source.cards(tab)` is rebuilt on every view, 0.3 ms here), a cheaper
+  launch animation in low power, a lower Sandy LOD in low power.
 
 ## Testing in a cloud session
 - Scripts from the last session (recreate in the scratchpad): a headless sway + `skwd-walld` +

@@ -29,6 +29,8 @@ pub(crate) struct BrowserWallState {
 }
 
 impl BrowserWallState {
+    // The params are stored as they are; passing them by value is intended.
+    #[allow(clippy::large_types_passed_by_value)]
     pub(crate) fn new(
         sp: SliceParams,
         base_grid: GridParams,

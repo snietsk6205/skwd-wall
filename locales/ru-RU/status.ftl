@@ -25,3 +25,4 @@ status-demo-filtered = Демонстрационные обои скрыты ф
 status-bug-report-saved = Отчёт об ошибке сохранён: { $path }
 status-bug-report-failed = Не удалось сохранить отчёт об ошибке. Точная причина указана в журнале.
 status-keybinds-reset = Управление сброшено до значений по умолчанию.
+status-bench-done = Тест производительности завершён. Отчёт: { $path }

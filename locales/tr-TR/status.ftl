@@ -25,3 +25,4 @@ status-demo-filtered = Demo duvar kâğıdı filtre dışında kaldı: { $key }
 status-bug-report-saved = Hata raporu kaydedildi: { $path }
 status-bug-report-failed = Hata raporu kaydedilemedi. Asıl hata için günlüğü kontrol edin.
 status-keybinds-reset = Kontroller varsayılanlara döndürüldü.
+status-bench-done = Performans testi bitti. Rapor: { $path }

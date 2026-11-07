@@ -71,3 +71,7 @@ settings-performance-capture-we-label = 为所有 WE 壁纸添加捕获帧缩略
 settings-performance-capture-we-desc = 在后台捕获原生场景。复用有效的捕获结果，如果场景失败则保留现有预览。可以停止后再继续。
 settings-performance-capture-we-action = 生成缩略图
 settings-performance-capture-we-stop = 停止
+settings-performance-low-power-label = 低功耗模式
+settings-performance-low-power-desc = 所有重度效果都使用轻量版本：不使用模糊背景和倒影，简化打开动画，过渡前不绘制草图，并始终应用电池模式的帧率和视频限制。
+settings-performance-overlay-label = 性能叠加层
+settings-performance-overlay-desc = 在角落显示帧率、帧时间、CPU 占用和上次更改设置的耗时（每秒刷新一次）。完整报告：skwd-helm ui bench

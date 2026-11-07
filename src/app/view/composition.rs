@@ -36,6 +36,7 @@ pub fn view_single(app: &App) -> Element<'_, Message> {
 
 fn overlay_view(app: &App) -> Element<'_, Message> {
     crate::zone!("overlay_view");
+    let _perf = crate::infrastructure::observability::perf::span("view");
     VIEWS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     if app.theme.audition_open {
         let current_value = app

@@ -25,3 +25,4 @@ status-demo-filtered = O papel de parede de demonstração foi filtrado: { $key 
 status-bug-report-saved = Relatório de bug salvo: { $path }
 status-bug-report-failed = Não foi possível salvar o relatório de bug. Veja o log para o erro real.
 status-keybinds-reset = Controles restaurados para o padrão.
+status-bench-done = Teste de desempenho concluído. Relatório: { $path }

@@ -43,7 +43,11 @@ impl App {
                 let wait_ms = TOAST_MS.saturating_sub(fade_ms) as u64;
                 (*since + Duration::from_millis(wait_ms)).max(now)
             });
-            [self.scene.preview_deadline(), toast].into_iter().flatten().min()
+            // The performance overlay refreshes its CPU reading about once a second.
+            let overlay = (self.config.perf_overlay() || self.runtime_state.metrics.hud_enabled)
+                .then(|| self.runtime_state.last_tick.unwrap_or(now) + Duration::from_millis(1100))
+                .map(|deadline| deadline.max(now));
+            [self.scene.preview_deadline(), toast, overlay].into_iter().flatten().min()
         };
         self.runtime_state.frame_clock.schedule(deadline);
     }
@@ -326,6 +330,7 @@ impl App {
     }
 
     pub(in crate::app) fn run_tick(&mut self, now: Instant) {
+        let _perf = crate::infrastructure::observability::perf::span("tick");
         crate::app::update::drive_transition_preview(self);
         self.scene.input_idle =
             now.duration_since(self.input.last_activity) > std::time::Duration::from_secs(60);
@@ -454,6 +459,7 @@ impl App {
                 t0.elapsed(),
                 self.scene.render.instances.len(),
             );
+            self.runtime_state.perf.on_frame(now);
         }
         let sig = {
             crate::zone!("chrome_sig");

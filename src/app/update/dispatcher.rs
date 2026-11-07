@@ -18,6 +18,12 @@ pub fn update(app: &mut App, message: Message) -> Task<Message> {
     let sync_settings_preview =
         !frame && !matches!(&message, Message::Viewport(..) | Message::MouseMoved(..));
     let sync_filter_bar = !frame && !matches!(&message, Message::MouseMoved(..));
+    let _perf = crate::infrastructure::observability::perf::span(match &message {
+        Message::Daemon(crate::infrastructure::runtime::Wake::Frame(_)) => "update.frame",
+        Message::Settings(_) => "update.settings",
+        Message::MouseMoved(..) => "update.mouse",
+        _ => "update.other",
+    });
     let task = update_inner(app, message);
     let subscribed_card_opened = app.scene.flip_open()
         && !flip_was_open
@@ -59,9 +65,13 @@ pub(crate) fn update_inner(app: &mut App, message: Message) -> Task<Message> {
         Message::Daemon(crate::infrastructure::runtime::Wake::Command(command)) => {
             run_ui_command(app, &command)
         }
-        Message::Daemon(crate::infrastructure::runtime::Wake::Query(_, reply)) => {
+        Message::Daemon(crate::infrastructure::runtime::Wake::Query(query, reply)) => {
             app.retick();
-            reply.send(&ui_state_json(app));
+            if query == "perf-query" {
+                reply.send(&super::perf_json(app));
+            } else {
+                reply.send(&ui_state_json(app));
+            }
             Task::none()
         }
         Message::Daemon(crate::infrastructure::runtime::Wake::Frame(sent_at)) => {

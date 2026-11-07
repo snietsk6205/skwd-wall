@@ -1,6 +1,7 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
 
+mod bench;
 mod browser;
 mod dispatcher;
 mod effects;
@@ -24,6 +25,7 @@ pub(crate) mod theme;
 mod ui_command;
 pub(in crate::app) mod weather_review;
 
+pub(crate) use bench::perf_json;
 pub use dispatcher::update;
 pub(crate) use dispatcher::update_inner;
 pub(crate) use effects::effects_do_preview;

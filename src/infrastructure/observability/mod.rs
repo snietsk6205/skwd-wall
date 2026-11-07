@@ -5,6 +5,7 @@ pub use skwd_log::proc as memory;
 pub mod logging;
 mod macros;
 pub mod metrics;
+pub mod perf;
 mod startup;
 pub mod timing;
 #[cfg(feature = "obs-trace")]

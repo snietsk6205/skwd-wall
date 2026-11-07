@@ -661,6 +661,16 @@ pub(super) fn tab_performance(builder: &mut Builder<'_>) {
     };
     builder.card(tr("settings-performance-power-card"), tr("settings-performance-power-card-desc"));
     builder.info(tr("settings-performance-power-source-label"), power_source);
+    builder.toggle(
+        tr("settings-performance-low-power-label"),
+        tr("settings-performance-low-power-desc"),
+        keys::performance::LOW_POWER,
+    );
+    builder.toggle(
+        tr("settings-performance-overlay-label"),
+        tr("settings-performance-overlay-desc"),
+        keys::performance::OVERLAY,
+    );
     let devices = builder.cfg.graphics_devices();
     let mut device_options =
         vec![(String::from("auto"), tr("settings-performance-device-auto").to_string())];

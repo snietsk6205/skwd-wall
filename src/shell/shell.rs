@@ -333,7 +333,7 @@ pub(super) fn attach_reply(
 ) -> crate::infrastructure::runtime::Wake {
     match wake {
         crate::infrastructure::runtime::Wake::Command(line)
-            if line == "state" || line.starts_with("state ") =>
+            if line == "state" || line.starts_with("state ") || line == "perf-query" =>
         {
             let reply =
                 crate::infrastructure::runtime::Reply::new(Box::new(move |response: &str| {

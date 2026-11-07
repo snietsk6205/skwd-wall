@@ -435,6 +435,8 @@ impl SceneCore {
         center_layout(self.viewport.0, self.motion.center_inset.x, self.reading_rtl).1
     }
 
+    // The params are stored as they are; passing them by value is intended.
+    #[allow(clippy::large_types_passed_by_value)]
     pub fn set_params(
         &mut self,
         sp: SliceParams,

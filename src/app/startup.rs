@@ -418,7 +418,7 @@ fn hand_params(config: &Config) -> crate::frontend::scene::hand::HandParams {
         perspective: config.hand_perspective(),
         ghosts: config.hand_ghosts(),
         bob: config.hand_bob(),
-        backdrop: config.hand_backdrop(),
+        backdrop: config.hand_backdrop() && !config.low_power(),
         reveal_fill: config.hand_reveal_fill(),
     }
 }
@@ -454,8 +454,9 @@ pub(crate) fn coverflow_params(config: &Config) -> crate::frontend::scene::layou
         angle: config.custom_num(selector::COVERFLOW_ANGLE, 62.0, 0.0, 85.0),
         spacing: config.custom_num(selector::COVERFLOW_SPACING, 26.0, 8.0, 90.0),
         count: config.custom_num(selector::COVERFLOW_COUNT, 5.0, 1.0, 12.0).round(),
-        reflection: config.custom_flag(selector::COVERFLOW_REFLECTION, true),
-        backdrop: config.custom_flag(selector::COVERFLOW_BACKDROP, true),
+        // Low-power mode: no reflection and no blurred backdrop (the costly passes).
+        reflection: config.custom_flag(selector::COVERFLOW_REFLECTION, true) && !config.low_power(),
+        backdrop: config.custom_flag(selector::COVERFLOW_BACKDROP, true) && !config.low_power(),
         corners: config.custom_num(selector::COVERFLOW_CORNERS, 10.0, 0.0, 40.0),
         speed_ms: config.custom_num(selector::COVERFLOW_SPEED, 420.0, 120.0, 1500.0),
     }
@@ -471,7 +472,7 @@ pub(crate) fn showcase_params(config: &Config) -> crate::frontend::scene::layout
         strip_position: StripPosition::from_key(
             &config.custom_text(selector::SHOWCASE_STRIP_POSITION),
         ),
-        backdrop: config.custom_flag(selector::SHOWCASE_BACKDROP, true),
+        backdrop: config.custom_flag(selector::SHOWCASE_BACKDROP, true) && !config.low_power(),
         corners: config.custom_num(selector::SHOWCASE_CORNERS, 14.0, 0.0, 40.0),
         speed_ms: config.custom_num(selector::SHOWCASE_SPEED, 380.0, 120.0, 1500.0),
     }

@@ -71,3 +71,7 @@ settings-performance-capture-we-label = Ajouter des miniatures capturées à tou
 settings-performance-capture-we-desc = Capture les scènes natives en arrière-plan. Réutilise les captures valides et garde les aperçus existants si une scène échoue. Vous pouvez arrêter et reprendre plus tard.
 settings-performance-capture-we-action = Générer les miniatures
 settings-performance-capture-we-stop = Arrêter
+settings-performance-low-power-label = Mode basse consommation
+settings-performance-low-power-desc = Utilise la version légère de chaque effet coûteux : pas d’arrière-plan flou ni de reflets, animations d’ouverture simples, pas d’esquisse avant les transitions, et les limites de FPS et de vidéo de la batterie en permanence.
+settings-performance-overlay-label = Superposition de performances
+settings-performance-overlay-desc = Affiche dans un coin les FPS, le temps par image, l’utilisation du CPU et le coût du dernier changement de réglage (actualisé chaque seconde). Pour un rapport complet : skwd-helm ui bench

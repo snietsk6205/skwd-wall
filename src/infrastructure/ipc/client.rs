@@ -56,6 +56,8 @@ impl IpcHandle {
     }
 
     pub fn call(&self, method: &str, params: Value) -> u64 {
+        // The daemon reads config.json: make sure our latest save is on disk.
+        crate::infrastructure::config::writer::flush();
         let Ok(mut guard) = self.stream.lock() else {
             return 0;
         };

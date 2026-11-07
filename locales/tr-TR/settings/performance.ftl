@@ -69,3 +69,7 @@ settings-performance-capture-we-label = Tüm WE duvar kâğıtlarına yakalanan 
 settings-performance-capture-we-desc = Yerel sahneleri arka planda yakalayın. Geçerli yakalamaları yeniden kullanın ve bir sahne başarısız olursa mevcut önizlemeleri koruyun. Durdurup daha sonra devam edebilirsiniz.
 settings-performance-capture-we-action = Küçük resimler oluştur
 settings-performance-capture-we-stop = Durdur
+settings-performance-low-power-label = Düşük güç modu
+settings-performance-low-power-desc = Her ağır efektin hafif sürümünü kullan: bulanık arka plan veya yansıma yok, basit açılış animasyonları, geçişlerden önce eskiz yok ve pil FPS ile video sınırları her zaman geçerli.
+settings-performance-overlay-label = Performans katmanı
+settings-performance-overlay-desc = Bir köşede FPS, kare süresi, CPU kullanımı ve son ayar değişikliğinin maliyetini gösterir (saniyede bir yenilenir). Tam rapor için: skwd-helm ui bench

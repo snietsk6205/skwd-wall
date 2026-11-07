@@ -20,6 +20,13 @@ fn secure_config_file(_path: &std::path::Path) -> bool {
     false
 }
 
+/// FNV-1a: a quick fingerprint of the saved config text.
+fn text_hash(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x0100_0000_01b3)
+    })
+}
+
 #[allow(clippy::struct_field_names)]
 pub struct Config {
     pub(super) data: Value,
@@ -27,6 +34,9 @@ pub struct Config {
     pub(super) small: bool,
     pub(super) transient: bool,
     pub(super) on_battery: bool,
+    /// Hash of the text this picker last saved, so its own save coming back
+    /// as a "config changed" event is recognised without parsing the file.
+    pub(super) last_saved: std::sync::atomic::AtomicU64,
 }
 
 impl Config {
@@ -71,6 +81,7 @@ impl Config {
             small: false,
             transient: false,
             on_battery: false,
+            last_saved: std::sync::atomic::AtomicU64::new(0),
         }
     }
 
@@ -102,6 +113,7 @@ impl Config {
             small: false,
             transient: false,
             on_battery: skwd_config::on_battery_power(),
+            last_saved: std::sync::atomic::AtomicU64::new(0),
         }
     }
 
@@ -109,9 +121,17 @@ impl Config {
         if self.transient {
             return false;
         }
+        let _perf = crate::infrastructure::observability::perf::span("config.reload");
         self.on_battery = skwd_config::on_battery_power();
+        // Our own newer save is still on its way to the disk: the file is
+        // older than what we hold, so adopting it would undo the user's change.
+        if crate::infrastructure::config::writer::pending(&self.config_path) {
+            return false;
+        }
         let _ = secure_config_file(&self.config_path);
         if let Ok(text) = std::fs::read_to_string(&self.config_path)
+            && text_hash(text.as_bytes())
+                != self.last_saved.load(std::sync::atomic::Ordering::Relaxed)
             && let Ok(mut val) = serde_json::from_str::<Value>(&text)
             && {
                 canonicalize_picker_config(&mut val);
@@ -255,6 +275,7 @@ impl Config {
         if self.transient {
             return;
         }
+        let _perf = crate::infrastructure::observability::perf::span("config.save");
         let mut data = self.data.clone();
         canonicalize_picker_config(&mut data);
         let text = match serde_json::to_string_pretty(&data) {
@@ -264,13 +285,25 @@ impl Config {
                 return;
             }
         };
-        if let Some(dir) = self.config_path.parent() {
-            let _ = std::fs::create_dir_all(dir);
-        }
-        match skwd_config::atomic_write_mode(&self.config_path, text.as_bytes(), Some(0o600)) {
-            Ok(()) => info!("config saved to {}", self.config_path.display()),
-            Err(err) => warn!("config write failed: {err}"),
-        }
+        self.last_saved.store(text_hash(text.as_bytes()), std::sync::atomic::Ordering::Relaxed);
+        // Written on a background thread; see infrastructure::config::writer.
+        crate::infrastructure::config::writer::save(&self.config_path, text.into_bytes());
+    }
+
+    /// Times one full save of the config without touching the real file
+    /// (written next to it under another name, then removed).
+    pub fn measure_save(&self) -> std::time::Duration {
+        let started = std::time::Instant::now();
+        let mut data = self.data.clone();
+        canonicalize_picker_config(&mut data);
+        let Ok(json) = serde_json::to_string_pretty(&data) else {
+            return started.elapsed();
+        };
+        let probe = self.config_path.with_extension("bench-probe.json");
+        let _ = skwd_config::atomic_write_mode(&probe, format!("{json}\n").as_bytes(), Some(0o600));
+        let elapsed = started.elapsed();
+        let _ = std::fs::remove_file(&probe);
+        elapsed
     }
 
     pub fn save_key(&mut self, path: &str, value: Value) {

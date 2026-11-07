@@ -26,3 +26,4 @@ status-bug-report-saved = Bug report saved: { $path }
 status-bug-report-failed = Could not save the bug report. Check the log for the actual error.
 status-keybinds-reset = Controls restored to defaults.
 
+status-bench-done = Benchmark finished. Report: { $path }

@@ -71,3 +71,7 @@ settings-performance-capture-we-label = Add captured frame thumbnails to all WE 
 settings-performance-capture-we-desc = Capture native scenes in the background. Reuse valid captures and keep existing previews if a scene fails. You can stop and continue later.
 settings-performance-capture-we-action = Generate thumbnails
 settings-performance-capture-we-stop = Stop
+settings-performance-low-power-label = Low-power mode
+settings-performance-low-power-desc = Use the cheap version of every heavy effect: no blurred backdrops or reflections, simple opening animations, no sketch before transitions, and the battery FPS and video limits all the time.
+settings-performance-overlay-label = Performance overlay
+settings-performance-overlay-desc = Show FPS, frame time, CPU use and the cost of the last settings change in a corner (it refreshes once a second). For a full report run: skwd-helm ui bench

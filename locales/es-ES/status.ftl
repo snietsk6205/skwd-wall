@@ -26,3 +26,4 @@ status-bug-report-saved = Informe de error guardado: { $path }
 status-bug-report-failed = No se pudo guardar el informe de error. Revisa el registro para ver el error real.
 status-keybinds-reset = Controles restaurados a los valores por defecto.
 
+status-bench-done = Prueba de rendimiento terminada. Informe: { $path }

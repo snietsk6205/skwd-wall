@@ -354,6 +354,8 @@ pub(super) struct RebuildSinks<'a> {
 }
 
 impl SceneCore {
+    // The params are stored as they are; passing them by value is intended.
+    #[allow(clippy::large_types_passed_by_value)]
     pub fn new(
         mode: Mode,
         sp: SliceParams,

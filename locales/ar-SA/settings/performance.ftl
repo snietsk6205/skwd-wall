@@ -71,3 +71,7 @@ settings-performance-capture-we-label = إضافة مصغرات من إطارا�
 settings-performance-capture-we-desc = التقاط المشاهد الأصلية في الخلفية. يُعاد استخدام الالتقاطات الصالحة وتبقى المعاينات الموجودة إن فشل مشهد. يمكنك الإيقاف والمتابعة لاحقًا.
 settings-performance-capture-we-action = توليد المصغرات
 settings-performance-capture-we-stop = إيقاف
+settings-performance-low-power-label = وضع الطاقة المنخفضة
+settings-performance-low-power-desc = Use the cheap version of every heavy effect: no blurred backdrops or reflections, simple opening animations, no sketch before transitions, and the battery FPS and video limits all the time.
+settings-performance-overlay-label = طبقة الأداء
+settings-performance-overlay-desc = Show FPS, frame time, CPU use and the cost of the last settings change in a corner (it refreshes once a second). For a full report run: skwd-helm ui bench

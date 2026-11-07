@@ -11,6 +11,7 @@ fn cfg(data: Value) -> Config {
         small: false,
         transient: false,
         on_battery: false,
+        last_saved: std::sync::atomic::AtomicU64::new(0),
     }
 }
 
