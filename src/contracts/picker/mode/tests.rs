@@ -27,3 +27,13 @@ fn unknown_keys_default_slices() {
         assert_eq!(Mode::from_key(key), Mode::Slices);
     }
 }
+
+#[test]
+fn custom_layouts_decode_with_aliases() {
+    assert_eq!(Mode::from_key("coverflow"), Mode::Coverflow);
+    assert_eq!(Mode::from_key("carousel"), Mode::Coverflow);
+    assert_eq!(Mode::from_key("showcase"), Mode::Showcase);
+    assert_eq!(Mode::from_key("filmstrip"), Mode::Showcase);
+    assert_eq!(Mode::Coverflow.as_key(), "coverflow");
+    assert_eq!(Mode::Showcase.as_key(), "showcase");
+}

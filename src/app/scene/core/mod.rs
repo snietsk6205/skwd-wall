@@ -11,6 +11,7 @@ mod sandy_state;
 mod selection;
 mod tick;
 mod view_collection;
+mod view_custom;
 mod view_depth;
 mod view_grid;
 mod view_hand;

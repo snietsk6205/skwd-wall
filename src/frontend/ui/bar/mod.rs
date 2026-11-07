@@ -4,6 +4,7 @@ mod catalog;
 mod interaction;
 mod menu;
 mod model;
+mod order;
 mod view;
 
 pub use action::{BarAction, BarIntent};
@@ -14,6 +15,7 @@ pub use menu::MenuKind;
 pub(in crate::frontend::ui) use menu::item_contains;
 pub(crate) use menu::{folder_leaf, folder_short_label};
 pub use model::{BarItem, BarShow, BarVisualStyle, build_bar_with_tasks, verticalize_bar};
+pub use order::{bar_group_label, bar_order, bar_order_moved};
 pub(crate) use view::{
     control_background, control_border, control_text, draw_button, draw_swatch_with_style,
 };

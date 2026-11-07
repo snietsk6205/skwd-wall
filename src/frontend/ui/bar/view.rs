@@ -134,6 +134,7 @@ fn draw_notice(
         BarVisualStyle::Slices => lean * 0.5,
         BarVisualStyle::Hex => item.h * 0.14,
         BarVisualStyle::Wall => 0.0,
+        BarVisualStyle::Pill | BarVisualStyle::Glass => item.h * 0.3,
     };
     let marker_x = lead_x(rtl, visual_x, visual_w, edge_inset + 8.0 * scale);
     let marker = canvas::Path::circle(Point::new(marker_x, item.y + item.h / 2.0), 2.5 * scale);
@@ -151,7 +152,7 @@ fn draw_notice(
         return;
     };
     let track_inset = match style {
-        BarVisualStyle::Hex => item.h * 0.3,
+        BarVisualStyle::Hex | BarVisualStyle::Pill | BarVisualStyle::Glass => item.h * 0.3,
         BarVisualStyle::Slices | BarVisualStyle::Wall => 2.0 * scale,
     };
     let trailing_inset =
@@ -203,8 +204,12 @@ fn item_background(
     palette: &Palette,
     style: BarVisualStyle,
 ) {
-    let fill = control_background(palette, item.active, hovered);
-    let stroke = control_border(palette, item.active, hovered);
+    let mut fill = control_background(palette, item.active, hovered);
+    let mut stroke = control_border(palette, item.active, hovered);
+    if style == BarVisualStyle::Glass && !item.active {
+        fill = with_alpha(fill, if hovered { 0.5 } else { 0.28 });
+        stroke = with_alpha(palette.surface_text, if hovered { 0.34 } else { 0.16 });
+    }
     let path = item_path(item, style);
     frame.fill(&path, fill);
     frame.stroke(&path, Stroke::default().with_color(stroke).with_width(1.0));
@@ -301,6 +306,16 @@ fn style_path(
             Point::new(x + 0.5, y + 0.5),
             Size::new((width - 1.0).max(1.0), (height - 1.0).max(1.0)),
         ),
+        BarVisualStyle::Pill | BarVisualStyle::Glass => {
+            let width = (width - 3.0).max(1.0);
+            let height = (height - 1.0).max(1.0);
+            let radius = if style == BarVisualStyle::Pill { height * 0.5 } else { height * 0.32 };
+            canvas::Path::rounded_rectangle(
+                Point::new(x + 1.5, y + 0.5),
+                Size::new(width, height),
+                iced::border::Radius::from(radius.min(width * 0.5)),
+            )
+        }
     }
 }
 
@@ -326,6 +341,11 @@ fn panel_path(rectangle: Rectangle, style: BarVisualStyle, rtl: bool) -> canvas:
             style_path(rectangle.x, rectangle.y, rectangle.width, rectangle.height, 10.0, style)
         }
         BarVisualStyle::Wall => canvas::Path::rectangle(rectangle.position(), rectangle.size()),
+        BarVisualStyle::Pill | BarVisualStyle::Glass => canvas::Path::rounded_rectangle(
+            rectangle.position(),
+            rectangle.size(),
+            iced::border::Radius::from(10.0),
+        ),
     }
 }
 

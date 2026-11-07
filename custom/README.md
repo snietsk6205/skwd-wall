@@ -82,4 +82,21 @@ restarting, the installer goes back to the previous state by itself.
 - **Settings → Picker → Settings window**: width, height, scale, position, one column,
   narrow index. **Selection**: width of the ring around the selected card.
 
+- **New picker layouts** (Settings → Picker → Layout & presets → Display mode):
+  - **Coverflow**, with three styles: *Coverflow* (the front card faces you, the
+    others turn away), *Carousel ring* (cards stand on a turning ring) and *Stack*
+    (cards recede behind the front one, like a timeline). Glossy reflection and a
+    blurred copy of the selected wallpaper behind the cards (both can be turned off).
+    Settings: card size, angle, spacing, cards on each side, corners, step time.
+  - **Showcase**: one big preview of the selected wallpaper with a filmstrip of the
+    others under (or above) it; pictures cross-fade as you move.
+  - Both: Left/Right, Up/Down or the wheel move; click a card to go to it; click the
+    front card (or press Enter) to apply it; right-click for details.
+- **Bar** (Settings → Picker → Bar and Bar order): size (0.6-1.8x), position
+  (automatic, top, bottom, left or right edge), two new styles (*Pill* and *Glass*)
+  and the order of the button groups (Earlier / Later buttons, plus Reset). Which
+  buttons show is still under Settings → Filters.
+- The selection ring in Grid stays visible when the mouse is nudged by a few pixels
+  while you use the arrow keys.
+
 Preview frames and screenshots are in `custom/previews/`.

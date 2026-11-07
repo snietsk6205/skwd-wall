@@ -8,6 +8,7 @@ mod builder;
 mod folders_tab;
 pub use folders_tab::{flash_key, folder_ledger};
 mod launch_tab;
+mod layouts_tab;
 mod media_tabs;
 mod motion_tab;
 mod position_tab;

@@ -141,6 +141,8 @@ pub(super) fn tab_selector(builder: &mut Builder<'_>) {
                 keys::selector::DEPTH_SHADOWS,
             );
         }
+        "coverflow" => super::layouts_tab::coverflow_cards(builder),
+        "showcase" => super::layouts_tab::showcase_cards(builder),
         "collection" => {
             builder.card(
                 tr("settings-selector-mode-collection"),
@@ -897,6 +899,8 @@ fn mode_label_key(mode: &str) -> &'static str {
         "hand" => "settings-selector-mode-hand",
         "depth" => "settings-selector-mode-depth",
         "collection" => "settings-selector-mode-collection",
+        "coverflow" => "settings-selector-mode-coverflow",
+        "showcase" => "settings-selector-mode-showcase",
         _ => "settings-selector-mode-slices",
     }
 }
@@ -959,6 +963,8 @@ pub(super) fn tab_filter(builder: &mut Builder<'_>, folders: &[String]) {
             "slices" | "sandy" => "slices",
             "hex" => "hex",
             "wall" => "wall",
+            "pill" => "pill",
+            "glass" => "glass",
             _ => "match",
         };
     builder.dropdown_cur(
@@ -970,6 +976,8 @@ pub(super) fn tab_filter(builder: &mut Builder<'_>, folders: &[String]) {
             ("slices", tr("settings-filter-visual-style-slices")),
             ("hex", tr("settings-filter-visual-style-hex")),
             ("wall", tr("settings-filter-visual-style-wall")),
+            ("pill", "Pill"),
+            ("glass", "Glass"),
         ],
         visual_style.to_string(),
     );

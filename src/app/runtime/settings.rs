@@ -62,8 +62,7 @@ impl App {
     }
 
     pub(in crate::app) fn sync_filter_bar_chrome(&mut self) {
-        let vertical = self.config.filter_bar_orientation() == "vertical"
-            && self.scene.mode != crate::frontend::scene::layout::Mode::Sandy;
+        let vertical = self.config.filter_bar_effective_vertical(self.scene.mode);
         self.chrome.sync_filter_bar(vertical);
     }
 

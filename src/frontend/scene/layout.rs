@@ -1,3 +1,4 @@
+pub use super::layout_custom::{CoverflowParams, CoverflowStyle, ShowcaseParams, StripPosition};
 pub use crate::contracts::picker::Mode;
 
 #[derive(Debug, Clone, Copy)]
@@ -6,6 +7,8 @@ pub struct ExtraParams {
     pub collection: CollectionParams,
     pub sandy: super::sandy::SandyParams,
     pub hand: super::hand::HandParams,
+    pub coverflow: CoverflowParams,
+    pub showcase: ShowcaseParams,
 }
 
 impl ExtraParams {
@@ -14,6 +17,8 @@ impl ExtraParams {
         self.collection.morph_toward(&target.collection, amt);
         self.sandy.morph_toward(&target.sandy, amt);
         self.hand.morph_toward(&target.hand, amt);
+        self.coverflow.morph_toward(&target.coverflow, amt);
+        self.showcase.morph_toward(&target.showcase, amt);
     }
 
     pub fn settled_to(&self, target: &ExtraParams) -> bool {
@@ -21,6 +26,8 @@ impl ExtraParams {
             && self.collection.settled_to(&target.collection)
             && self.sandy.settled_to(&target.sandy)
             && self.hand.settled_to(&target.hand)
+            && self.coverflow.settled_to(&target.coverflow)
+            && self.showcase.settled_to(&target.showcase)
     }
 }
 

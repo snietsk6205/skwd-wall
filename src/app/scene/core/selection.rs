@@ -65,13 +65,17 @@ impl SceneCore {
         if self.mode == Mode::Slices {
             self.slice_select(idx);
         }
-        if matches!(self.mode, Mode::Hex | Mode::Depth) {
+        if matches!(self.mode, Mode::Hex | Mode::Depth | Mode::Coverflow | Mode::Showcase) {
             if self.mode == Mode::Hex {
                 self.hex_row = idx % self.hp.rows.max(1);
             }
             let old = self.current;
             let motion_ms = if self.mode == Mode::Depth {
                 self.xp.depth.navigation_ms * self.motion.scale
+            } else if self.mode == Mode::Coverflow {
+                self.xp.coverflow.speed_ms * self.motion.scale
+            } else if self.mode == Mode::Showcase {
+                self.xp.showcase.speed_ms * self.motion.scale
             } else {
                 self.motion_ms(MotionTier::Standard)
             };
@@ -177,7 +181,13 @@ impl SceneCore {
         self.reset_to_index(idx, count);
         self.layout_camera_anchor = matches!(
             self.mode,
-            Mode::Slices | Mode::Depth | Mode::Hex | Mode::Grid | Mode::Collection
+            Mode::Slices
+                | Mode::Depth
+                | Mode::Hex
+                | Mode::Grid
+                | Mode::Collection
+                | Mode::Coverflow
+                | Mode::Showcase
         );
         if let Some(camera) = camera.filter(|value| value.is_finite()) {
             self.camera.snap(camera);
@@ -201,8 +211,15 @@ impl SceneCore {
             self.hand_reset(count);
         } else {
             self.camera.snap(self.start_camera());
-            self.layout_camera_anchor =
-                matches!(self.mode, Mode::Slices | Mode::Depth | Mode::Hex | Mode::Collection);
+            self.layout_camera_anchor = matches!(
+                self.mode,
+                Mode::Slices
+                    | Mode::Depth
+                    | Mode::Hex
+                    | Mode::Collection
+                    | Mode::Coverflow
+                    | Mode::Showcase
+            );
         }
         self.motion.needs_frame = true;
     }

@@ -64,14 +64,45 @@ Read this first in a new session.
   upstream's so `is_picker_layout_section` indexes stay valid.
 - All new keys are registered in `skwd-config` (key_catalog.rs, schema.rs, keys_tests.rs).
 
+## Phase 3 (done): layouts and bar
+- Selection ring: could not reproduce the "never shows" note. In headless sway the ring shows
+  after arrow keys (`skwd-helm ui state` now reports `keyboard_focus` and `hover`). Pointer
+  jitter < 2 px was already ignored; now, while `kb_nav` is set, the pointer must move
+  `KEYBOARD_POINTER_SLACK` (12 px) before it takes over (`app/update/picker.rs`).
+- New modes `Mode::Coverflow` ("coverflow", alias "carousel") and `Mode::Showcase`
+  ("showcase", alias "filmstrip") in `contracts/picker/mode.rs`; drawing in
+  `app/scene/core/view_custom.rs`; params in `frontend/scene/layout/custom.rs`
+  (`CoverflowParams` with `CoverflowStyle::{Coverflow, Carousel, Stack}`, `ShowcaseParams`);
+  config readers in `infrastructure/config/picker/accessors/custom_layouts.rs`; Settings cards in
+  `frontend/settings/tabs/layouts_tab.rs`; presets snapshot both. They behave like Depth:
+  camera spring follows `current`, `card.selection` springs drive the focus/cross-fade.
+- Coverflow uses projected quads (like Collection) and a new shader flag `REFLECTION`
+  (`rendering/scene/pipeline/geometry.rs`, `shaders/item.wgsl`): flipped texture, dark glossy
+  fade, opaque enough that nearer reflections hide farther ones. The row is fitted by projecting
+  the outer poses (`coverflow_fit`).
+- Both layouts can draw the blurred "ambient backdrop" (the Hand backdrop shader). They borrow
+  `hand.backdrop_*` state and tick it in `tick_custom_layouts`.
+  NOTE for testing: with llvmpipe the backdrop blur samples BC7 textures in software and a frame
+  takes ~4 s; switch `coverflowBackdrop`/`showcaseBackdrop` off for headless tests.
+- Bar: `filterBar.order` (comma list, parsed by `frontend/ui/bar/order.rs`, groups appended in
+  upstream order), `filterBar.scale` (0.6-1.8), `filterBar.anchor` (auto/top/bottom/left/right,
+  `anchored_bar` in `app/view/chrome.rs`, `filter_bar_effective_vertical`/`filter_bar_menu_up`),
+  new `BarVisualStyle::{Pill, Glass}` (values "pill"/"glass" of `filterBar.visualStyle`; "match"
+  maps Coverflow/Showcase to pill). Settings → Picker → Bar / Bar order (`window_tab.rs`,
+  `ActionId::MoveBarGroup`, `ActionId::ResetBarOrder`).
+- New keys registered in skwd-deck `skwd-config` (key_catalog, schema specs, keys_tests).
+  Mode labels `settings-selector-mode-coverflow/showcase` added to all 14 locales (English text
+  everywhere: untranslated).
+
 ## Open items for the next session
-- Selection ring: drawn only while `scene.kb_nav` is true; a mouse move clears it
-  (`app/update/picker.rs`). In the headless test it never showed, likely because sway sends a
-  pointer event; check on the real machine (does the ring appear after arrow keys?) and consider
-  ignoring pointer events that do not move the pointer.
-- Phases 3-5 not started (see REQUESTS.md and the session prompt).
+- Phases 4-5 (see REQUESTS.md and the session prompt) unless noted as done below.
 
 ## Testing in a cloud session
+- Scripts from the last session (recreate in the scratchpad): a headless sway + `skwd-walld` +
+  `skwd-wall` with `HOME` pointing at a fake home whose config sets `paths.wallpaper` to a folder
+  of generated test images (ImageMagick gradients), then `skwd-helm ui set <key> <value>`,
+  `skwd-helm ui nav right`, `skwd-helm ui tab picker`, `skwd-helm ui section N`, and `grim`.
+  Wait for the picker to go idle (CPU ~0) before `grim`.
 - Software Vulkan (llvmpipe) works; `skwd-wall-vk --preview-stream` renders frames.
 - A headless sway (`WLR_BACKENDS=headless WLR_RENDERER=pixman`) runs the picker; `grim`
   screenshots; `skwd-helm ui <command>` drives it and `skwd-helm ui state` reports state.

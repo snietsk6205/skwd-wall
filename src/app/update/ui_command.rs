@@ -294,6 +294,8 @@ pub(crate) fn ui_state_json(app: &App) -> String {
             "search_results": app.panels.settings.search_results.len(),
         },
     });
+    state["keyboard_focus"] = json!(app.scene.kb_nav);
+    state["hover"] = json!(app.scene.hover);
     state[SETTINGS_FIELD][WEATHER_REVIEW_FIELD] =
         app.panels.settings.weather_review_category.map_or(serde_json::Value::Null, |category| {
             let review = &app.panels.settings;

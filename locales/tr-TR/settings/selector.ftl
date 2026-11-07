@@ -343,3 +343,5 @@ settings-selector-depth-frame-desc = Seçilen kartın etrafına vurgulanmış bi
 
 settings-selector-shadows-label = Kart gölgeleri
 settings-selector-shadows-desc = Her kartın arkasına bir gölge çizin.
+settings-selector-mode-coverflow = Coverflow
+settings-selector-mode-showcase = Showcase

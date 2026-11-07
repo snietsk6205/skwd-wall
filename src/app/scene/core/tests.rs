@@ -132,6 +132,8 @@ fn test_extra() -> ExtraParams {
     ExtraParams {
         depth: crate::frontend::scene::layout::DepthParams::default(),
         collection: crate::frontend::scene::layout::CollectionParams::default(),
+        coverflow: crate::frontend::scene::layout::CoverflowParams::default(),
+        showcase: crate::frontend::scene::layout::ShowcaseParams::default(),
         sandy: sandy::SandyParams {
             offset_x: 0.0,
             offset_y: 0.0,
@@ -3558,6 +3560,75 @@ fn unframed_depth_rectangles_use_clean_edges_without_affecting_rounded_or_skewed
         assert!(!bodies.is_empty());
         for body in bodies {
             assert_eq!(body.misc[3] & crate::rendering::scene::UNFRAMED_RECT != 0, clean);
+        }
+    }
+}
+
+fn quad_centre(quad: [[f32; 2]; 4]) -> (f32, f32) {
+    let x = quad.iter().map(|point| point[0]).sum::<f32>() / 4.0;
+    let y = quad.iter().map(|point| point[1]).sum::<f32>() / 4.0;
+    (x, y)
+}
+
+#[test]
+fn coverflow_styles_put_the_selected_card_in_front_and_settle() {
+    use crate::frontend::scene::layout::CoverflowStyle;
+    for style in [CoverflowStyle::Coverflow, CoverflowStyle::Carousel, CoverflowStyle::Stack] {
+        for viewport in [(1920.0, 1080.0), (420.0, 760.0)] {
+            for count in [1usize, 3, 50] {
+                let idx = count / 2;
+                let mut scene = test_scene(Mode::Coverflow);
+                scene.xp.coverflow.style = style;
+                scene.xp_target.coverflow.style = style;
+                scene.viewport = viewport;
+                scene.reset_to_index(idx, count);
+                rebuild_collection_test(&mut scene, count, 120);
+                assert!(!scene.is_animating(), "{style:?} settles: {}", scene.anim_reason());
+                let hit = scene.render.hits.iter().find(|hit| hit.index == idx).unwrap();
+                let (x, y) = quad_centre(hit.quad.unwrap());
+                assert!(x > 0.0 && x < viewport.0 && y > 0.0 && y < viewport.1, "{style:?}");
+                let top = scene.render.hits.iter().find(|hit| hit.contains(x, y)).unwrap();
+                assert_eq!(top.index, idx, "{style:?}: the selected card is on top");
+                assert!(scene.render.hits.len() <= 26, "{style:?}: only nearby cards are drawn");
+            }
+        }
+    }
+}
+
+#[test]
+fn coverflow_steps_animate_then_rest() {
+    let mut scene = test_scene(Mode::Coverflow);
+    scene.viewport = (1920.0, 1080.0);
+    scene.reset_to_index(4, 20);
+    rebuild_collection_test(&mut scene, 20, 60);
+    scene.set_current(5, 20);
+    assert!(scene.is_animating());
+    rebuild_collection_test(&mut scene, 20, 120);
+    assert!(!scene.is_animating(), "held by {}", scene.anim_reason());
+    assert!((scene.camera_pos() - 5.0).abs() < 0.01);
+}
+
+#[test]
+fn showcase_has_one_big_preview_and_a_filmstrip() {
+    use crate::frontend::scene::layout::StripPosition;
+    for position in [StripPosition::Bottom, StripPosition::Top] {
+        let mut scene = test_scene(Mode::Showcase);
+        scene.xp.showcase.strip_position = position;
+        scene.xp_target.showcase.strip_position = position;
+        scene.viewport = (1920.0, 1080.0);
+        scene.reset_to_index(7, 30);
+        rebuild_collection_test(&mut scene, 30, 120);
+        assert!(!scene.is_animating(), "held by {}", scene.anim_reason());
+        let hits = &scene.render.hits;
+        let biggest = hits.iter().max_by(|a, b| (a.hw * a.hh).total_cmp(&(b.hw * b.hh))).unwrap();
+        assert_eq!(biggest.index, 7);
+        let strip: Vec<_> = hits.iter().filter(|hit| hit.hw < biggest.hw * 0.5).collect();
+        assert!(strip.len() >= 5, "a filmstrip of neighbours");
+        assert!(strip.iter().any(|hit| hit.index == 6) && strip.iter().any(|hit| hit.index == 8));
+        let strip_y = strip[0].cy;
+        match position {
+            StripPosition::Bottom => assert!(strip_y > biggest.cy),
+            StripPosition::Top => assert!(strip_y < biggest.cy),
         }
     }
 }

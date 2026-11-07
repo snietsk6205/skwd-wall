@@ -801,6 +801,8 @@ pub fn picker_layout_workbench<'a>(
         "hand" => "settings-selector-mode-hand",
         "depth" => "settings-selector-mode-depth",
         "collection" => "settings-selector-mode-collection",
+        "coverflow" => "settings-selector-mode-coverflow",
+        "showcase" => "settings-selector-mode-showcase",
         _ => "settings-selector-mode-slices",
     });
     let page_actions = row![

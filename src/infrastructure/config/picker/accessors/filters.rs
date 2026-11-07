@@ -22,10 +22,14 @@ impl Config {
     pub fn filter_bar_visual_style(&self) -> String {
         use crate::contracts::picker::Mode;
         let configured = skwd_config::schema::setting::filter_bar::VISUAL_STYLE.read(self.root());
+        if matches!(configured.as_str(), "pill" | "glass") {
+            return configured;
+        }
         let mode =
             Mode::try_from_key(&configured).unwrap_or_else(|| Mode::from_key(&self.display_mode()));
         String::from(match mode {
             Mode::Sandy | Mode::Hand | Mode::Depth | Mode::Collection => Mode::Slices.as_key(),
+            Mode::Coverflow | Mode::Showcase => "pill",
             mode => mode.as_key(),
         })
     }

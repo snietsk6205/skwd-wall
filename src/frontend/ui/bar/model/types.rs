@@ -11,6 +11,10 @@ pub enum BarVisualStyle {
     Slices,
     Hex,
     Wall,
+    /// Custom build: round capsules.
+    Pill,
+    /// Custom build: see-through rounded buttons.
+    Glass,
 }
 
 impl BarVisualStyle {
@@ -18,6 +22,8 @@ impl BarVisualStyle {
         match key {
             "hex" => Self::Hex,
             "wall" => Self::Wall,
+            "pill" => Self::Pill,
+            "glass" => Self::Glass,
             _ => Self::Slices,
         }
     }
@@ -40,6 +46,8 @@ pub struct BarShow {
     pub playlists: bool,
     pub effects: bool,
     pub hidden: Option<bool>,
+    /// Custom build: the order of the button groups (see `bar::order`).
+    pub order: Vec<&'static str>,
 }
 
 impl BarShow {
@@ -61,6 +69,7 @@ impl BarShow {
             playlists: true,
             effects: true,
             hidden: Some(false),
+            order: super::super::order::BAR_GROUPS.to_vec(),
         }
     }
 

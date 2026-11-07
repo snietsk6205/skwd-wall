@@ -1,4 +1,5 @@
 mod browser;
+mod custom_layouts;
 mod filters;
 mod general;
 mod geometry;

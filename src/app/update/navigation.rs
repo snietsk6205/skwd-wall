@@ -86,7 +86,13 @@ pub(super) fn wheel(app: &mut App, amount: f32) -> Task<Message> {
     }
     app.scene.close_collection();
     match app.scene.mode {
-        Mode::Slices | Mode::Depth | Mode::Sandy | Mode::Hand | Mode::Collection => {
+        Mode::Slices
+        | Mode::Depth
+        | Mode::Sandy
+        | Mode::Hand
+        | Mode::Collection
+        | Mode::Coverflow
+        | Mode::Showcase => {
             app.scene.slice_scroll(amount, app.library_session.filtered.len());
         }
         Mode::Grid => app.scene.grid_scroll(-amount),
@@ -357,7 +363,7 @@ pub(super) fn key_up(app: &mut App) -> Task<Message> {
     if app.menu_capturing() || app.detail_open() {
         return Task::none();
     }
-    if app.scene.mode == Mode::Collection {
+    if matches!(app.scene.mode, Mode::Collection | Mode::Coverflow | Mode::Showcase) {
         return key_prev(app);
     }
     if app.scene.mode == Mode::Grid {
@@ -391,7 +397,7 @@ pub(super) fn key_down(app: &mut App) -> Task<Message> {
     if app.menu_capturing() || app.detail_open() {
         return Task::none();
     }
-    if app.scene.mode == Mode::Collection {
+    if matches!(app.scene.mode, Mode::Collection | Mode::Coverflow | Mode::Showcase) {
         return key_next(app);
     }
     if app.scene.mode == Mode::Grid {

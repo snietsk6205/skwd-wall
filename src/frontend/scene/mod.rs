@@ -1,6 +1,7 @@
 mod card_flip;
 pub mod hand;
 pub mod layout;
+mod layout_custom;
 mod reel;
 pub mod sandy;
 mod snapshot;

@@ -1454,3 +1454,37 @@ fn hover_selection_can_be_turned_off() {
         }
     }
 }
+
+#[test]
+fn keyboard_ring_survives_a_small_mouse_nudge() {
+    let mut app = test_app();
+    let walls: Vec<Value> = (0..12).map(|i| wall(&format!("w{i}"), "static", i % 360, i)).collect();
+    seed(&mut app, &walls);
+    app.scene.mode = Mode::Grid;
+    let _ = update(&mut app, Message::MouseMoved(400.0, 400.0));
+    let _ = update(&mut app, Message::MouseMoved(420.0, 420.0));
+    let _ = update(&mut app, Message::KeyNext);
+    assert!(app.scene.kb_nav);
+    let _ = update(&mut app, Message::MouseMoved(428.0, 425.0));
+    assert!(app.scene.kb_nav, "a few pixels of drift keep the keyboard selection");
+    let _ = update(&mut app, Message::MouseMoved(470.0, 420.0));
+    assert!(!app.scene.kb_nav, "a real mouse move hands control back to the mouse");
+}
+
+#[test]
+fn custom_layouts_step_with_arrows_and_wheel() {
+    for mode in [Mode::Coverflow, Mode::Showcase] {
+        let mut app = test_app();
+        let walls: Vec<Value> =
+            (0..12).map(|i| wall(&format!("w{i}"), "static", i % 360, i)).collect();
+        seed(&mut app, &walls);
+        app.scene.set_mode(mode);
+        let _ = update(&mut app, Message::KeyNext);
+        let _ = update(&mut app, Message::KeyDown);
+        assert_eq!(app.scene.current, 2, "{mode:?}: Right and Down move on");
+        let _ = update(&mut app, Message::KeyUp);
+        assert_eq!(app.scene.current, 1, "{mode:?}: Up moves back");
+        let _ = update(&mut app, Message::Wheel(-1.0));
+        assert_eq!(app.scene.current, 2, "{mode:?}: the wheel moves");
+    }
+}

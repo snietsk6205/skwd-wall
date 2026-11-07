@@ -69,6 +69,8 @@ pub(super) fn card_h(app: &App, vh: f32) -> f32 {
         Mode::Grid => app.scene.gp.total_h() + 85.0,
         Mode::Hex => app.scene.hp.content_h() + 140.0,
         Mode::Sandy | Mode::Hand | Mode::Collection => (vh - 90.0).max(200.0),
+        Mode::Coverflow => vh * app.scene.xp.coverflow.size / 100.0 + 150.0,
+        Mode::Showcase => (vh - 10.0).max(200.0),
     }
 }
 
@@ -102,6 +104,7 @@ pub(crate) fn bar_show(app: &App) -> crate::frontend::ui::BarShow {
         hidden: (app.library_session.library.catalog().has_hidden()
             || app.library_session.filters.reveal)
             .then_some(app.library_session.filters.reveal),
+        order: crate::frontend::ui::bar_order(&app.config.filter_bar_order_text()),
     }
 }
 
@@ -147,9 +150,10 @@ fn theme_bar_model(
 }
 
 pub(super) fn filter_bar_layer(app: &App, vw: f32, vh: f32) -> Element<'_, Message> {
-    let menu_up = matches!(app.scene.mode, Mode::Sandy);
+    let menu_up = app.config.filter_bar_menu_up(app.scene.mode);
+    let anchor = app.config.filter_bar_anchor();
     let (ox, oy) = app.config.filter_bar_offset();
-    let scale = app.config.ui_scale();
+    let scale = app.config.ui_scale() * app.config.filter_bar_scale();
     let vertical = app.chrome.filter_bar_vertical && !menu_up;
     let downloads_enabled = app.config.wallhaven_enabled() || app.config.steam_enabled();
     let show = bar_show(app);
@@ -185,7 +189,9 @@ pub(super) fn filter_bar_layer(app: &App, vw: f32, vh: f32) -> Element<'_, Messa
     }
     let (bar_w, bar_h) = (model.width.min(vw), model.height);
     let gap = 8.0 * scale;
-    let (left, top) = if menu_up {
+    let (left, top) = if let Some(place) = anchored_bar(&anchor, vw, vh, bar_w, bar_h, ox, oy) {
+        place
+    } else if menu_up {
         (
             (((vw - bar_w) * 0.5) + ox).max(0.0),
             (vh - crate::frontend::scene::sandy::BAR_GAP - bar_h + oy).max(0.0),
@@ -242,10 +248,31 @@ pub(super) fn filter_bar_layer(app: &App, vw: f32, vh: f32) -> Element<'_, Messa
         .into()
 }
 
+/// Custom build: the bar's top-left corner when it is pinned to a screen edge.
+fn anchored_bar(
+    anchor: &str,
+    vw: f32,
+    vh: f32,
+    bar_w: f32,
+    bar_h: f32,
+    ox: f32,
+    oy: f32,
+) -> Option<(f32, f32)> {
+    let centre_x = ((vw - bar_w) * 0.5 + ox).max(0.0);
+    let centre_y = ((vh - bar_h) * 0.5 + oy).max(0.0);
+    match anchor {
+        "top" => Some((centre_x, (14.0 + oy).max(0.0))),
+        "bottom" => Some((centre_x, (vh - bar_h - 16.0 + oy).max(0.0))),
+        "left" => Some(((16.0 + ox).max(0.0), centre_y)),
+        "right" => Some(((vw - bar_w - 16.0 + ox).max(0.0), centre_y)),
+        _ => None,
+    }
+}
+
 pub(crate) fn filter_bar_footprint(app: &App, vw: f32, vh: f32) -> (bool, f32, f32) {
-    let menu_up = matches!(app.scene.mode, Mode::Sandy);
+    let menu_up = app.config.filter_bar_menu_up(app.scene.mode);
     let vertical = app.chrome.filter_bar_vertical && !menu_up;
-    let scale = app.config.ui_scale();
+    let scale = app.config.ui_scale() * app.config.filter_bar_scale();
     let show = bar_show(app);
     let backend_now = crate::app::update::theme::wallpaper_theme_backend(app);
     let backend_options =

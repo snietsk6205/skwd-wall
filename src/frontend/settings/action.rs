@@ -40,7 +40,10 @@ pub enum ActionId {
     ReviewWeather(&'static str),
     FollowOutdoors(bool),
     OutdoorNext(String),
-    OutdoorExclude { output: String, key: String },
+    OutdoorExclude {
+        output: String,
+        key: String,
+    },
     OutdoorPin(String),
     OutdoorResume(String),
     OutdoorCredits(String),
@@ -52,6 +55,10 @@ pub enum ActionId {
     ResetMotionSlow,
     ResetKeybinds,
     SetNavKeys(crate::domain::input::NavKeys),
+    /// Custom build: move a bar button group one place earlier (`true`) or later.
+    MoveBarGroup(&'static str, bool),
+    /// Custom build: put the bar's button groups back in upstream's order.
+    ResetBarOrder,
 }
 
 impl ActionId {

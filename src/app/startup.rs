@@ -89,8 +89,7 @@ impl App {
         crate::infrastructure::observability::timing::init(&config.cache_dir());
         let filter_bar_visible =
             std::env::var_os("SKWD_WALL_BAR").is_some() || config.filter_bar_always_visible();
-        let filter_bar_vertical =
-            config.filter_bar_orientation() == "vertical" && scene.mode != Mode::Sandy;
+        let filter_bar_vertical = config.filter_bar_effective_vertical(scene.mode);
         let search_mode = if config.flag_default_true(skwd_config::keys::semantic::ENABLED) {
             SearchMode::from_config(
                 &config.str_path(skwd_config::keys::tagging::DEFAULT_SEARCH_MODE),
@@ -386,6 +385,8 @@ pub(crate) fn layout_params(config: &Config) -> LayoutParams {
             video_out_live: config.sandy_video_out_live(),
         },
         hand: hand_params(config),
+        coverflow: coverflow_params(config),
+        showcase: showcase_params(config),
     };
     LayoutParams { mode, slices: sp, grid: gp, hex: hp, extra: xp }
 }
@@ -441,4 +442,37 @@ pub(crate) fn startup_filters(config: &Config) -> Filters {
         filters.folder = "*".into();
     }
     filters
+}
+
+/// Custom build: Coverflow settings (Settings → Picker → Layout).
+pub(crate) fn coverflow_params(config: &Config) -> crate::frontend::scene::layout::CoverflowParams {
+    use crate::frontend::scene::layout::{CoverflowParams, CoverflowStyle};
+    use skwd_config::keys::selector;
+    CoverflowParams {
+        style: CoverflowStyle::from_key(&config.custom_text(selector::COVERFLOW_STYLE)),
+        size: config.custom_num(selector::COVERFLOW_SIZE, 46.0, 20.0, 75.0),
+        angle: config.custom_num(selector::COVERFLOW_ANGLE, 62.0, 0.0, 85.0),
+        spacing: config.custom_num(selector::COVERFLOW_SPACING, 26.0, 8.0, 90.0),
+        count: config.custom_num(selector::COVERFLOW_COUNT, 5.0, 1.0, 12.0).round(),
+        reflection: config.custom_flag(selector::COVERFLOW_REFLECTION, true),
+        backdrop: config.custom_flag(selector::COVERFLOW_BACKDROP, true),
+        corners: config.custom_num(selector::COVERFLOW_CORNERS, 10.0, 0.0, 40.0),
+        speed_ms: config.custom_num(selector::COVERFLOW_SPEED, 420.0, 120.0, 1500.0),
+    }
+}
+
+/// Custom build: Showcase settings (Settings → Picker → Layout).
+pub(crate) fn showcase_params(config: &Config) -> crate::frontend::scene::layout::ShowcaseParams {
+    use crate::frontend::scene::layout::{ShowcaseParams, StripPosition};
+    use skwd_config::keys::selector;
+    ShowcaseParams {
+        hero: config.custom_num(selector::SHOWCASE_HERO, 62.0, 35.0, 85.0),
+        strip: config.custom_num(selector::SHOWCASE_STRIP, 92.0, 48.0, 180.0),
+        strip_position: StripPosition::from_key(
+            &config.custom_text(selector::SHOWCASE_STRIP_POSITION),
+        ),
+        backdrop: config.custom_flag(selector::SHOWCASE_BACKDROP, true),
+        corners: config.custom_num(selector::SHOWCASE_CORNERS, 14.0, 0.0, 40.0),
+        speed_ms: config.custom_num(selector::SHOWCASE_SPEED, 380.0, 120.0, 1500.0),
+    }
 }

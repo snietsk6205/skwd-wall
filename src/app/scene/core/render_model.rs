@@ -58,6 +58,14 @@ impl SceneCore {
                 self.rebuild_collection(&mut ctx, &mut sinks, entrance);
                 None
             }
+            Mode::Coverflow => {
+                self.rebuild_coverflow(&mut ctx, &mut sinks, entrance);
+                None
+            }
+            Mode::Showcase => {
+                self.rebuild_showcase(&mut ctx, &mut sinks, entrance);
+                None
+            }
             Mode::Grid => self.rebuild_grid(&mut ctx, &mut sinks, entrance),
             Mode::Hex => {
                 self.rebuild_hex(&mut ctx, &mut sinks, entrance);

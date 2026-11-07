@@ -323,3 +323,5 @@ settings-selector-depth-frame-label = قاب انتخاب
 settings-selector-depth-frame-desc = دور کارت انتخاب‌شده حاشیه‌ای برجسته بکشید.
 settings-selector-shadows-label = سایهٔ کارت‌ها
 settings-selector-shadows-desc = پشت هر کارت سایه بکشید.
+settings-selector-mode-coverflow = Coverflow
+settings-selector-mode-showcase = Showcase

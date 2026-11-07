@@ -34,103 +34,123 @@ pub fn build_bar_with_tasks(
     let mut items = Vec::new();
     let mut x = 0.0f32;
 
-    type_items(&mut items, &mut x, scale, &filters.kind, &show.types);
-
-    if show.orient {
-        let action = Some(BarAction::Orient(next_orient(&filters.orient).to_string()));
-        push_item(
-            &mut items,
-            &mut x,
-            scale,
-            orient_label(&filters.orient),
-            false,
-            !filters.orient.is_empty(),
-            action,
-        );
+    let mut has_folders = false;
+    for group in &show.order {
+        match *group {
+            "types" => type_items(&mut items, &mut x, scale, &filters.kind, &show.types),
+            "orient" if show.orient => {
+                let action = Some(BarAction::Orient(next_orient(&filters.orient).to_string()));
+                push_item(
+                    &mut items,
+                    &mut x,
+                    scale,
+                    orient_label(&filters.orient),
+                    false,
+                    !filters.orient.is_empty(),
+                    action,
+                );
+            }
+            "resolution" => {
+                let has_resolution = show
+                    .resolution_presets
+                    .iter()
+                    .any(|preset| preset.matches_shape(&filters.orient));
+                if show.resolution && (has_resolution || !filters.resolution.is_empty()) {
+                    let next = next_resolution(
+                        &filters.resolution,
+                        &show.resolution_presets,
+                        &filters.orient,
+                    );
+                    push_item(
+                        &mut items,
+                        &mut x,
+                        scale,
+                        &resolution_label(&filters.resolution, &show.resolution_presets),
+                        false,
+                        !filters.resolution.is_empty(),
+                        Some(BarAction::Resolution(next)),
+                    );
+                }
+            }
+            "folder" => {
+                has_folders = show.folder
+                    && folder_options.iter().any(|folder| !matches!(folder.as_str(), "" | "*"));
+                if has_folders {
+                    folder_item(
+                        &mut items,
+                        &mut x,
+                        scale,
+                        &filters.folder,
+                        folder_options,
+                        menu_up,
+                        folder_menu_open,
+                    );
+                }
+            }
+            "hidden" => hidden_item(&mut items, &mut x, scale, show.hidden),
+            "sorts" => sort_items(&mut items, &mut x, scale, &filters.sort, &show.sorts),
+            "favourites" if show.favourites => {
+                let action = Some(BarAction::Favs);
+                push_item(
+                    &mut items,
+                    &mut x,
+                    scale,
+                    ICON_FAV,
+                    true,
+                    filters.favourites_only,
+                    action,
+                );
+            }
+            "random" if show.random => {
+                let action = Some(BarAction::Random);
+                push_item(&mut items, &mut x, scale, ICON_RANDOM, true, random_on, action);
+            }
+            "colors" if show.colors => color_items(&mut items, &mut x, scale, filters.color),
+            "theme" if show.theme => push_item(
+                &mut items,
+                &mut x,
+                scale,
+                "\u{f03d8}",
+                true,
+                theme.is_some(),
+                Some(BarAction::ThemePanel),
+            ),
+            "tagcloud" if show.tagcloud => {
+                let active = !filters.tags.is_empty() || !filters.numeric.is_empty();
+                let action = Some(BarAction::TagCloud);
+                push_item(&mut items, &mut x, scale, "\u{f0349}", true, active, action);
+            }
+            "download" if downloads_enabled && show.download => {
+                let action = Some(BarAction::Download);
+                push_item(&mut items, &mut x, scale, "\u{f01da}", true, false, action);
+            }
+            "audio" if audio_visible => audio_items(&mut items, &mut x, scale, audio_muted),
+            "playlists" if show.playlists => {
+                let action = Some(BarAction::Playlists);
+                push_item(&mut items, &mut x, scale, "\u{f0cb8}", true, false, action);
+            }
+            "effects" if show.effects => {
+                let action = Some(BarAction::Effects);
+                push_item(&mut items, &mut x, scale, "\u{f0068}", true, false, action);
+            }
+            "settings" => {
+                let action = Some(BarAction::Settings);
+                push_item(&mut items, &mut x, scale, "\u{f0493}", true, false, action);
+            }
+            "stash" => {
+                push_item(
+                    &mut items,
+                    &mut x,
+                    scale,
+                    EYE_CLOSED,
+                    true,
+                    false,
+                    Some(BarAction::Stash),
+                );
+            }
+            _ => {}
+        }
     }
-
-    let has_resolution =
-        show.resolution_presets.iter().any(|preset| preset.matches_shape(&filters.orient));
-    if show.resolution && (has_resolution || !filters.resolution.is_empty()) {
-        let next = next_resolution(&filters.resolution, &show.resolution_presets, &filters.orient);
-        push_item(
-            &mut items,
-            &mut x,
-            scale,
-            &resolution_label(&filters.resolution, &show.resolution_presets),
-            false,
-            !filters.resolution.is_empty(),
-            Some(BarAction::Resolution(next)),
-        );
-    }
-
-    let has_folders =
-        show.folder && folder_options.iter().any(|folder| !matches!(folder.as_str(), "" | "*"));
-    if has_folders {
-        folder_item(
-            &mut items,
-            &mut x,
-            scale,
-            &filters.folder,
-            folder_options,
-            menu_up,
-            folder_menu_open,
-        );
-    }
-
-    hidden_item(&mut items, &mut x, scale, show.hidden);
-    sort_items(&mut items, &mut x, scale, &filters.sort, &show.sorts);
-
-    if show.favourites {
-        let action = Some(BarAction::Favs);
-        push_item(&mut items, &mut x, scale, ICON_FAV, true, filters.favourites_only, action);
-    }
-
-    if show.random {
-        let action = Some(BarAction::Random);
-        push_item(&mut items, &mut x, scale, ICON_RANDOM, true, random_on, action);
-    }
-
-    if show.colors {
-        color_items(&mut items, &mut x, scale, filters.color);
-    }
-
-    if show.theme {
-        push_item(
-            &mut items,
-            &mut x,
-            scale,
-            "\u{f03d8}",
-            true,
-            theme.is_some(),
-            Some(BarAction::ThemePanel),
-        );
-    }
-
-    if show.tagcloud {
-        let active = !filters.tags.is_empty() || !filters.numeric.is_empty();
-        let action = Some(BarAction::TagCloud);
-        push_item(&mut items, &mut x, scale, "\u{f0349}", true, active, action);
-    }
-
-    if downloads_enabled && show.download {
-        push_item(&mut items, &mut x, scale, "\u{f01da}", true, false, Some(BarAction::Download));
-    }
-
-    if audio_visible {
-        audio_items(&mut items, &mut x, scale, audio_muted);
-    }
-
-    if show.playlists {
-        push_item(&mut items, &mut x, scale, "\u{f0cb8}", true, false, Some(BarAction::Playlists));
-    }
-
-    if show.effects {
-        push_item(&mut items, &mut x, scale, "\u{f0068}", true, false, Some(BarAction::Effects));
-    }
-
-    push_item(&mut items, &mut x, scale, "\u{f0493}", true, false, Some(BarAction::Settings));
-    push_item(&mut items, &mut x, scale, EYE_CLOSED, true, false, Some(BarAction::Stash));
 
     task_items(&mut items, &mut x, scale, tasks);
 

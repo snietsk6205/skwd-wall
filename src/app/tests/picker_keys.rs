@@ -176,11 +176,13 @@ fn ui_state_reports_the_sort_chip_and_download_source() {
 fn m_cycles_picker_modes_and_wraps() {
     let mut app = test_app();
     assert_eq!(app.config.display_mode(), "slices");
-    for expected in ["depth", "hex", "wall", "sandy", "hand", "collection", "slices"] {
+    for expected in
+        ["depth", "hex", "wall", "sandy", "hand", "collection", "coverflow", "showcase", "slices"]
+    {
         character(&mut app, "m", Modifiers::default());
         assert_eq!(app.config.display_mode(), expected);
     }
-    for expected in ["collection", "hand"] {
+    for expected in ["showcase", "coverflow"] {
         character(&mut app, "M", Modifiers::SHIFT);
         assert_eq!(app.config.display_mode(), expected);
     }

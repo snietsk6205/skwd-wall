@@ -333,6 +333,8 @@ fn compose_picker(
         tr("settings-selector-hand-card"),
         tr("settings-selector-depth-card"),
         tr("settings-selector-mode-collection"),
+        tr("settings-selector-mode-coverflow"),
+        tr("settings-selector-mode-showcase"),
         tr("settings-selector-ribbons-card"),
         tr("settings-selector-hand-effects-card"),
         tr("settings-selector-slice-size-card"),

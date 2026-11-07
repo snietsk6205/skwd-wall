@@ -9,6 +9,8 @@ pub const BACKDROP: u32 = 16384;
 pub const BACKFACE: u32 = 32768;
 pub const MUTED: u32 = 65_536;
 pub const UNFRAMED_RECT: u32 = 131_072;
+/// Custom build: draw the card upside down, fading out (Coverflow reflection).
+pub const REFLECTION: u32 = 262_144;
 
 pub(crate) fn sandy_video_in(progress: f32, live: bool) -> f32 {
     if !live {

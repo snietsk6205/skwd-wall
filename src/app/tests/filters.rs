@@ -692,3 +692,23 @@ fn tag_submit_once() {
     assert_eq!(app.library_session.library.catalog().tags["a.png"].len(), 1);
     assert!(drain_calls(&app).iter().all(|(method, _)| method != "wall.update_tags"));
 }
+
+#[test]
+fn bar_order_buttons_move_groups_and_reset() {
+    use crate::frontend::settings::{ActionId, SettingsMsg};
+    let mut app = test_app();
+    let order = |app: &App| app.config.str_path(skwd_config::keys::filter_bar::ORDER);
+    let _ = update(
+        &mut app,
+        Message::Settings(SettingsMsg::Run(ActionId::MoveBarGroup("orient", true))),
+    );
+    assert!(order(&app).starts_with("orient,types,"));
+    assert_eq!(crate::frontend::ui::bar_order(&order(&app))[0], "orient");
+    let _ = update(
+        &mut app,
+        Message::Settings(SettingsMsg::Run(ActionId::MoveBarGroup("stash", false))),
+    );
+    assert!(order(&app).ends_with(",stash"), "the last group cannot move further");
+    let _ = update(&mut app, Message::Settings(SettingsMsg::Run(ActionId::ResetBarOrder)));
+    assert_eq!(crate::frontend::ui::bar_order(&order(&app))[0], "types");
+}

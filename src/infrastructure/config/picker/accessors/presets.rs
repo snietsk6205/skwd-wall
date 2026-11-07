@@ -77,10 +77,62 @@ impl Config {
                 );
                 map.insert("collectionSpeed".into(), Value::from(self.collection_speed() as f64));
             }
+            "coverflow" => self.snapshot_coverflow(&mut map),
+            "showcase" => self.snapshot_showcase(&mut map),
 
             _ => self.snapshot_slices(&mut map),
         }
         Value::Object(map)
+    }
+
+    fn snapshot_coverflow(&self, map: &mut serde_json::Map<String, Value>) {
+        use skwd_config::keys::selector as sel;
+        let style = self.custom_text(sel::COVERFLOW_STYLE);
+        let style = if style.is_empty() { String::from("coverflow") } else { style };
+        map.insert("coverflowStyle".into(), Value::from(style));
+        for (name, key, default, min, max) in [
+            ("coverflowSize", sel::COVERFLOW_SIZE, 46.0, 20.0, 75.0),
+            ("coverflowAngle", sel::COVERFLOW_ANGLE, 62.0, 0.0, 85.0),
+            ("coverflowSpacing", sel::COVERFLOW_SPACING, 26.0, 8.0, 90.0),
+            ("coverflowCount", sel::COVERFLOW_COUNT, 5.0, 1.0, 12.0),
+            ("coverflowCorners", sel::COVERFLOW_CORNERS, 10.0, 0.0, 40.0),
+            ("coverflowSpeed", sel::COVERFLOW_SPEED, 420.0, 120.0, 1500.0),
+        ] {
+            map.insert(
+                name.into(),
+                Value::from(f64::from(self.custom_num(key, default, min, max))),
+            );
+        }
+        map.insert(
+            "coverflowReflection".into(),
+            Value::from(self.custom_flag(sel::COVERFLOW_REFLECTION, true)),
+        );
+        map.insert(
+            "coverflowBackdrop".into(),
+            Value::from(self.custom_flag(sel::COVERFLOW_BACKDROP, true)),
+        );
+    }
+
+    fn snapshot_showcase(&self, map: &mut serde_json::Map<String, Value>) {
+        use skwd_config::keys::selector as sel;
+        for (name, key, default, min, max) in [
+            ("showcaseHero", sel::SHOWCASE_HERO, 62.0, 35.0, 85.0),
+            ("showcaseStrip", sel::SHOWCASE_STRIP, 92.0, 48.0, 180.0),
+            ("showcaseCorners", sel::SHOWCASE_CORNERS, 14.0, 0.0, 40.0),
+            ("showcaseSpeed", sel::SHOWCASE_SPEED, 380.0, 120.0, 1500.0),
+        ] {
+            map.insert(
+                name.into(),
+                Value::from(f64::from(self.custom_num(key, default, min, max))),
+            );
+        }
+        let position = self.custom_text(sel::SHOWCASE_STRIP_POSITION);
+        let position = if position == "top" { "top" } else { "bottom" };
+        map.insert("showcaseStripPosition".into(), Value::from(position));
+        map.insert(
+            "showcaseBackdrop".into(),
+            Value::from(self.custom_flag(sel::SHOWCASE_BACKDROP, true)),
+        );
     }
 
     fn snapshot_hand(&self, map: &mut serde_json::Map<String, Value>) {

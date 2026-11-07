@@ -7,10 +7,14 @@ pub enum Mode {
     Sandy,
     Hand,
     Collection,
+    /// Custom build: 3D coverflow, carousel ring or receding stack.
+    Coverflow,
+    /// Custom build: one big preview with a filmstrip of the others.
+    Showcase,
 }
 
 impl Mode {
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 9] = [
         Self::Slices,
         Self::Depth,
         Self::Hex,
@@ -18,6 +22,8 @@ impl Mode {
         Self::Sandy,
         Self::Hand,
         Self::Collection,
+        Self::Coverflow,
+        Self::Showcase,
     ];
 
     pub fn try_from_key(value: &str) -> Option<Self> {
@@ -29,6 +35,8 @@ impl Mode {
             "sandy" | "nova" => Some(Self::Sandy),
             "hand" => Some(Self::Hand),
             "collection" => Some(Self::Collection),
+            "coverflow" | "carousel" => Some(Self::Coverflow),
+            "showcase" | "filmstrip" => Some(Self::Showcase),
             _ => None,
         }
     }
@@ -46,6 +54,8 @@ impl Mode {
             Self::Sandy => "sandy",
             Self::Hand => "hand",
             Self::Collection => "collection",
+            Self::Coverflow => "coverflow",
+            Self::Showcase => "showcase",
         }
     }
 }

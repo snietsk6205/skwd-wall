@@ -11,7 +11,7 @@ mod textures;
 mod transition_resources;
 
 pub(crate) use geometry::{
-    BACKDROP, BACKFACE, GHOST, MUTED, PROJECTED, RIBBON_COLUMNS, UNFRAMED_RECT, sandy_video_in,
-    sandy_video_out,
+    BACKDROP, BACKFACE, GHOST, MUTED, PROJECTED, REFLECTION, RIBBON_COLUMNS, UNFRAMED_RECT,
+    sandy_video_in, sandy_video_out,
 };
 pub(crate) use model::{BrowserScenePrimitive, ScenePrimitive};

@@ -17,6 +17,8 @@ impl SceneCore {
         if self.mode == Mode::Depth {
             (0.05 / self.xp.depth.spacing.max(self.xp.depth.width).max(1.0))
                 .max(self.camera.target.abs() * f32::EPSILON)
+        } else if matches!(self.mode, Mode::Coverflow | Mode::Showcase) {
+            0.002_f32.max(self.camera.target.abs() * f32::EPSILON)
         } else {
             0.05
         }
@@ -58,6 +60,8 @@ impl SceneCore {
         );
         let navigation_ms = match self.mode {
             Mode::Depth => self.xp_target.depth.navigation_ms,
+            Mode::Coverflow => self.xp_target.coverflow.speed_ms,
+            Mode::Showcase => self.xp_target.showcase.speed_ms,
             Mode::Collection => {
                 profile.duration_ms(MotionTier::Standard) * 100.0 / self.xp_target.collection.speed
             }
@@ -223,6 +227,8 @@ impl SceneCore {
             "sandy_transition"
         } else if self.mode == Mode::Sandy && self.sandy.motion > 0.001 {
             "sandy_lod"
+        } else if self.custom_layouts_animating() {
+            "backdrop_fade"
         } else if let Some(reason) = self.hand_reason() {
             reason
         } else {
@@ -270,6 +276,7 @@ impl SceneCore {
             || !self.card.filter_old.is_empty()
             || !self.card.filter_in.is_empty()
             || self.hand_animating()
+            || self.custom_layouts_animating()
         {
             demand = FrameDemand::Motion;
         }
@@ -440,7 +447,12 @@ impl SceneCore {
             Mode::Slices => self.sp_target.topology_differs(&sp),
             Mode::Grid => self.gp_target.topology_differs(&gp),
             Mode::Hex => self.hp_target.topology_differs(&hp),
-            Mode::Sandy | Mode::Hand | Mode::Depth | Mode::Collection => false,
+            Mode::Sandy
+            | Mode::Hand
+            | Mode::Depth
+            | Mode::Collection
+            | Mode::Coverflow
+            | Mode::Showcase => false,
         };
         if animate && topology_changed {
             self.begin_transition(0, [0.5, 0.5]);
@@ -513,8 +525,15 @@ impl SceneCore {
         self.card.hex_scales.clear();
         self.hover = None;
         self.camera.snap(0.0);
-        self.layout_camera_anchor =
-            matches!(mode, Mode::Slices | Mode::Depth | Mode::Hex | Mode::Collection);
+        self.layout_camera_anchor = matches!(
+            mode,
+            Mode::Slices
+                | Mode::Depth
+                | Mode::Hex
+                | Mode::Collection
+                | Mode::Coverflow
+                | Mode::Showcase
+        );
         self.card.filter_cache.clear();
         self.card.filter_old.clear();
         self.card.filter_cell.clear();

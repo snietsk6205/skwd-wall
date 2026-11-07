@@ -10,6 +10,9 @@ use crate::frontend::scene::layout::Mode;
 use super::super::*;
 use super::tags::tag_select_click;
 
+/// Pixels the pointer may drift before it takes over from the keyboard.
+pub(super) const KEYBOARD_POINTER_SLACK: f32 = 12.0;
+
 pub(super) fn mouse_moved(app: &mut App, x: f32, y: f32) -> Task<Message> {
     if app.detail_open() || app.menu_capturing() {
         return Task::none();
@@ -20,8 +23,11 @@ pub(super) fn mouse_moved(app: &mut App, x: f32, y: f32) -> Task<Message> {
     }
     app.input.last_activity = Instant::now();
     app.scene.input_idle = false;
+    // Custom build: while the keyboard drives the selection, a small nudge of
+    // the mouse (a bumped desk, a touchpad graze) keeps the selection ring.
+    let threshold = if app.scene.kb_nav { KEYBOARD_POINTER_SLACK } else { 2.0 };
     let moved = match app.scene.last_mouse {
-        Some((lx, ly)) => (x - lx).abs() > 2.0 || (y - ly).abs() > 2.0,
+        Some((lx, ly)) => (x - lx).abs() > threshold || (y - ly).abs() > threshold,
         None => true,
     };
     if !moved {
@@ -48,7 +54,9 @@ pub(super) fn mouse_moved(app: &mut App, x: f32, y: f32) -> Task<Message> {
             app.scene.hover = hit;
             app.scene.hand_pointer(x, y, hit);
         }
-        Mode::Depth | Mode::Grid | Mode::Collection => app.scene.hover = hit,
+        Mode::Depth | Mode::Grid | Mode::Collection | Mode::Coverflow | Mode::Showcase => {
+            app.scene.hover = hit
+        }
     }
     if changed {
         app.scene.touch();
@@ -214,7 +222,7 @@ fn select_click(app: &mut App, idx: usize) -> Task<Message> {
             }
             apply_task(app, idx)
         }
-        Mode::Slices | Mode::Hand => {
+        Mode::Slices | Mode::Hand | Mode::Coverflow | Mode::Showcase => {
             if idx == app.scene.current {
                 return apply_task(app, idx);
             }

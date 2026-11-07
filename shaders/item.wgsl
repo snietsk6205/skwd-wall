@@ -54,6 +54,7 @@ const BACKDROP: u32 = 16384u;
 const BACKFACE: u32 = 32768u;
 const MUTED: u32 = 65536u;
 const UNFRAMED_RECT: u32 = 131072u;
+const REFLECTION: u32 = 262144u;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vi: u32, inst: Instance) -> VsOut {
@@ -539,11 +540,14 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     }
     var base = in.fill;
     if (in.misc.x > 0u) {
-        let norm = clamp(
+        var norm = clamp(
             card_p / (2.0 * in.half_ext) + vec2(0.5),
             vec2(0.0),
             vec2(1.0),
         );
+        if ((in.misc.w & REFLECTION) != 0u) {
+            norm.y = 1.0 - norm.y;
+        }
         let blur = in.flip.w;
         let ca = select(0.0, in.flip.y, in.flip.x < 0.001);
         var rgb: vec3<f32>;
@@ -600,6 +604,13 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
             * step(in.world.y, globals.clip.w);
         a *= inside;
         rgb *= inside;
+    }
+    if ((in.misc.w & REFLECTION) != 0u) {
+        let below = clamp(card_p.y / (2.0 * max(in.half_ext.y, 1.0)) + 0.5, 0.0, 1.0);
+        // A dark glossy floor: the nearest reflection hides the ones behind it.
+        let fade_out = pow(1.0 - below, 1.6);
+        rgb *= fade_out * 0.3;
+        a *= fade_out * 0.92;
     }
     let vf = clamp(globals.vis, 0.0, 1.0);
     return vec4(rgb * opacity * vf, a * vf);

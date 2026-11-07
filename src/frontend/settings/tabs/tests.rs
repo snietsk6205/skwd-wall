@@ -671,7 +671,7 @@ fn noctalia_mode_overrides_in_integrations() {
 fn picker_controls_bindings() {
     let cards = build_tab("picker", &cfg(), &[], &[], "", &[]);
     let titles: Vec<_> = cards.iter().map(|(card, _)| card.title).collect();
-    assert_eq!(&titles[4..], ["Controls", "Selection", "Settings window"]);
+    assert_eq!(&titles[4..], ["Controls", "Bar", "Bar order", "Selection", "Settings window"]);
     let controls = &cards
         .iter()
         .find(|(card, _)| card.title == "Controls")
@@ -1509,7 +1509,7 @@ fn filter_search_top_level() {
                 if path == keys::filter_bar::VISUAL_STYLE
                     && current == "match"
                     && options.iter().map(|(key, _)| key.as_str()).collect::<Vec<_>>()
-                        == ["match", "slices", "hex", "wall"]
+                        == ["match", "slices", "hex", "wall", "pill", "glass"]
         )
     }));
 }

@@ -13,3 +13,13 @@ Rendered with the real renderer (`skwd-wall-vk --preview-stream`, software Vulka
 - `phase2-bar-effects-button.jpg`: the new Effects button (magic wand, between Playlists and Settings).
 - `phase2-effects-studio.jpg`: what it opens (also the E key): the Effects studio with Palette, Duotone, ...
 - `phase2-settings-window.jpg`: Settings window at 55 % x 72 %, on the right, scale 0.9, one column, narrow index.
+- `phase3-coverflow.jpg`: the new **Coverflow** layout with its glossy reflection and the blurred
+  selected wallpaper behind (screenshot of the real app, software rendering).
+- `phase3-coverflow-carousel.jpg`, `phase3-coverflow-stack.jpg`: its *Carousel ring* and *Stack* styles.
+- `phase3-showcase.jpg`, `phase3-showcase-strip-top.jpg`: the new **Showcase** layout (big preview
+  and filmstrip), filmstrip at the bottom and at the top.
+- `phase3-bar-glass-bottom-and-left-rail.jpg`: the bar in the new *Glass* style pinned to the bottom
+  at 1.25x with a custom order, and as a *Pill* rail on the left edge.
+- `phase3-settings-layout.jpg`: Settings → Picker → Layout with the Coverflow controls.
+- `phase3-settings-bar.jpg`: Settings → Picker → Bar and Bar order.
+- `phase3-grid-selection-ring.jpg`: Grid after arrow keys: the selection ring stays visible.

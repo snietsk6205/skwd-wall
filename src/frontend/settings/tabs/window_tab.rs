@@ -3,7 +3,7 @@
 
 use crate::contracts::settings::keys;
 
-use super::{Builder, Control};
+use super::{ActionId, Builder, Control};
 
 const POSITIONS: [(&str, &str); 5] = [
     ("centre", "Centre"),
@@ -33,7 +33,57 @@ fn chips(path: &str, options: &[(&str, &str)], current: &str) -> Control {
     }
 }
 
+const BAR_ANCHORS: [(&str, &str); 5] = [
+    ("auto", "Automatic"),
+    ("top", "Top"),
+    ("bottom", "Bottom"),
+    ("left", "Left"),
+    ("right", "Right"),
+];
+
+fn tab_bar(builder: &mut Builder<'_>) {
+    let cfg = builder.cfg;
+    builder.card(
+        "Bar",
+        "Size, place and button order of the bar above the wallpapers. Its style (Pill, Glass, ...) is under Filter & search → Appearance, and which buttons show under Filter & search → Buttons.",
+    );
+    builder.num(
+        "Size",
+        "Size of the bar and its buttons, 0.6 to 1.8 (1 = normal).",
+        keys::filter_bar::SCALE,
+        "x",
+    );
+    let anchor = cfg.text(keys::filter_bar::ANCHOR);
+    builder.row(
+        "Position",
+        "Automatic keeps the bar next to the cards. Top and Bottom pin it to that screen edge; Left and Right make it a vertical rail on that side.",
+        chips(keys::filter_bar::ANCHOR, &BAR_ANCHORS, &anchor),
+    );
+    builder.card(
+        "Bar order",
+        "Move button groups earlier (left or up) or later (right or down). Groups that are switched off keep their place.",
+    );
+    let order = crate::frontend::ui::bar_order(&cfg.text(keys::filter_bar::ORDER));
+    for (place, group) in order.iter().enumerate() {
+        let title = format!("{}. {}", place + 1, crate::frontend::ui::bar_group_label(group));
+        builder.action_chips(
+            &title,
+            "",
+            &[
+                (ActionId::MoveBarGroup(group, true), "◀ Earlier"),
+                (ActionId::MoveBarGroup(group, false), "Later ▶"),
+            ],
+        );
+    }
+    builder.action_chips(
+        "Reset order",
+        "Put the groups back in the original order.",
+        &[(ActionId::ResetBarOrder, "Reset")],
+    );
+}
+
 pub(super) fn tab_window(builder: &mut Builder<'_>) {
+    tab_bar(builder);
     let cfg = builder.cfg;
     builder.card("Selection", "How the selected card is marked while you use the keyboard.");
     builder.num(

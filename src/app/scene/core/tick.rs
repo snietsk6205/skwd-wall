@@ -80,6 +80,7 @@ impl SceneCore {
         self.tick_springs(dt);
         self.tick_sandy(&ctx, now, dt);
         self.tick_hand(&ctx, dt);
+        self.tick_custom_layouts(dt);
         self.tick_transition(dt);
         if self.hidden() {
             if self.render.vis != 0.0 {
@@ -158,7 +159,11 @@ impl SceneCore {
             spr.tick(dt);
         }
         self.card.hex_scales.retain(|_, spr| !(spr.settled() && spr.target == 0.0));
-        let precision = if self.mode == Mode::Depth { 0.001 } else { 0.05 };
+        let precision = if matches!(self.mode, Mode::Depth | Mode::Coverflow | Mode::Showcase) {
+            0.001
+        } else {
+            0.05
+        };
         for spr in self.card.selection.values_mut() {
             spr.tick_with_precision(dt, precision);
         }

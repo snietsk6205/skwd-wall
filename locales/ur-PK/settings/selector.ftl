@@ -343,3 +343,5 @@ settings-selector-depth-frame-desc = Draw a highlighted border around the select
 
 settings-selector-shadows-label = Card shadows
 settings-selector-shadows-desc = Draw a shadow behind each card.
+settings-selector-mode-coverflow = Coverflow
+settings-selector-mode-showcase = Showcase

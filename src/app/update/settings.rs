@@ -1793,6 +1793,18 @@ pub(super) fn settings_run(app: &mut App, id: ActionId) -> Task<Message> {
             super::settings_profiles::remove_profile(app, usize::from(index));
         }
         ActionId::CreateResolutionPresetBand(band) => add_resolution_preset_band(app, band),
+        ActionId::MoveBarGroup(group, earlier) => {
+            let current = app.config.str_path(skwd_config::keys::filter_bar::ORDER);
+            let order = crate::frontend::ui::bar_order_moved(&current, group, earlier);
+            app.config.save_key(skwd_config::keys::filter_bar::ORDER, json!(order));
+            app.invalidate_settings();
+            app.retick();
+        }
+        ActionId::ResetBarOrder => {
+            app.config.save_key(skwd_config::keys::filter_bar::ORDER, json!(""));
+            app.invalidate_settings();
+            app.retick();
+        }
         ActionId::RemoveSemanticModel(_) => {
             run_array_action(app, &id);
             reconcile_semantic_model(app);
