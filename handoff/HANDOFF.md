@@ -398,7 +398,11 @@ Read this first in a new session.
   `section 1` = layout studio), wait 3 s, `grim`, `ui dismiss` x3. A fake WE scene for scene
   properties: `<paths.steamWorkshop>/2900000001/project.json` with `"type":"scene"`, a
   `preview` png and `general.properties` (bool/slider/color/combo) is enough.
-- Checks at the end of M2: see "Checks" line below.
+- Checks at the end of M2: `cargo fmt`; clippy clean (workspace lints, all targets) on skwd-wall;
+  tests: skwd-wall 1639 unit + all guard tests pass; skwd-deck (unchanged) 1816 pass, only the
+  known `skwd-e2e --test semantic` fails; skwd-paper (unchanged) 901 pass, only the known `paper-scene hlsl::tests::packed_audio_spectrum...` fails. Release build of
+  all 11 programs (installer's package list, `--locked`) OK in 23 min; the release picker docked a
+  45 x 70 % playlists sheet on the left as expected. skwd-deck and skwd-paper have no M2 changes.
 
 ## Testing in a cloud session
 - Scripts from the last session (recreate in the scratchpad): a headless sway + `skwd-walld` +
