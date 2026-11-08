@@ -965,23 +965,22 @@ impl ThemeDesigner {
         &'a self,
         saved: Vec<(String, Candidate)>,
         viewport: (f32, f32),
-        scale: f32,
+        window: crate::frontend::ui::SheetWindow,
         pal: &'a Palette,
     ) -> Element<'a, Message> {
+        let scale = window.scale();
         crate::frontend::ui::folio_sheet(
             iced::widget::Space::new().height(0).into(),
             self.palette_index(scale, pal),
             self.reading_surface(
                 saved,
-                crate::frontend::ui::folio_sheet_dims(viewport, scale).0
-                    - FOLIO_INDEX_WIDTH * scale.max(0.9)
-                    - 76.0 * scale,
+                window.dims(viewport).0 - FOLIO_INDEX_WIDTH * scale.max(0.9) - 76.0 * scale,
                 scale,
                 pal,
             ),
             Message::Theme(ThemeMsg::DesignClose),
             viewport,
-            scale,
+            window,
             self.ease(),
             FOLIO_INDEX_WIDTH,
             pal,

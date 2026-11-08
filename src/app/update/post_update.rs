@@ -32,18 +32,24 @@ pub(super) fn finish(
     let demo_hidden =
         app.runtime_state.demo.as_ref().is_some_and(|session| session.picker_suppressed);
     app.scene.set_visible(!scene_hidden && !demo_hidden);
-    let inset = if design_mode {
-        crate::frontend::settings::picker_layout_studio_width(
-            app.scene.viewport.0,
-            app.config.ui_scale(),
-        ) + 36.0 * app.config.ui_scale()
+    let rtl = crate::i18n::is_rtl();
+    let window = app.sheet_window();
+    let (inset, inset_on_right) = if design_mode {
+        (
+            crate::frontend::settings::picker_layout_studio_inset(app.scene.viewport.0, &window),
+            crate::frontend::settings::picker_layout_studio_on_right(&window, rtl),
+        )
     } else if app.panels.playlists.is_some() && !scene_hidden {
-        PLAYLIST_DOCK_W
+        (PLAYLIST_DOCK_W, rtl)
     } else {
-        0.0
+        (0.0, rtl)
     };
     app.panels.settings.inset_target = if design_mode { inset } else { 0.0 };
-    app.scene.set_reading_direction(crate::i18n::is_rtl());
+    app.scene.set_reading_direction(rtl);
+    if inset > 0.0 {
+        // Keep the old side while the picker slides back, so it does not jump.
+        app.scene.set_inset_side(inset_on_right);
+    }
     app.scene.set_center_inset(inset);
     if sync_filter_bar {
         let bar_footprint = (app.chrome.filter_bar_fade() > 0.001 && !hard_overlay).then(|| {

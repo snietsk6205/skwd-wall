@@ -4,6 +4,7 @@ mod feedback;
 mod folio;
 mod layout;
 mod overlay;
+mod sheet;
 mod style;
 mod typography;
 
@@ -30,6 +31,7 @@ pub use layout::{
     hud, wrap_rows,
 };
 pub use overlay::{field_input, inert_backdrop};
+pub use sheet::{SheetPosition, SheetWindow};
 pub use style::{
     bg_style, box_style, flat_button_style, folio_button_style, folio_line_button_style,
     ghost_input_style, panel_style, scrim, scrim_style, workbench_input_style,

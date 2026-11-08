@@ -12,9 +12,10 @@ use super::widgets::{field, hint_line, row_chip};
 pub fn card_picker_view<'a>(
     picker: &'a CardPicker,
     viewport: (f32, f32),
-    scale: f32,
+    window: crate::frontend::ui::SheetWindow,
     palette: &'a Palette,
 ) -> Element<'a, Message> {
+    let scale = window.scale();
     let mut column = column![
         row![
             text(tr("playlists-card-add-title"))
@@ -82,8 +83,10 @@ pub fn card_picker_view<'a>(
         .spacing(6.0 * scale)
         .align_y(Alignment::Center),
     );
-    let panel_width = (viewport.0 * 0.32).clamp(260.0, 380.0);
-    let list_height = (viewport.1 * 0.55).clamp(180.0, 420.0);
+    let (panel_width, list_height) = window.fit(
+        viewport,
+        ((viewport.0 * 0.32).clamp(260.0, 380.0), (viewport.1 * 0.55).clamp(180.0, 420.0)),
+    );
     let panel = container(
         scrollable(column)
             .direction(crate::frontend::ui::thin_vbar())
@@ -93,11 +96,8 @@ pub fn card_picker_view<'a>(
     .max_height(list_height)
     .padding(14.0 * scale)
     .style(move |_theme| crate::frontend::ui::panel_style(palette));
-    let scrim = container(iced::widget::mouse_area(panel).on_press(Message::Noop))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center_x(Length::Fill)
-        .center_y(Length::Fill)
+    let scrim = window
+        .align(container(iced::widget::mouse_area(panel).on_press(Message::Noop)))
         .style(move |_theme| crate::frontend::ui::scrim_style(0.55));
     iced::widget::mouse_area(scrim).on_press(Message::CardPicker(CardPickerMsg::Close)).into()
 }

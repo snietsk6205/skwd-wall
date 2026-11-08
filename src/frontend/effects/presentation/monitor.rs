@@ -19,8 +19,8 @@ const SELECTION_PADDING: [f32; 2] = [8.0, 10.0];
 const ROW_SPACING: f32 = 7.0;
 const ROW_LABEL_WIDTH: f32 = 72.0;
 
-pub(super) fn tile_is_wide(viewport: (f32, f32), scale: f32) -> bool {
-    let (panel, _) = crate::frontend::ui::folio_sheet_dims(viewport, scale);
+/// `panel` is the width of the effects sheet (Settings window size).
+pub(super) fn tile_is_wide(panel: f32, scale: f32) -> bool {
     let card = panel
         - crate::frontend::ui::FOLIO_INDEX_WIDTH * scale.max(0.9)
         - 2.0 * (READING_SIDE_PADDING + TILE_SIDE_PADDING) * scale;

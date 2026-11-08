@@ -14,12 +14,13 @@ impl Effects {
     pub(super) fn studio_view<'a>(
         &'a self,
         viewport: (f32, f32),
-        scale: f32,
+        window: crate::frontend::ui::SheetWindow,
         palette: &'a Palette,
         preview_renderer: &impl PreviewRenderer<Message, Output = Element<'static, Message>>,
     ) -> Element<'a, Message> {
         let ease = self.open_ease();
-        let (panel_width, panel_height) = crate::frontend::ui::folio_sheet_dims(viewport, scale);
+        let scale = window.scale();
+        let (panel_width, panel_height) = window.dims(viewport);
         let index = self.effect_index(scale, palette);
         let editor = self.editor_overlay(scale, palette);
 
@@ -68,14 +69,6 @@ impl Effects {
             Message::ToggleEffects,
         );
 
-        stack![
-            backdrop,
-            container(iced::widget::opaque(panel))
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x(Length::Fill)
-                .center_y(Length::Fill),
-        ]
-        .into()
+        stack![backdrop, window.place(iced::widget::opaque(panel))].into()
     }
 }

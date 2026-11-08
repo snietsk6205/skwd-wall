@@ -268,7 +268,7 @@ pub(super) fn browser_wall_click(app: &mut App, x: f32, y: f32) -> Task<Message>
         return Task::none();
     };
     let action =
-        crate::frontend::browser::browser_card_action_at(&hit, x, y, app.config.ui_scale());
+        crate::frontend::browser::browser_card_action_at(&hit, x, y, app.sheet_window().scale());
     let item = app.source_browser.browser.as_ref().and_then(|browser| {
         browser.session.items.get(hit.index).map(|item| {
             (

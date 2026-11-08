@@ -1569,11 +1569,12 @@ impl ScheduleEditor {
     pub fn view<'a>(
         &'a self,
         viewport: (f32, f32),
-        scale: f32,
+        window: crate::frontend::ui::SheetWindow,
         palette: &'a Palette,
     ) -> Element<'a, Message> {
-        let scale = schedule_scale(viewport, scale);
-        let (panel_width, _) = crate::frontend::ui::folio_sheet_dims(viewport, scale);
+        let window = window.with_scale(schedule_scale(viewport, window.scale()));
+        let scale = window.scale();
+        let (panel_width, _) = window.dims(viewport);
         let index_width = SCHEDULE_INDEX_WIDTH * scale.max(0.9);
         let selected =
             self.rows.get(self.selected).map_or(tr("schedule-masthead-fallback"), rule_name);
@@ -1589,7 +1590,7 @@ impl ScheduleEditor {
             self.reading_surface(panel_width - index_width, scale, palette),
             Message::Sched(SchedMsg::Close),
             viewport,
-            scale,
+            window,
             1.0,
             SCHEDULE_INDEX_WIDTH,
             palette,

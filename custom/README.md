@@ -124,6 +124,18 @@ restarting, the installer goes back to the previous state by itself.
   helper images are reused for 10 seconds instead of being made again for every switch, and the
   cross-fade shader is prepared when the picker starts instead of during the first switch.
 
+- **Window size everywhere** (M2): Settings → Picker → Settings window now sets the size, place
+  and scale of **every panel that opens over the picker**, not only Settings: the layout studio
+  (Shape), playlists (and its "Add to playlist" card picker), theme designer, effects studio,
+  schedule editor, tag cloud, scene properties, downloads browser and audio mixer. The picker itself
+  still fills the screen. Width and height are shares of the screen (0 = each panel's own
+  automatic size), Scale is the size of text and controls (0 = your UI scale), Position is
+  Centre, Left, Right, Top or Bottom. Two panels behave a little differently on purpose:
+  - the **layout studio** is a side panel next to the live picker, so it never gets wider than
+    about half the screen; Left or Right picks its side (the picker moves out of its way);
+  - the **tag cloud** stays in its usual place under the cards when Position is Centre, and its
+    own width setting (Settings → Picker → Tag panel), if you set one, wins over the window width.
+
 ### Important: use the full path for the custom programs
 
 The custom programs live in `~/.local/opt/skwd-custom/bin/`, which is not on your PATH. Typing

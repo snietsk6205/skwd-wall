@@ -608,9 +608,10 @@ impl AudioPanel {
     pub fn view<'a>(
         &'a self,
         viewport: (f32, f32),
-        scale: f32,
+        window: crate::frontend::ui::SheetWindow,
         palette: &'a Palette,
     ) -> Element<'a, Message> {
+        let scale = window.scale();
         let masthead = crate::frontend::ui::folio_masthead(
             tr("audio-masthead").to_string(),
             Message::ToggleAudioPanel,
@@ -623,7 +624,7 @@ impl AudioPanel {
             self.reading_surface(scale, palette),
             Message::ToggleAudioPanel,
             viewport,
-            scale,
+            window,
             self.ease(),
             crate::frontend::ui::FOLIO_INDEX_WIDTH,
             palette,

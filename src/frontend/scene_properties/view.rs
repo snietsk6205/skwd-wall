@@ -6,9 +6,9 @@ use crate::app::Message;
 use crate::domain::scene_properties::{SceneProperty, ScenePropertyKind, format_number};
 use crate::frontend::theme::Palette;
 use crate::frontend::ui::{
-    FOLIO_INDEX_WIDTH, TYPE_SMALL, folio_action, folio_action_width, folio_action_wrap,
-    folio_ghost_field, folio_index_shell, folio_masthead, folio_rule, folio_scroll_padding,
-    folio_sheet, folio_sheet_dims, folio_slider, label, row, with_alpha,
+    FOLIO_INDEX_WIDTH, SheetWindow, TYPE_SMALL, folio_action, folio_action_width,
+    folio_action_wrap, folio_ghost_field, folio_index_shell, folio_masthead, folio_rule,
+    folio_scroll_padding, folio_sheet, folio_slider, label, row, with_alpha,
 };
 use crate::i18n::{tr, tr_args};
 
@@ -294,9 +294,10 @@ fn index_column<'a>(
 pub fn view<'a>(
     panel: &'a SceneProperties,
     viewport: (f32, f32),
-    scale: f32,
+    window: SheetWindow,
     palette: &'a Palette,
 ) -> Element<'a, Message> {
+    let scale = window.scale();
     folio_sheet(
         folio_masthead(
             tr("scene-props-crumb").to_string(),
@@ -307,13 +308,13 @@ pub fn view<'a>(
         index_column(panel, scale, palette),
         reading(
             panel,
-            folio_sheet_dims(viewport, scale).0 - FOLIO_INDEX_WIDTH * scale.max(0.9) - 54.0 * scale,
+            window.dims(viewport).0 - FOLIO_INDEX_WIDTH * scale.max(0.9) - 54.0 * scale,
             scale,
             palette,
         ),
         wrap(ScenePropMsg::Close),
         viewport,
-        scale,
+        window,
         1.0,
         FOLIO_INDEX_WIDTH,
         palette,

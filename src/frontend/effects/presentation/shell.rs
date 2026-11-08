@@ -12,14 +12,14 @@ impl Effects {
     pub fn view<'a>(
         &'a self,
         viewport: (f32, f32),
-        scale: f32,
+        window: crate::frontend::ui::SheetWindow,
         theme: &'a Palette,
         preview_renderer: &impl PreviewRenderer<Message, Output = Element<'static, Message>>,
     ) -> Element<'a, Message> {
         let palette = &self.panel.chrome;
         let body = match self.mode() {
-            EffectsMode::Studio => self.studio_view(viewport, scale, palette, preview_renderer),
-            EffectsMode::Displays => self.displays_view(viewport, scale, theme),
+            EffectsMode::Studio => self.studio_view(viewport, window, palette, preview_renderer),
+            EffectsMode::Displays => self.displays_view(viewport, window, theme),
         };
         let commit = self.apply_ease().clamp(0.0, 1.0);
         if commit <= 0.003 {

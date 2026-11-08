@@ -16,7 +16,7 @@ use crate::frontend::components::with_alpha;
 use crate::frontend::theme::Palette;
 use crate::frontend::ui::{
     FOLIO_INDEX_WIDTH, FOLIO_RULE_ALPHA, TYPE_SMALL, end, folio_horizontal_rule, label,
-    legible_type_scale, logical_padding, mirror_x, row, rtl, sentence_case, start,
+    legible_type_scale, logical_padding, mirror_x, row, rtl, sentence_case,
 };
 use crate::i18n::tr;
 
@@ -163,7 +163,10 @@ impl<'a> FocusCtx<'a> {
 #[derive(Clone, Copy)]
 pub struct ChromeCtx<'a> {
     pub viewport: (f32, f32),
-    pub scale: f32,
+    /// Settings → Picker → Settings window (size, place and scale).
+    pub window: crate::frontend::ui::SheetWindow,
+    /// Reading direction, for the side of the layout studio.
+    pub rtl: bool,
     pub entrance: f32,
     pub palette: &'a Palette,
 }
@@ -275,9 +278,9 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
         process_picker,
         weather_review,
     } = input;
-    let ChromeCtx { viewport, scale, entrance, palette } = chrome;
+    let ChromeCtx { viewport, window: sheet, entrance, palette, .. } = chrome;
     let window = SettingsWindow::read(source.config);
-    let scale = window.scale.unwrap_or(scale);
+    let scale = sheet.scale();
     let motion = source.motion();
     let cards = source.cards(tab);
     let selected_section = selected_section.min(cards.len().saturating_sub(1));
@@ -291,7 +294,7 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
     });
     let reveal = crate::frontend::animation::smoothstep(entrance.clamp(0.0, 1.0));
     let branch_reveal = crate::frontend::animation::smoothstep(tab_transition.clamp(0.0, 1.0));
-    let (panel_width, panel_height) = window.dims(viewport, scale);
+    let (panel_width, panel_height) = sheet.dims(viewport);
     let index_width =
         FOLIO_INDEX_WIDTH * scale.max(0.9) * if window.compact_index { 0.8 } else { 1.0 };
     let tabs = visible_tabs(source.config);
@@ -376,12 +379,7 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
                 .style(move |_| crate::frontend::ui::folio_scrim_style(reveal)),
         )
         .on_press(Message::ToggleSettings),
-        container(iced::widget::opaque(panel))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(window.align_x())
-            .align_y(window.align_y())
-            .padding(window.edge_gap(scale)),
+        sheet.place(iced::widget::opaque(panel)),
     ];
     if let Some(capture) = keybind_capture {
         layers = layers.push(keybind_capture_layer(capture, scale, palette, reveal));
@@ -752,7 +750,8 @@ pub fn picker_layout_workbench<'a>(
     chrome: ChromeCtx<'a>,
 ) -> Element<'a, Message> {
     const LAYOUT_SECTION: usize = 1;
-    let ChromeCtx { viewport, scale, entrance, palette } = chrome;
+    let ChromeCtx { viewport, window, rtl, entrance, palette } = chrome;
+    let scale = window.scale();
     let motion = source.motion();
     let rows = source
         .cards("picker")
@@ -763,8 +762,8 @@ pub fn picker_layout_workbench<'a>(
         matches!(&row.control, Control::Presets { items, .. } if items.iter().any(|(_, active)| *active))
     });
     let reveal = crate::frontend::animation::smoothstep(entrance.clamp(0.0, 1.0));
-    let panel_width = super::super::picker_layout_studio_width(viewport.0, scale);
-    let panel_height = (viewport.1 - 36.0 * scale).max(360.0);
+    let panel_width = super::super::picker_layout_studio_width(viewport.0, &window);
+    let panel_height = super::super::picker_layout_studio_height(viewport.1, &window);
 
     let mut pinned = column![].spacing(10.0 * scale);
     let mut controls = column![].spacing(13.0 * scale);
@@ -888,12 +887,21 @@ pub fn picker_layout_workbench<'a>(
             }),
     )
     .on_press(Message::Noop);
+    let (align_x, align_y) = super::super::picker_layout_studio_align(&window, rtl);
+    let side = super::super::STUDIO_EDGE_GAP * scale;
+    let ends = if window.has_height() { window.edge_gap() } else { 0.0 };
+    let on_right = align_x == iced::alignment::Horizontal::Right;
     container(panel)
         .width(Length::Fill)
         .height(Length::Fill)
-        .align_x(start())
-        .align_y(iced::alignment::Vertical::Center)
-        .padding(logical_padding(0.0, 0.0, 0.0, 18.0 * scale))
+        .align_x(align_x)
+        .align_y(align_y)
+        .padding(Padding {
+            top: ends,
+            right: if on_right { side } else { 0.0 },
+            bottom: ends,
+            left: if on_right { 0.0 } else { side },
+        })
         .into()
 }
 
@@ -2396,13 +2404,9 @@ impl canvas::Program<Message> for Blueprint {
     }
 }
 
-/// Size, place and layout of the Settings sheet (Settings → Picker →
-/// Settings window). Zero sizes and scale keep the automatic behaviour.
+/// Layout of the Settings sheet's content (Settings → Picker → Settings
+/// window). Size, place and scale are the shared `SheetWindow`.
 struct SettingsWindow {
-    width: f32,
-    height: f32,
-    scale: Option<f32>,
-    position: String,
     one_column: bool,
     compact_index: bool,
 }
@@ -2410,53 +2414,9 @@ struct SettingsWindow {
 impl SettingsWindow {
     fn read(cfg: &dyn SettingsSource) -> Self {
         use crate::contracts::settings::keys::settings_window as key;
-        let share = |path: &str| {
-            let value = cfg.number(path);
-            if value.is_finite() && value >= 20.0 { (value.min(100.0) / 100.0) as f32 } else { 0.0 }
-        };
-        let scale = cfg.number(key::SCALE);
         Self {
-            width: share(key::WIDTH_PERCENT),
-            height: share(key::HEIGHT_PERCENT),
-            scale: (scale.is_finite() && scale >= 0.5).then(|| scale.min(2.0) as f32),
-            position: cfg.text(key::POSITION),
             one_column: cfg.text(key::COLUMNS) == "one",
             compact_index: cfg.flag(key::COMPACT_INDEX),
-        }
-    }
-
-    fn dims(&self, viewport: (f32, f32), scale: f32) -> (f32, f32) {
-        let (auto_width, auto_height) = crate::frontend::ui::folio_sheet_dims(viewport, scale);
-        let fit = |share: f32, screen: f32, auto: f32, floor: f32| {
-            if share > 0.0 { (screen * share).min(screen - 22.0).max(floor) } else { auto }
-        };
-        (
-            fit(self.width, viewport.0, auto_width, 220.0),
-            fit(self.height, viewport.1, auto_height, 160.0),
-        )
-    }
-
-    fn align_x(&self) -> iced::alignment::Horizontal {
-        match self.position.as_str() {
-            "left" => iced::alignment::Horizontal::Left,
-            "right" => iced::alignment::Horizontal::Right,
-            _ => iced::alignment::Horizontal::Center,
-        }
-    }
-
-    fn align_y(&self) -> iced::alignment::Vertical {
-        match self.position.as_str() {
-            "top" => iced::alignment::Vertical::Top,
-            "bottom" => iced::alignment::Vertical::Bottom,
-            _ => iced::alignment::Vertical::Center,
-        }
-    }
-
-    fn edge_gap(&self, scale: f32) -> f32 {
-        if matches!(self.position.as_str(), "left" | "right" | "top" | "bottom") {
-            11.0 * scale
-        } else {
-            0.0
         }
     }
 }

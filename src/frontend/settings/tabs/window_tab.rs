@@ -97,29 +97,32 @@ pub(super) fn tab_window(builder: &mut Builder<'_>) {
         keys::selector::GRID_FOCUS_WIDTH,
         "px",
     );
-    builder.card("Settings window", "Size, place and layout of this window.");
+    builder.card(
+        "Settings window",
+        "Size, place and scale of this window and of every panel that opens over the picker: layout studio, playlists, card picker, theme designer, effects studio, schedule, tag cloud, scene properties, downloads and audio. The picker itself always fills the screen.",
+    );
     builder.num(
         "Width",
-        "Share of the screen width, 20 to 100 %. 0 keeps the automatic size.",
+        "Share of the screen width, 20 to 100 %. 0 keeps each panel's automatic size. The layout studio stops at about half the screen so you can still see the picker.",
         keys::settings_window::WIDTH_PERCENT,
         "%",
     );
     builder.num(
         "Height",
-        "Share of the screen height, 20 to 100 %. 0 keeps the automatic size.",
+        "Share of the screen height, 20 to 100 %. 0 keeps each panel's automatic size.",
         keys::settings_window::HEIGHT_PERCENT,
         "%",
     );
     builder.num(
         "Scale",
-        "Size of text and controls in this window, 0.5 to 2. 0 follows the UI scale.",
+        "Size of text and controls in this window and the panels, 0.5 to 2. 0 follows the UI scale.",
         keys::settings_window::SCALE,
         "x",
     );
     let position = cfg.text(keys::settings_window::POSITION);
     builder.row(
         "Position",
-        "Where the window sits on the screen.",
+        "Where the window and the panels sit on the screen. The layout studio uses Left or Right for its side; Centre keeps the tag cloud under the cards.",
         chips(keys::settings_window::POSITION, &POSITIONS, &position),
     );
     let columns = cfg.text(keys::settings_window::COLUMNS);

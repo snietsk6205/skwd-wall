@@ -163,6 +163,35 @@ Read this first in a new session.
   Real per-switch costs that M1b did find and fix are in Phase 7. The user's next report
   (new method) will show the real frames on their iGPU.
 
+## User's M1b benchmark results (2026-11-08, second report, read in the M2 session)
+- Two runs of the M1b one-command bench, **on battery** (fastfetch said "Discharging"), so the
+  battery saver was active: header "fps cap 60" (= `performance.batteryFps` default, not the
+  user's Max FPS) and "GPU preference low" in the default run.
+- Intel UHD (default, GPU preference low): idle 0 redraws, CPU 0.2 % (goal met). Navigate 43 fps,
+  frame gap p50/p95 23.1/25.0 ms, smooth 0 % (smooth = gaps <= 20 ms), key -> frame p50 13.8 ms;
+  uncapped identical (43 fps) → the iGPU itself needs ~23 ms per picker frame at 1280x720 logical
+  (1920x1080 physical). Layouts: every first frame <= 18.2 ms (showcase 18.2: waited 17.8 for the
+  frame to start; sandy 14.5: atlas growth 10.3 ms), goal < 50 ms met. Slowest frames after a
+  switch: sandy 34.1 ms (UI busy 21 of 40 → CPU+GPU), hand/coverflow medians ~23 ms with an idle UI
+  thread (GPU-bound). Settings click new 2.8 ms vs old 16.3 ms (one save on their disk 13.2 ms):
+  M1 fix confirmed on real hardware.
+- RTX 3050 (`--gpu high`): navigate 70 fps, p50 14.2 ms, smooth 99.4 %, key -> frame 8.3 ms;
+  uncapped 71 fps. Layouts 61 fps, smooth 98.2 %, first frames <= 10.3 ms, slowest 26.4 ms (depth,
+  UI busy 4 of 33 → waiting for GPU/compositor). Settings click 2.5 vs 16.1 ms.
+- Plain reading given to the user: the picker is fine on idle and on clicks everywhere; for
+  smooth motion use the RTX 3050 (Settings → Performance → GPU preference "high"), especially when
+  plugged in; neither chip reaches 144 fps (needs 6.9 ms per frame), and the FPS cap is not what
+  limits it (capped = uncapped), so raising Max FPS does not help yet.
+- **Benchmark flaws found in this report (fix in a later speed pass, not done in M2):**
+  - The "Screen: ... about N Hz" line is the 5th-percentile frame gap, i.e. the GPU's own best
+    frame time when every frame is slow: it said 45 Hz (Intel) and 108 Hz (RTX) on a 144 Hz
+    screen. Read the real refresh rate (wl_output mode / layer-shell output) instead and print it.
+  - The advice "Compare with the other graphics card (skwd-helm ui bench --gpu high)" is printed
+    even when the run already used `--gpu high` (script.rs `refresh_summary`).
+  - The header should say when the battery saver changed the FPS cap / GPU preference.
+  - With "fps cap 60" the RTX run still showed 70 fps: the cap is a tick limiter, not a hard
+    present limit; check `effective_picker_fps` use in `runtime/ticks.rs` if it matters.
+
 ## Session rule (from the user, applies to every session)
 - **One milestone per session.** When it is done: full build, tests, screenshots, commit, push
   to `my-custom`, update this file, then stop and give the user the exact prompt for the next
@@ -171,23 +200,7 @@ Read this first in a new session.
 ## Roadmap agreed with the user (priority order; one per session)
 - **M1 Speed (done, Phase 6 below).**
 - **M1b Speed follow-up (done, Phase 7 below).**
-- **M2 Window size everywhere.** The Settings window size/position/scale must apply to
-  every panel that opens over the picker: Shape/layout studio, playlists, card picker, theme
-  designer, effects studio, schedule editor, tag cloud, scene properties, downloads browser,
-  audio mixer. The picker itself keeps filling the screen.
-  Notes from M1's reading (saves time): most panels build their sheet with
-  `frontend/ui/misc/folio.rs` `folio_sheet()` and size it with `frontend/ui/misc/layout.rs`
-  `folio_sheet_dims(viewport, scale)` (1390x870 x scale, minus 22 px), then centre it
-  (`.center_x/.center_y`) over an `inert_backdrop` scrim. Users: playlists, theme designer,
-  schedule editor, scene properties, audio panel, effects `displays.rs`; the effects studio
-  (`effects/presentation/studio.rs`) and `monitor.rs` copy the same pattern by hand. The
-  Settings window logic lives in `frontend/settings/folio/folio.rs` `struct SettingsWindow`
-  (dims/align/edge_gap). Plan: move it to `frontend/ui` as a shared `SheetWindow` (thread-local
-  set by `app/view/composition.rs` each view, since frontend may not read config), make
-  `folio_sheet_dims` and a new `place_sheet()` use it, pass the window scale to every panel in
-  `app/view/panels.rs`. Separate cases: the Shape/layout studio (`picker_layout_workbench`,
-  full-height side panel; `post_update.rs` insets the picker by `picker_layout_studio_width`),
-  the downloads browser (`frontend/browser/view.rs`), tag cloud, card picker.
+- **M2 Window size everywhere (done, Phase 8 below).**
 - **M3 Transitions:** many more original ones; families, favourites, search, live preview per
   transition; play several in turns (in order / shuffled / random without repeats); combine two
   (A then B, blend, split screen, one as a mask for the other, more); reuse the sketch code's
@@ -331,6 +344,61 @@ Read this first in a new session.
 - Next time the user sends a report, read per layout: "first frame" (should be < 50 ms) and
   "slowest frame after it" with "UI thread busy" to decide CPU vs GPU; `navigate` vs
   `navigate-uncapped` for the FPS question.
+
+## Phase 8 = M2 (done): window size everywhere
+- What the user gets: Settings → Picker → Settings window (width %, height %, scale, position)
+  now applies to **every panel over the picker**: Settings, layout studio (Shape), playlists (+ its
+  playlist-picker dialog and filter help), card picker ("Add to playlist"), theme designer,
+  effects studio (+ Choose displays), schedule editor, tag cloud, scene properties, downloads
+  browser, audio mixer. The picker itself still fills the screen. Defaults (0 / Centre) give
+  exactly the old automatic sizes.
+- `frontend/ui/misc/sheet.rs` `SheetWindow` (+ `SheetPosition`), pure geometry, **no globals**
+  (passed explicitly; the handoff's thread-local idea was dropped to match M1b's no-global style):
+  scale, width/height shares (0 = automatic), position; `dims(viewport)` (folio size 1390x870 x
+  scale or the shares), `fit(viewport, auto)`, `width_or/height_or` (share x screen, max screen -
+  22, min 220x160, as the old Settings logic), `align_x/align_y`, `edge_gap` (11 px x scale when
+  docked), `origin()`, `place(panel)`, `align(container)`, `with_scale`.
+- Reader `frontend/settings/layout.rs` `sheet_window(&dyn SettingsSource, ui_scale)` (scale < 0.5
+  = UI scale, max 2). App side `App::sheet_window()` (`app/helpers/application.rs`), built once per
+  view in `app/view/panels.rs`, `app/view/settings.rs`, `app/view/tags.rs`.
+- `folio_sheet()` takes `window: SheetWindow` instead of `scale`; every panel view takes `window`
+  instead of `scale` (`let scale = window.scale();`). Schedule keeps its roomy x1.18 on screens >=
+  1280x760 via `window.with_scale(schedule_scale(..))`. Effects `monitor::tile_is_wide(panel_width,
+  scale)`. Browser: `wall_aperture_dims(viewport, grid, window)` (also used in `runtime/ticks.rs`
+  for the embedded wall's viewport) and `browser_wall_click` hit-tests card buttons with
+  `sheet_window().scale()` (the overlay draws them with it).
+- Settings: `ChromeCtx { viewport, window, rtl, entrance, palette }` (was `scale`); the old
+  `SettingsWindow` struct keeps only `one_column`/`compact_index`.
+- Layout studio = side panel next to the live picker (`picker_layout_studio_width/height/align/
+  inset/on_right`): width = window width or automatic 440 x scale, **always capped at 48 % of the
+  screen**; height = window height or full height - 36; Left/Right choose the side, other
+  positions keep the reading-start side; Top/Bottom align it when a height is set. The picker moves
+  out of the way on that side: new scene field `inset_on_right` (`SceneCore::set_inset_side`, used
+  by `center_layout` and `view_hex`; before, the side was `reading_rtl`), set in `post_update.rs`
+  only while the inset is > 0 so the picker does not jump while sliding back. (Grid/"wall" mode does
+  not move its cards for the inset at all, upstream behaviour, so the studio covers some cards
+  there either way.)
+- Tag cloud (`app/view/tags.rs`): window scale; width = its own `tagCloudWidth` if set, else the
+  window width if set, else automatic; height capped by the window height; Centre = usual place
+  under the cards, other positions dock it to that edge (`cloud_dock`, its offsets still apply,
+  clamped to the screen).
+- Card picker and playlist-picker dialog: window size replaces the automatic size when set (card
+  picker height is a max: short lists stay short); playlists filter help capped to the sheet.
+- Settings text (`window_tab.rs`, English-only like the other custom cards) says it covers every
+  panel, that the studio stops at about half the screen and that Centre keeps the tag cloud under
+  the cards.
+- New picker commands (tests, also handy by hand): `skwd-helm ui open card-picker` (selected
+  card), `skwd-helm ui open scene-properties` (selected card must be a WE scene).
+- Not in the list, left as is: theme audition (full-screen view), keyboard help, card back.
+- Tests: `frontend/ui/misc/tests.rs` (`sheet_window_*`), `frontend/settings/layout/tests.rs`
+  (reader + studio), `app/view/tags/tests.rs` (`cloud_dock`), effects `monitor/tests.rs`.
+- Screenshots `custom/previews/m2-*.jpg`: each panel small (50 x 60 %, scale 0.85, Right) next to
+  large (96 x 94 %, 1.2, Centre) at 1280x720. Script recipe: set the four keys with `skwd-helm ui
+  set`, `ui open <panel>` (settings: `ui tab picker` + `ui section 8` = Settings window card,
+  `section 1` = layout studio), wait 3 s, `grim`, `ui dismiss` x3. A fake WE scene for scene
+  properties: `<paths.steamWorkshop>/2900000001/project.json` with `"type":"scene"`, a
+  `preview` png and `general.properties` (bool/slider/color/combo) is enough.
+- Checks at the end of M2: see "Checks" line below.
 
 ## Testing in a cloud session
 - Scripts from the last session (recreate in the scratchpad): a headless sway + `skwd-walld` +

@@ -14,6 +14,8 @@ pub(crate) fn browser_intent_message(intent: crate::frontend::browser::BrowserIn
 
 pub(super) fn panel_layers(app: &App) -> Vec<Element<'_, Message>> {
     let mut layers = Vec::new();
+    // Every panel takes the size, place and scale of the Settings window.
+    let window = app.sheet_window();
 
     if app.panels.settings.open && app.panels.theme_designer.is_none() {
         layers.push(settings_layer(app));
@@ -38,7 +40,7 @@ pub(super) fn panel_layers(app: &App) -> Vec<Element<'_, Message>> {
                 app.source_browser.spinner_phase,
                 app.source_browser.shimmer_phase,
                 app.source_browser.preview_animation,
-                app.config.ui_scale(),
+                window,
                 &app.theme.palette,
                 app.daemon.current_wallpaper_art.as_deref(),
             )
@@ -50,7 +52,7 @@ pub(super) fn panel_layers(app: &App) -> Vec<Element<'_, Message>> {
             pl,
             &app.library_session.all_folders,
             app.scene.viewport,
-            app.config.ui_scale(),
+            window,
             &app.theme.palette,
         ));
     }
@@ -58,7 +60,7 @@ pub(super) fn panel_layers(app: &App) -> Vec<Element<'_, Message>> {
         layers.push(crate::frontend::playlists::card_picker_view(
             cp,
             app.scene.viewport,
-            app.config.ui_scale(),
+            window,
             &app.theme.palette,
         ));
     }
@@ -67,29 +69,29 @@ pub(super) fn panel_layers(app: &App) -> Vec<Element<'_, Message>> {
             app.config.array_slice(skwd_config::keys::theme::SAVED_THEMES),
             None,
         );
-        layers.push(td.view(saved, app.scene.viewport, app.config.ui_scale(), &app.theme.palette));
+        layers.push(td.view(saved, app.scene.viewport, window, &app.theme.palette));
     }
     if let Some(panel) = &app.panels.scene_properties {
         layers.push(crate::frontend::scene_properties::view(
             panel,
             app.scene.viewport,
-            app.config.ui_scale(),
+            window,
             &app.theme.palette,
         ));
     }
     if let Some(ed) = &app.panels.schedule {
-        layers.push(ed.view(app.scene.viewport, app.config.ui_scale(), &app.theme.palette));
+        layers.push(ed.view(app.scene.viewport, window, &app.theme.palette));
     }
     if let Some(eff) = &app.panels.effects {
         layers.push(eff.view(
             app.scene.viewport,
-            app.config.ui_scale(),
+            window,
             &app.theme.palette,
             &crate::rendering::effects::GpuPreviewRenderer,
         ));
     }
     if let Some(panel) = &app.panels.audio {
-        layers.push(panel.view(app.scene.viewport, app.config.ui_scale(), &app.theme.palette));
+        layers.push(panel.view(app.scene.viewport, window, &app.theme.palette));
     }
     layers
 }

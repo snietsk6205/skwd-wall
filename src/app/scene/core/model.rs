@@ -50,6 +50,8 @@ pub struct SceneCore {
     pub(super) direct_thumbnails: bool,
     pub(super) filter_bar_footprint: Option<(bool, f32, f32)>,
     pub(super) reading_rtl: bool,
+    /// The side panel (layout studio, playlists dock) is on the right.
+    pub(super) inset_on_right: bool,
     pub(super) preview_state: PreviewState,
 }
 
@@ -400,6 +402,7 @@ impl SceneCore {
             direct_thumbnails: false,
             filter_bar_footprint: None,
             reading_rtl: false,
+            inset_on_right: false,
             preview_state: PreviewState::new(),
         };
         scene.retime_shared_motion();

@@ -851,11 +851,12 @@ pub fn view<'a>(
     playlists: &'a Playlists,
     folders: &'a [String],
     viewport: (f32, f32),
-    scale: f32,
+    window: crate::frontend::ui::SheetWindow,
     palette: &'a Palette,
 ) -> Element<'a, Message> {
+    let scale = window.scale();
     if playlists.picker {
-        return super::picker::view(playlists, viewport, scale, palette);
+        return super::picker::view(playlists, viewport, window, palette);
     }
     let selected = playlists
         .selected_def()
@@ -874,13 +875,13 @@ pub fn view<'a>(
         reading_surface(playlists, folders, scale, palette),
         Message::ClosePlaylists,
         viewport,
-        scale,
+        window,
         1.0,
         crate::frontend::ui::FOLIO_INDEX_WIDTH,
         palette,
     );
     if playlists.filter_help {
-        iced::widget::stack![sheet, super::help::view(viewport, scale, palette)].into()
+        iced::widget::stack![sheet, super::help::view(viewport, window, palette)].into()
     } else {
         sheet
     }

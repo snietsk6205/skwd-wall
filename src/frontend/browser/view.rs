@@ -689,15 +689,16 @@ pub fn view<'a>(
     spin: f32,
     _shimmer: f32,
     preview_anim: f32,
-    scale: f32,
+    window: crate::frontend::ui::SheetWindow,
     pal: &'a Palette,
     current_wallpaper_art: Option<&'a str>,
 ) -> Element<'a, Message> {
+    let scale = window.scale();
     let filter_w = (282.0 * scale).clamp(238.0, 310.0);
     let filter_inner_w = filter_w - 28.0 * scale;
     let workspace_gap = 14.0 * scale;
     let compact_bar_size = crate::frontend::ui::browser_bar_compact_size(br, scale, filter_inner_w);
-    let (panel_w, panel_h, sheet_width, grid_h) = wall_aperture_dims(viewport, grid, scale);
+    let (panel_w, panel_h, sheet_width, grid_h) = wall_aperture_dims(viewport, grid, window);
     let ease = ease_out_cubic(entrance.clamp(0.0, 1.0));
     let _ = sheet_width;
 
@@ -903,11 +904,8 @@ pub fn view<'a>(
     )
     .on_press(Message::Capture);
     let main = crate::frontend::ui::inert_backdrop(
-        container(container(panel).padding(Padding { top: rise, ..Padding::ZERO }))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
+        window
+            .align(container(container(panel).padding(Padding { top: rise, ..Padding::ZERO })))
             .style(move |_| crate::frontend::ui::folio_scrim_style(ease)),
         Message::Close,
     );
@@ -922,11 +920,14 @@ pub fn view<'a>(
     stack![main, overlay].into()
 }
 
+/// Sheet width and height, reading width and thumbnail-wall height of the
+/// downloads browser. The Settings window size replaces the automatic size.
 pub fn wall_aperture_dims(
     viewport: (f32, f32),
     grid: crate::contracts::picker::BrowserGrid,
-    scale: f32,
+    window: crate::frontend::ui::SheetWindow,
 ) -> (f32, f32, f32, f32) {
+    let scale = window.scale();
     let (vw, vh) = viewport;
     let cols = grid.cols.max(1);
     let grid_w = cols as f32 * grid.thumb_w + cols.saturating_sub(1) as f32 * grid.gap_x;
@@ -934,11 +935,12 @@ pub fn wall_aperture_dims(
     let reading_padding_x = 48.0 * scale;
     let workspace_gap = 14.0 * scale;
     let desired_width = grid_w + filter_w + workspace_gap + reading_padding_x;
-    let panel_w = desired_width.max(620.0 * scale).min((vw - 24.0).max(220.0));
+    let panel_w = window.width_or(vw, desired_width.max(620.0 * scale).min((vw - 24.0).max(220.0)));
     let desired_grid_h =
         grid.rows.max(1) as f32 * grid.thumb_h + grid.rows.saturating_sub(1) as f32 * grid.gap_y;
     let desired_height = desired_grid_h + 298.0 * scale;
-    let panel_h = desired_height.max(500.0 * scale).min((vh - 24.0).max(160.0));
+    let panel_h =
+        window.height_or(vh, desired_height.max(500.0 * scale).min((vh - 24.0).max(160.0)));
     let reading_width = (panel_w - reading_padding_x).max(220.0);
     let sheet_width = (reading_width - filter_w - workspace_gap).max(220.0);
     let grid_h = (panel_h - 292.0 * scale).max(100.0);

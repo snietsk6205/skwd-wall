@@ -683,12 +683,13 @@ pub fn folio_sheet<'a, Message: Clone + 'a>(
     reading: Element<'a, Message>,
     dismiss: Message,
     viewport: (f32, f32),
-    scale: f32,
+    window: super::SheetWindow,
     ease: f32,
     index_width: f32,
     palette: &'a Palette,
 ) -> Element<'a, Message> {
-    let (panel_width, panel_height) = crate::frontend::ui::folio_sheet_dims(viewport, scale);
+    let scale = window.scale();
+    let (panel_width, panel_height) = window.dims(viewport);
     let page = stack![
         container(text(""))
             .width(Length::Fill)
@@ -715,15 +716,7 @@ pub fn folio_sheet<'a, Message: Clone + 'a>(
             .style(move |_| folio_scrim_style(ease)),
         dismiss,
     );
-    stack![
-        backdrop,
-        container(iced::widget::opaque(panel))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .center_x(Length::Fill)
-            .center_y(Length::Fill),
-    ]
-    .into()
+    stack![backdrop, window.place(iced::widget::opaque(panel))].into()
 }
 
 struct FolioBlueprint {

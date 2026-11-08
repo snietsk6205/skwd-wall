@@ -430,3 +430,68 @@ fn view_rows_come_from_the_direction_aware_kit() {
     visit(&root.join("src/app/view"), &mut offenders);
     assert!(offenders.is_empty(), "{offenders:#?}");
 }
+
+#[test]
+fn sheet_window_automatic_is_the_folio_size() {
+    use super::{SheetPosition, SheetWindow};
+    let window = SheetWindow::automatic(1.0);
+    assert_eq!(window.dims((1657.0, 1326.0)), super::folio_sheet_dims((1657.0, 1326.0), 1.0));
+    assert_eq!(window.fit((1280.0, 720.0), (380.0, 420.0)), (380.0, 420.0));
+    assert_eq!(window.position(), SheetPosition::Center);
+    assert_eq!(window.edge_gap(), 0.0);
+    assert_eq!(window.origin((1000.0, 800.0), (400.0, 200.0)), (300.0, 300.0));
+}
+
+#[test]
+fn sheet_window_shares_replace_the_automatic_size() {
+    use super::{SheetPosition, SheetWindow};
+    let window = SheetWindow::new(1.0, 0.5, 0.4, SheetPosition::Center);
+    assert_eq!(window.dims((1280.0, 720.0)), (640.0, 288.0));
+    assert_eq!(window.fit((1280.0, 720.0), (380.0, 420.0)), (640.0, 288.0));
+    // 100 % leaves the usual margin; tiny screens keep the minimum size.
+    let full = SheetWindow::new(1.0, 1.0, 1.0, SheetPosition::Center);
+    assert_eq!(full.dims((1280.0, 720.0)), (1258.0, 698.0));
+    assert_eq!(full.dims((200.0, 150.0)), (220.0, 160.0));
+    // Out-of-range shares mean automatic.
+    for share in [0.0, 0.1, f32::NAN] {
+        let window = SheetWindow::new(1.0, share, share, SheetPosition::Center);
+        assert!(!window.has_height());
+        assert_eq!(window.width_or(1280.0, 5.0), 5.0);
+        assert_eq!(window.dims((1280.0, 720.0)), super::folio_sheet_dims((1280.0, 720.0), 1.0));
+    }
+    assert_eq!(SheetWindow::new(1.0, 3.0, 0.0, SheetPosition::Center).width_or(1000.0, 1.0), 978.0);
+}
+
+#[test]
+fn sheet_window_scale_drives_the_automatic_size() {
+    use super::{SheetPosition, SheetWindow};
+    let small = SheetWindow::new(0.5, 0.0, 0.0, SheetPosition::Center);
+    let large = SheetWindow::new(1.5, 0.0, 0.0, SheetPosition::Center);
+    assert_eq!(small.dims((2560.0, 1440.0)), (695.0, 435.0));
+    assert_eq!(large.dims((2560.0, 1440.0)), (2085.0, 1305.0));
+    assert_eq!(SheetWindow::new(0.0, 0.0, 0.0, SheetPosition::Center).scale(), 1.0);
+    assert_eq!(small.with_scale(0.9).scale(), 0.9);
+}
+
+#[test]
+fn sheet_window_positions_dock_to_edges() {
+    use super::{SheetPosition, SheetWindow};
+    use iced::alignment::{Horizontal, Vertical};
+    assert_eq!(SheetPosition::parse("left"), SheetPosition::Left);
+    assert_eq!(SheetPosition::parse("bottom"), SheetPosition::Bottom);
+    assert_eq!(SheetPosition::parse(""), SheetPosition::Center);
+    assert_eq!(SheetPosition::parse("centre"), SheetPosition::Center);
+    let screen = (1000.0, 800.0);
+    let size = (400.0, 200.0);
+    let at = |position| SheetWindow::new(2.0, 0.0, 0.0, position);
+    assert_eq!(at(SheetPosition::Left).origin(screen, size), (22.0, 300.0));
+    assert_eq!(at(SheetPosition::Right).origin(screen, size), (578.0, 300.0));
+    assert_eq!(at(SheetPosition::Top).origin(screen, size), (300.0, 22.0));
+    assert_eq!(at(SheetPosition::Bottom).origin(screen, size), (300.0, 578.0));
+    assert_eq!(at(SheetPosition::Left).align_x(), Horizontal::Left);
+    assert_eq!(at(SheetPosition::Right).align_x(), Horizontal::Right);
+    assert_eq!(at(SheetPosition::Top).align_y(), Vertical::Top);
+    assert_eq!(at(SheetPosition::Bottom).align_y(), Vertical::Bottom);
+    assert_eq!(at(SheetPosition::Left).align_y(), Vertical::Center);
+    assert_eq!(at(SheetPosition::Left).edge_gap(), 22.0);
+}

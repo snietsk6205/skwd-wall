@@ -25,24 +25,25 @@ impl Effects {
     pub(super) fn displays_view<'a>(
         &'a self,
         viewport: (f32, f32),
-        scale: f32,
+        window: crate::frontend::ui::SheetWindow,
         palette: &'a Palette,
     ) -> Element<'a, Message> {
         let ease = self.open_ease();
+        let scale = window.scale();
         let source = self.source_stem();
         let count = self.displays.selected_outputs.len();
         let total = self.displays.monitors.len();
 
         let masthead: Element<'a, Message> = container(text("")).height(0.0).into();
         let index = self.apply_index(source, count, total, scale, palette);
-        let reading = self.display_reading_surface(count, viewport, scale, palette);
+        let reading = self.display_reading_surface(count, window.dims(viewport).0, scale, palette);
         crate::frontend::ui::folio_sheet(
             masthead,
             index,
             reading,
             Message::ToggleEffects,
             viewport,
-            scale,
+            window,
             ease,
             FOLIO_INDEX_WIDTH,
             palette,
@@ -140,7 +141,7 @@ impl Effects {
     fn display_reading_surface<'a>(
         &'a self,
         count: usize,
-        viewport: (f32, f32),
+        panel_width: f32,
         scale: f32,
         palette: &'a Palette,
     ) -> Element<'a, Message> {
@@ -211,7 +212,7 @@ impl Effects {
                 }),
             );
         } else {
-            let wide = super::monitor::tile_is_wide(viewport, scale);
+            let wide = super::monitor::tile_is_wide(panel_width, scale);
             for monitor in &self.displays.monitors {
                 monitors = monitors.push(self.monitor_tile(monitor, scale, wide, palette));
             }

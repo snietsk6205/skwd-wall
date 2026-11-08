@@ -124,7 +124,7 @@ impl SceneCore {
     }
 
     fn inset_sides(&self, inset: f32) -> (f32, f32) {
-        if self.reading_rtl { (0.0, inset) } else { (inset, 0.0) }
+        if self.inset_on_right { (0.0, inset) } else { (inset, 0.0) }
     }
 
     fn hex_camera(&self, sel_center: f32, cx: f32, inset: f32, fade_zone: f32, vw: f32) -> f32 {

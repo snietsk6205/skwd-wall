@@ -31,3 +31,11 @@ Rendered with the real renderer (`skwd-wall-vk --preview-stream`, software Vulka
 - `phase6-performance-overlay.jpg`: the performance overlay (top right). Cloud screenshot with software rendering, so FPS shows "--" or 0 and CPU is high; on a real GPU it shows the real numbers.
 - `phase6-settings-power.jpg`: Settings → Performance → Power with the new Low-power mode and Performance overlay switches.
 - `m1b-bench-cloud.txt`: a full report of the new one-command benchmark (`skwd-helm ui bench`), made in the cloud with software rendering at 512x288, so the times are far slower than on a real graphics chip; it shows what each line looks like.
+- `m2-*.jpg` (M2, window size everywhere): each panel that opens over the picker, at a **small**
+  Settings window (50 % x 60 %, scale 0.85, position Right) on the left and a **large** one
+  (96 % x 94 %, scale 1.2, Centre) on the right, screenshots of the real app at 1280x720 (software
+  rendering): `m2-settings`, `m2-layout-studio` (side panel, stops at about half the screen so the
+  picker stays visible; Right puts it on the right), `m2-playlists`, `m2-card-picker`,
+  `m2-theme-designer`, `m2-effects-studio`, `m2-schedule`, `m2-tag-cloud` (Centre keeps it under
+  the cards), `m2-downloads` (no internet in the cloud, so it shows a network error),
+  `m2-audio-mixer`, `m2-scene-properties` (a made-up test scene).

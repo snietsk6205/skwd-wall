@@ -20,7 +20,8 @@ pub(super) fn settings_layer(app: &App) -> Element<'_, Message> {
     };
     let chrome = settings::ChromeCtx {
         viewport: app.scene.viewport,
-        scale: app.config.ui_scale(),
+        window: app.sheet_window(),
+        rtl: crate::i18n::is_rtl(),
         entrance: app.panels.settings.entrance.x,
         palette: &app.theme.palette,
     };

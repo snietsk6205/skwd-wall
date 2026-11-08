@@ -11,9 +11,17 @@ use super::{PlMsg, Playlists};
 pub(super) fn view<'a>(
     playlists: &'a Playlists,
     viewport: (f32, f32),
-    scale: f32,
+    window: crate::frontend::ui::SheetWindow,
     palette: &'a Palette,
 ) -> Element<'a, Message> {
+    let scale = window.scale();
+    let (width, height) = window.fit(
+        viewport,
+        (
+            (440.0 * scale).min((viewport.0 - 32.0).max(1.0)),
+            (480.0 * scale).min((viewport.1 - 32.0).max(1.0)),
+        ),
+    );
     let query = playlists.search.trim().to_lowercase();
     let mut choices = column![folio_action(
         tr("playlists-browse-all"),
@@ -86,8 +94,8 @@ pub(super) fn view<'a>(
     ]
     .spacing(12.0 * scale);
     let panel = container(body)
-        .width(Length::Fixed((440.0 * scale).min((viewport.0 - 32.0).max(1.0))))
-        .height(Length::Fixed((480.0 * scale).min((viewport.1 - 32.0).max(1.0))))
+        .width(Length::Fixed(width))
+        .height(Length::Fixed(height))
         .padding(18.0 * scale)
         .style(move |_| {
             crate::frontend::ui::box_style(
@@ -95,8 +103,8 @@ pub(super) fn view<'a>(
                 palette.outline,
             )
         });
-    let scrim = container(mouse_area(panel).on_press(Message::Noop))
-        .center(Length::Fill)
+    let scrim = window
+        .align(container(mouse_area(panel).on_press(Message::Noop)))
         .style(|_| crate::frontend::ui::folio_scrim_style(1.0));
     mouse_area(scrim).on_press(Message::ClosePlaylists).into()
 }

@@ -395,6 +395,13 @@ impl SceneCore {
         }
     }
 
+    pub fn set_inset_side(&mut self, on_right: bool) {
+        if self.inset_on_right != on_right {
+            self.inset_on_right = on_right;
+            self.motion.needs_frame = true;
+        }
+    }
+
     pub fn set_reading_direction(&mut self, rtl: bool) {
         if self.reading_rtl != rtl {
             self.reading_rtl = rtl;
@@ -428,11 +435,11 @@ impl SceneCore {
     }
 
     pub(super) fn center_x(&self) -> f32 {
-        center_layout(self.viewport.0, self.motion.center_inset.x, self.reading_rtl).0
+        center_layout(self.viewport.0, self.motion.center_inset.x, self.inset_on_right).0
     }
 
     pub(super) fn avail_w(&self) -> f32 {
-        center_layout(self.viewport.0, self.motion.center_inset.x, self.reading_rtl).1
+        center_layout(self.viewport.0, self.motion.center_inset.x, self.inset_on_right).1
     }
 
     // The params are stored as they are; passing them by value is intended.

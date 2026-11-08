@@ -427,7 +427,7 @@ impl App {
             let (_, _, width, height) = crate::frontend::browser::wall_aperture_dims(
                 self.scene.viewport,
                 gp,
-                self.config.ui_scale(),
+                self.sheet_window(),
             );
             self.source_browser.wall.set_viewport(width, height);
             self.source_browser.wall.scene.tick(

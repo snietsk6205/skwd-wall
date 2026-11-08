@@ -8,7 +8,13 @@ use crate::i18n::tr;
 
 use super::PlMsg;
 
-pub(super) fn view(viewport: (f32, f32), scale: f32, palette: &Palette) -> Element<'_, Message> {
+pub(super) fn view(
+    viewport: (f32, f32),
+    window: crate::frontend::ui::SheetWindow,
+    palette: &Palette,
+) -> Element<'_, Message> {
+    let scale = window.scale();
+    let (sheet_width, sheet_height) = window.dims(viewport);
     let mut entries =
         column![label(tr("playlists-help-combine"), 12.0, scale, palette.surface_text)]
             .spacing(14.0 * scale);
@@ -42,8 +48,8 @@ pub(super) fn view(viewport: (f32, f32), scale: f32, palette: &Palette) -> Eleme
     ]
     .spacing(16.0 * scale);
     let panel = container(body)
-        .width(Length::Fixed((560.0 * scale).min((viewport.0 - 32.0).max(1.0))))
-        .height(Length::Fixed((560.0 * scale).min((viewport.1 - 32.0).max(1.0))))
+        .width(Length::Fixed((560.0 * scale).min(sheet_width).min((viewport.0 - 32.0).max(1.0))))
+        .height(Length::Fixed((560.0 * scale).min(sheet_height).min((viewport.1 - 32.0).max(1.0))))
         .padding(20.0 * scale)
         .style(move |_| {
             crate::frontend::ui::box_style(
@@ -51,8 +57,8 @@ pub(super) fn view(viewport: (f32, f32), scale: f32, palette: &Palette) -> Eleme
                 palette.outline,
             )
         });
-    let scrim = container(mouse_area(panel).on_press(Message::Noop))
-        .center(Length::Fill)
+    let scrim = window
+        .align(container(mouse_area(panel).on_press(Message::Noop)))
         .style(|_| crate::frontend::ui::folio_scrim_style(1.0));
     mouse_area(scrim).on_press(close).into()
 }

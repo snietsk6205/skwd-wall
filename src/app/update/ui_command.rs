@@ -896,6 +896,25 @@ fn ui_open(app: &mut App, arg: &str) -> Task<Message> {
             Task::none()
         }
         "theme-bar" => super::update_inner(app, Message::ToggleThemePanel),
+        "card-picker" => {
+            let card = app
+                .library_session
+                .filtered
+                .get(app.scene.current)
+                .and_then(|&selected| {
+                    app.library_session.library.catalog().items.get(selected as usize)
+                })
+                .map(|item| (item.key.clone(), item.name.clone()));
+            if let Some((key, name)) = card {
+                app.open_card_picker(key, name);
+                app.retick();
+            }
+            Task::none()
+        }
+        "scene-properties" => {
+            app.open_scene_properties();
+            Task::none()
+        }
         "theme-audition" => super::update_inner(app, Message::OpenThemeAudition),
         other => {
             log::warn!("ui command: unknown panel '{other}'");

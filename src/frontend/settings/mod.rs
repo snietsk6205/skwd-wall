@@ -22,7 +22,11 @@ pub use folio::{WeatherReviewItem, WeatherReviewView};
 pub use input_ids::{
     PRESET_NAME_KEY, settings_search_input_id, weather_review_input_id, workbench_input_id,
 };
-pub use layout::picker_layout_studio_width;
+pub use layout::{
+    STUDIO_EDGE_GAP, picker_layout_studio_align, picker_layout_studio_height,
+    picker_layout_studio_inset, picker_layout_studio_on_right, picker_layout_studio_width,
+    sheet_window,
+};
 pub use model::{
     Card, Control, FolderLedger, FolderRow, ProfileEntry, ProfilesPage, Row, TagTone, TreeNode,
     mark_folds,

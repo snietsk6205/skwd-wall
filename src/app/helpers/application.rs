@@ -2,6 +2,12 @@
 use super::super::*;
 
 impl App {
+    /// Settings → Picker → Settings window, shared by every panel that opens
+    /// over the picker (the picker itself keeps filling the screen).
+    pub(in crate::app) fn sheet_window(&self) -> crate::frontend::ui::SheetWindow {
+        crate::frontend::settings::sheet_window(&self.config, self.config.ui_scale())
+    }
+
     pub(in crate::app) fn unsubscribe_available(&self) -> bool {
         self.config.steam_uses_client()
             && self.daemon.connected

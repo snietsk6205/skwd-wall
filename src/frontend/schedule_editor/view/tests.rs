@@ -4,7 +4,7 @@ fn folio_chrome_present() {
     assert!(source.contains("folio_masthead"));
     assert!(source.contains("folio_sheet("));
     assert!(source.contains("schedule_section("));
-    assert!(source.contains("schedule_scale(viewport, scale)"));
+    assert!(source.contains("schedule_scale(viewport, window.scale())"));
     assert!(source.contains("folio_action("));
 }
 

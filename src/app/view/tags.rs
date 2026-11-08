@@ -33,6 +33,24 @@ pub(crate) fn cloud_fit_width(
     w.min(vw - 40.0).max(200.0)
 }
 
+/// Top-left corner of the tag cloud when the Settings window position docks it
+/// to a screen edge. `None` (Centre) keeps it in its place under the cards.
+pub(crate) fn cloud_dock(
+    window: &crate::frontend::ui::SheetWindow,
+    viewport: (f32, f32),
+    size: (f32, f32),
+    offset: (f32, f32),
+) -> Option<(f32, f32)> {
+    if window.position() == crate::frontend::ui::SheetPosition::Center {
+        return None;
+    }
+    let (left, top) = window.origin(viewport, size);
+    Some((
+        (left + offset.0).clamp(0.0, (viewport.0 - size.0).max(0.0)),
+        (top + offset.1).clamp(0.0, (viewport.1 - size.1).max(0.0)),
+    ))
+}
+
 pub(crate) fn cloud_fit_height(
     matching_tags_open: bool,
     _describe_mode: bool,
@@ -290,7 +308,8 @@ fn card_tag_drawer_bounds(
 }
 
 pub(super) fn tag_cloud_layer(app: &App, vh: f32) -> Element<'_, Message> {
-    let scale = app.config.ui_scale();
+    let window = app.sheet_window();
+    let scale = window.scale();
     let vw = app.scene.viewport.0;
     let content_w = match app.scene.mode {
         Mode::Grid => Some(app.scene.gp.total_w()),
@@ -303,6 +322,12 @@ pub(super) fn tag_cloud_layer(app: &App, vh: f32) -> Element<'_, Message> {
         app.config.tag_cloud_width() * scale,
         vw,
     );
+    // The tag cloud's own width setting wins over the Settings window width.
+    let cloud_w = if app.config.tag_cloud_width_override().is_some() {
+        cloud_w
+    } else {
+        window.width_or(vw, cloud_w)
+    };
     let (cox, coy) = app.config.tag_cloud_offset();
     let ent = app.tags.cloud_entrance.x;
     let rise = (1.0 - ent).powi(3) * 16.0 * scale;
@@ -318,14 +343,20 @@ pub(super) fn tag_cloud_layer(app: &App, vh: f32) -> Element<'_, Message> {
         vh,
         scale,
     );
-    let cloud_top = if matches!(app.scene.mode, Mode::Sandy) {
+    let cloud_h =
+        if window.has_height() { cloud_h.min(window.height_or(vh, cloud_h)) } else { cloud_h };
+    let docked = cloud_dock(&window, (vw, vh), (cloud_w, cloud_h), (cox, coy));
+    let cloud_top = if let Some((_, top)) = docked {
+        top + rise
+    } else if matches!(app.scene.mode, Mode::Sandy) {
         let strip_top =
             crate::frontend::scene::sandy::strip_bottom(vh) - app.scene.xp.sandy.strip_h();
         (strip_top - crate::frontend::scene::sandy::BAR_GAP - cloud_h + coy).max(0.0) + rise
     } else {
         (((vh + card_h(app, vh)) * 0.5 + 14.0 + coy).min(vh - cloud_h - 16.0)).max(0.0) + rise
     };
-    let cloud_left = (((vw - cloud_w) * 0.5) + cox).max(0.0);
+    let cloud_left =
+        docked.map_or_else(|| (((vw - cloud_w) * 0.5) + cox).max(0.0), |(left, _)| left);
     let cloud = crate::frontend::tagcloud::view(crate::frontend::tagcloud::CloudView {
         entries,
         db_empty: app.library_session.library.catalog().tags.is_empty(),
