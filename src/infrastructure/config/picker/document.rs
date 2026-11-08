@@ -256,6 +256,11 @@ impl Config {
         self.set_selected_preset(mode, Some(name));
     }
 
+    /// The value at a dotted path, if it is set.
+    pub fn value_at(&self, path: &str) -> Option<Value> {
+        path.split('.').try_fold(&self.data, |current, part| current.get(part)).cloned()
+    }
+
     pub fn set_key(&mut self, path: &str, value: Value) {
         let parts: Vec<&str> = path.split('.').collect();
         if !self.data.is_object() {

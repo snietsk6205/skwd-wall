@@ -89,6 +89,7 @@ fn overlay_view(app: &App) -> Element<'_, Message> {
         pool: app.scene.frame_pool().clone(),
         frame_clock: app.runtime_state.frame_clock.clone(),
         pointer_enabled: !app.detail_open() && !app.menu_capturing(),
+        stats: app.runtime_state.perf.render.clone(),
     })
     .width(Length::Fill)
     .height(Length::Fill)

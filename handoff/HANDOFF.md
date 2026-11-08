@@ -128,13 +128,12 @@ Read this first in a new session.
   shell is fish (`(cmd)` substitution; `VAR=value cmd` works).
 - On the user's machine the picker grabs the keyboard and covers the screen while open, and
   closing it exits the process (`exit_picker` → `hard_exit`), so the user cannot type a second
-  command while it is open. Benchmark one-liner that works (fish and bash):
-  `pkill -x skwd-wall-v2; WAYLAND_DISPLAY=wayland-1 ~/.local/opt/skwd-custom/bin/skwd-wall-v2 >/dev/null 2>&1 & sleep 3; ~/.local/opt/skwd-custom/bin/skwd-helm ui bench`
+  command while it is open. **Since M1b the benchmark is ONE command** (fish and bash, local or
+  SSH): `~/.local/opt/skwd-custom/bin/skwd-helm ui bench` (optional `--gpu high|low`). Helm
+  stops a picker without the benchmark (official/older: it answers `bench-run` with nothing),
+  starts the sibling `skwd-wall-v2`, finds `WAYLAND_DISPLAY` itself, waits for the report on
+  one `bench-run` query (no polling) and sends `hide` at the end. See Phase 7.
   User's machine (from their log): NVIDIA GPU, 988 wallpapers, Noctalia shell also running.
-- Possible small improvement (not done): `skwd-helm ui bench` could start the picker itself when
-  none is running.
-- Possible small improvement (not done): `skwd-helm ui bench` could detect the official picker
-  (it gives an empty reply to `perf-query`) and say so instead of waiting 2 minutes.
 
 ## User's machine and M1 benchmark results (2026-11-08)
 - Lenovo LOQ 15IAX9: i5-12450HX, RTX 3050 6GB Laptop + Intel UHD (ADL-S), 23 GB RAM, btrfs,
@@ -145,7 +144,7 @@ Read this first in a new session.
   init_inputs 0.7 ms, apply_layout 0.2 ms; slider p95 17.5 ms, smooth 97 %; **layouts p99
   ~200 ms (smooth 86 %)**; one synchronous config save on their btrfs disk: **10.9 ms** (the
   old per-click UI stall that M1 moved off the UI thread).
-- What the numbers mean / known flaws of the benchmark (fix in M1b):
+- What the numbers mean / known flaws of the benchmark (all fixed in M1b, see Phase 7):
   - The `SKWD_WALL_SYNC_CONFIG=1` comparison run is identical by design: the bench runs on a
     transient config, so it never saves. The old per-click cost is the "config save" line.
   - "settings-click smooth 46 %, p95 149 ms" is an artefact: the clicks are 150 ms apart and
@@ -156,12 +155,13 @@ Read this first in a new session.
     the cloud: 0 CPU ticks in 5 s).
   - Navigation runs at ~80 fps on the 144 Hz screen (p50 12.6 ms): check the picker FPS cap /
     tick interval (`general.maxFps` default?) — maybe allow matching the refresh rate.
-- **Real problem found: switching layouts has a ~200 ms hitch** (p99 206 ms, once per switch,
-  9 switches). CPU spans stay small (update max 2 ms, tick max 0.6 ms), so it is on the
-  render side: likely first-use wgpu pipeline creation / shader compile for each layout on
-  Intel Mesa, or thumbnail atlas re-uploads for the new card sizes. Fix idea: pre-warm every
-  layout's pipelines in the background after startup, and spread atlas uploads over frames.
-  Add a render-side span (prepare/upload time) to prove which.
+- M1 read the layouts result as "a ~200 ms hitch per switch" (p99 206 ms). **M1b found that
+  this number was mostly the M1 benchmark's own artefact** (see Phase 7): M1 measured gaps
+  between ticks and counted every gap under 250 ms as a frame, so the idle pause between a
+  layout settling and the next switch (e.g. Hand settles after ~900 ms, next switch at 1100 ms)
+  and slower intended frame rates (30/20 fps preview/passive ticks) counted as slow frames.
+  Real per-switch costs that M1b did find and fix are in Phase 7. The user's next report
+  (new method) will show the real frames on their iGPU.
 
 ## Session rule (from the user, applies to every session)
 - **One milestone per session.** When it is done: full build, tests, screenshots, commit, push
@@ -170,8 +170,7 @@ Read this first in a new session.
 
 ## Roadmap agreed with the user (priority order; one per session)
 - **M1 Speed (done, Phase 6 below).**
-- **M1b Speed follow-up (recommended next, small):** fix the ~200 ms layout-switch hitch and the
-  benchmark flaws listed in "User's machine and M1 benchmark results".
+- **M1b Speed follow-up (done, Phase 7 below).**
 - **M2 Window size everywhere.** The Settings window size/position/scale must apply to
   every panel that opens over the picker: Shape/layout studio, playlists, card picker, theme
   designer, effects studio, schedule editor, tag cloud, scene properties, downloads browser,
@@ -264,10 +263,76 @@ Read this first in a new session.
   between frames (`source.cards(tab)` is rebuilt on every view, 0.3 ms here), a cheaper
   launch animation in low power, a lower Sandy LOD in low power.
 
+## Phase 7 = M1b (done): render-side measurement, layout-switch fixes, honest benchmark
+- **Render-side frame log** (the "proof" measurement): `contracts/rendering/stats.rs`
+  `RenderStats` (shared through `ScenePrimitive.stats`, no global; the browser's embedded scene
+  passes `None`). `ScenePrimitive::prepare` records one `RenderFrame` per drawn frame: start
+  time, gap since the previous frame, and `RenderWork` (prepare total, thumbnail uploads
+  count/bytes/time, pipeline creation, render-target creation, atlas growth, and `render`'s
+  encode time). App side: `PerfState.render` (`app/state/perf.rs`); the overlay's FPS now comes
+  from it too. `perf::thread_cpu_time()` (CLOCK_THREAD_CPUTIME_ID) samples the UI thread at
+  every tick, so the report can say "UI thread busy X of Y ms" (busy ≈ wall: CPU work; much
+  lower: waiting for the GPU/driver/screen).
+- **What it showed (cloud, llvmpipe, headless sway at 512x288@144Hz, 40 wallpapers):**
+  - The M1 "~200 ms hitch" is mostly a measurement artefact: in the same run the old method
+    (`tick_gaps_m1`, kept in the report as "the first benchmark's method would say") reports
+    p99 ~150 ms for settings clicks and ~225-246 ms for layouts while the real frames show no
+    such stall on clicks. The pauses between animations were counted as frames.
+  - Real per-switch costs: (1) the cross-fade pipeline (`shaders/transition.wgsl`) was
+    compiled during the FIRST switch (5.4 ms on llvmpipe); (2) the two screen-sized cross-fade
+    targets were created and freed on EVERY switch; (3) every cross-fade frame drew BOTH layouts
+    (old into A, new into B) although the old one is a frozen snapshot; (4) atlas growth
+    (`recreate_near`, 7 ms on llvmpipe) when Coverflow first needs more near layers (left as is:
+    a one-off, and growing lazily saves memory).
+  - The slow frames after a switch had an idle UI thread → GPU-bound (on llvmpipe Hand and
+    Sandy frames are 200-250 ms, other layouts 20-45 ms at 512x288).
+- **Fixes** (`rendering/scene/pipeline/`): the cross-fade pipeline is built in
+  `ScenePipeline::new` (`create.rs`); the old layout is drawn into target A once per switch
+  (`old_drawn: AtomicBool`, cleared by `invalidate_old_layout()` when A is re-created or the old
+  snapshot changes; `render` swaps it); targets are kept for `TARGETS_KEEP` = 10 s after the
+  last switch and freed when the picker hides (`release_targets_due`, `targets_used`).
+  A/B on the same headless setup: median frame gap during the layouts phase **68.4 → 39.2 ms**,
+  frames drawn 53 → 73, first-switch pipeline time 5.4 → 0 ms. The first cross-fade frame still
+  draws both layouts once (inherent).
+- **Why ~80 fps on 144 Hz** (simulation `pace.py` in that session + code reading): the
+  layer-shell loop presents only after the compositor's frame callback (one frame in flight;
+  `iced_layershell` `take_present_slot`/`request_next_present`), so each frame's CPU draw + GPU
+  work must fit in ONE refresh (6.9 ms at 144 Hz) or it waits a whole extra refresh (13.9 ms =
+  72 fps). The user's p50 12.6 / p95 14.8 ms is that mix. Also `general.maxFps` defaults to
+  120 (< 144), which alone caps it and causes uneven pacing. Not changed by default; the bench
+  now runs `navigate` and `navigate-uncapped` (cap 1000 on the transient config) and prints
+  advice: raise Max FPS if uncapped is clearly faster, else try `--gpu high` (RTX 3050 via
+  `WGPU_POWER_PREF=high`, the existing Settings → Performance → GPU preference "high").
+- **Benchmark rewrite** (`app/update/bench/`: `script.rs` steps + report, `report.rs` pure
+  maths + `report/tests.rs`): frame gaps from the render log; gaps across pauses (`after_tick`
+  records when the picker is not animating at full rate, `BenchPhase.pauses`) are not frames;
+  `click/key/slider/switch -> frame` latency = action → end of the renderer's work on the first
+  frame after it; `settings-click-old` does each click plus `Config::measure_save()` on the UI
+  thread (the pre-M1 behaviour, on the user's disk) next to `settings-click`; layouts start
+  after the user's own layout and end on it (every step a real switch) with one block per
+  layout (first frame, slowest frame + when, median, idle-after time, renderer work, UI busy);
+  idle redraws exclude the bench's own step; "In short:" plain-language summary; header shows
+  fps cap, GPU preference, present mode. `perf-query` no longer ticks; `skwd-helm ui perf` also
+  returns the last 20 render frames.
+- **One command**: picker query `bench-run` (`dispatcher.rs` → `bench::start_and_reply`, reply
+  stored in `PerfState.bench_waiters`, answered with `{report, path}` JSON at the end;
+  `shell.rs` `attach_reply` accepts it). Helm `crates/skwd-helm/src/bench.rs`; wall-proto
+  `picker_control::send_query_waiting(cmd, wait)`. `SKWD_WALL_SYNC_CONFIG=1` still exists for
+  diagnosis but the README no longer suggests a second run.
+- Tested in the cloud: the one command with no picker running and no `WAYLAND_DISPLAY`
+  (starts, benchmarks, closes: 33 s), and with a picker open plus `--gpu low` (stops it,
+  restarts on the other GPU preference, header shows it). Sample report:
+  `custom/previews/m1b-bench-cloud.txt` (llvmpipe: absolute numbers meaningless).
+- Next time the user sends a report, read per layout: "first frame" (should be < 50 ms) and
+  "slowest frame after it" with "UI thread busy" to decide CPU vs GPU; `navigate` vs
+  `navigate-uncapped` for the FPS question.
+
 ## Testing in a cloud session
 - Scripts from the last session (recreate in the scratchpad): a headless sway + `skwd-walld` +
-  `skwd-wall` with `HOME` pointing at a fake home whose config sets `paths.wallpaper` to a folder
-  of generated test images (ImageMagick gradients), then `skwd-helm ui set <key> <value>`,
+  `skwd-wall` (+ `skwd-wall-scan` on PATH, or there are no thumbnails) with `HOME`,
+  `XDG_RUNTIME_DIR`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` pointing at a fake home whose config sets
+  `paths.wallpaper` to a folder of generated test images (ImageMagick gradients); sway config
+  `output HEADLESS-1 mode 512x288@144Hz` keeps llvmpipe fast enough for pacing tests. Then `skwd-helm ui set <key> <value>`,
   `skwd-helm ui nav right`, `skwd-helm ui tab picker`, `skwd-helm ui section N`, and `grim`.
   Wait for the picker to go idle (CPU ~0) before `grim`.
 - Software Vulkan (llvmpipe) works; `skwd-wall-vk --preview-stream` renders frames.

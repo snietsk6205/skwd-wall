@@ -6,6 +6,7 @@ use super::geometry::{
 use super::model::{Globals, SandyUniformRaw, TransUniformRaw};
 use super::primitive::sandy_target_required;
 use super::textures::physical_array_layers;
+use super::transition_resources::{TARGETS_KEEP, release_targets_due};
 use crate::rendering::wgsl_test_support::{assert_uniform_layout, parsed_wgsl};
 
 const ITEM_WGSL: &str = include_str!("../../../../shaders/item.wgsl");
@@ -564,4 +565,15 @@ fn sandy_target_dims_ceil() {
     assert_eq!(sandy_target_dimensions(1920.0, 1080.0, 2.0, 0.5), (1920, 1080));
     let (w, h) = sandy_target_dimensions(1.0, 1.0, 1.0, 0.25);
     assert!(w >= 1 && h >= 1);
+}
+
+#[test]
+fn crossfade_targets_kept_between_switches() {
+    let now = std::time::Instant::now();
+    let recent = now.checked_sub(std::time::Duration::from_secs(2));
+    let stale = now.checked_sub(TARGETS_KEEP + std::time::Duration::from_secs(1));
+    assert!(!release_targets_due(true, recent, now));
+    assert!(release_targets_due(true, stale, now));
+    assert!(release_targets_due(false, recent, now), "hidden picker frees them");
+    assert!(release_targets_due(true, None, now));
 }

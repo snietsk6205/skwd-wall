@@ -5,6 +5,7 @@ use iced::{Event, Rectangle, mouse, window};
 
 use crate::app::Message;
 use crate::contracts::preview::{BufPool, UploadQueue};
+use crate::contracts::rendering::RenderStats;
 use crate::frontend::scene::RenderSnapshot;
 use crate::frontend::scene::layout::Mode;
 use crate::infrastructure::runtime::FrameClock;
@@ -17,6 +18,7 @@ pub struct SceneProgram {
     pub pool: Arc<BufPool>,
     pub frame_clock: FrameClock,
     pub pointer_enabled: bool,
+    pub stats: RenderStats,
 }
 
 pub struct BrowserSceneProgram {
@@ -145,6 +147,7 @@ impl shader::Program<Message> for SceneProgram {
             render: self.render.renderer.clone(),
             uploads: self.uploads.clone(),
             pool: self.pool.clone(),
+            stats: Some(self.stats.clone()),
         }
     }
 }

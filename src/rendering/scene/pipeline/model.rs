@@ -1,13 +1,15 @@
 use std::sync::Arc;
 
 use crate::contracts::preview::{BufPool, UploadQueue};
-use crate::contracts::rendering::{InstanceRaw, RendererSnapshot};
+use crate::contracts::rendering::{InstanceRaw, RenderStats, RendererSnapshot};
 
 #[derive(Debug)]
 pub struct ScenePrimitive {
     pub(crate) render: Arc<RendererSnapshot>,
     pub(crate) uploads: UploadQueue,
     pub(crate) pool: Arc<BufPool>,
+    /// Render-side frame log (the picker's scene only; embedded scenes leave it out).
+    pub(crate) stats: Option<RenderStats>,
 }
 
 #[derive(Debug)]
@@ -125,6 +127,11 @@ pub struct ScenePipeline {
     pub(super) old_count: u32,
     pub(super) format: wgpu::TextureFormat,
     pub(super) targets: Option<TransitionTargets>,
+    /// When a layout cross-fade last used `targets` (they are kept for the next one).
+    pub(super) targets_used: Option<std::time::Instant>,
+    /// The frozen old layout is already in target A; set by `render`, cleared
+    /// whenever A or the old layout changes.
+    pub(super) old_drawn: std::sync::atomic::AtomicBool,
     pub(super) trans_pipeline: Option<wgpu::RenderPipeline>,
     pub(super) trans_layout: wgpu::BindGroupLayout,
     pub(super) trans_uniform: wgpu::Buffer,

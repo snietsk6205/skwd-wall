@@ -20,7 +20,7 @@ pub(crate) use demo::DemoSession;
 pub(crate) use input::InputState;
 pub(crate) use library::LibrarySession;
 pub(crate) use panels::PanelsState;
-pub(crate) use perf::{BenchPhase, BenchRun, PerfState};
+pub(crate) use perf::{BenchEvent, BenchPhase, BenchRun, PerfState, SavedSetting};
 pub(crate) use preview::PreviewResources;
 pub(crate) use runtime::AppRuntimeState;
 pub(crate) use settings::{

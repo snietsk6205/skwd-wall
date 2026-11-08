@@ -54,10 +54,30 @@ pub(super) fn make_transition_uniform(device: &wgpu::Device) -> wgpu::Buffer {
     })
 }
 
+use std::sync::atomic::Ordering;
+use std::time::{Duration, Instant};
+
+/// Cross-fade targets are kept this long after a layout switch, so a run of
+/// switches reuses them instead of allocating two screen-sized textures each time.
+pub(super) const TARGETS_KEEP: Duration = Duration::from_secs(10);
+
+/// Whether the kept cross-fade targets should go: the picker is hidden, or
+/// they have not been used for [`TARGETS_KEEP`].
+pub(super) fn release_targets_due(visible: bool, last_used: Option<Instant>, now: Instant) -> bool {
+    !visible || last_used.is_none_or(|used| now.saturating_duration_since(used) >= TARGETS_KEEP)
+}
+
 impl ScenePipeline {
     pub(super) fn release_transition_targets(&mut self) {
         self.trans_bind = None;
         self.targets = None;
+        self.targets_used = None;
+        self.old_drawn.store(false, Ordering::Relaxed);
+    }
+
+    /// The old layout must be drawn into target A again (it or A changed).
+    pub(super) fn invalidate_old_layout(&self) {
+        self.old_drawn.store(false, Ordering::Relaxed);
     }
 
     pub(super) fn ensure_transition_pipeline(&mut self, device: &wgpu::Device) {
@@ -108,6 +128,7 @@ impl ScenePipeline {
         };
         let a_view = make("skwd transition a");
         let b_view = make("skwd transition b");
+        self.invalidate_old_layout();
         self.trans_bind = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("skwd transition bind"),
             layout: &self.trans_layout,

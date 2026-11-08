@@ -66,11 +66,14 @@ pub(crate) fn update_inner(app: &mut App, message: Message) -> Task<Message> {
             run_ui_command(app, &command)
         }
         Message::Daemon(crate::infrastructure::runtime::Wake::Query(query, reply)) => {
-            app.retick();
-            if query == "perf-query" {
-                reply.send(&super::perf_json(app));
-            } else {
-                reply.send(&ui_state_json(app));
+            match query.as_str() {
+                // Answered without a tick, so asking never makes the picker animate.
+                "perf-query" => reply.send(&super::perf_json(app)),
+                "bench-run" => return super::bench::start_and_reply(app, reply),
+                _ => {
+                    app.retick();
+                    reply.send(&ui_state_json(app));
+                }
             }
             Task::none()
         }

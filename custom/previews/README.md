@@ -30,3 +30,4 @@ Rendered with the real renderer (`skwd-wall-vk --preview-stream`, software Vulka
 - `phase5-minimal-bar-layout-button.jpg`: the bar after Quick setup → Minimal, with the new layout button (arrows, left of Settings).
 - `phase6-performance-overlay.jpg`: the performance overlay (top right). Cloud screenshot with software rendering, so FPS shows "--" or 0 and CPU is high; on a real GPU it shows the real numbers.
 - `phase6-settings-power.jpg`: Settings → Performance → Power with the new Low-power mode and Performance overlay switches.
+- `m1b-bench-cloud.txt`: a full report of the new one-command benchmark (`skwd-helm ui bench`), made in the cloud with software rendering at 512x288, so the times are far slower than on a real graphics chip; it shows what each line looks like.

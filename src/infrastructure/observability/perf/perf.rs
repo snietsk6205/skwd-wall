@@ -133,6 +133,19 @@ pub fn cpu_time() -> Duration {
     micros(usage.ru_utime) + micros(usage.ru_stime)
 }
 
+/// CPU time (user + system) the calling thread has used. On the UI thread this
+/// tells working apart from waiting (for the screen, the GPU or the driver).
+pub fn thread_cpu_time() -> Duration {
+    let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    // SAFETY: `time` is a valid, writable timespec for the duration of the call.
+    let ok = unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &raw mut time) } == 0;
+    if !ok {
+        return Duration::ZERO;
+    }
+    Duration::from_secs(time.tv_sec.max(0) as u64)
+        + Duration::from_nanos(time.tv_nsec.max(0) as u64)
+}
+
 /// Turns two CPU-time readings into a percentage of one core.
 pub fn cpu_percent(cpu_before: Duration, cpu_after: Duration, wall: Duration) -> f64 {
     if wall.is_zero() {

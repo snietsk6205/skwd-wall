@@ -117,34 +117,55 @@ restarting, the installer goes back to the previous state by itself.
   smooth even on btrfs.
 - **Performance overlay** (Settings → Performance → Power): FPS, frame time, CPU use and how
   long the last settings change took, in a corner.
-- **Benchmark**: moves the picker by itself for about 40 seconds and prints a report (also saved
+- **Benchmark**: moves the picker by itself for about 35 seconds and prints a report (also saved
   in `~/.cache/skwd-wall-v2/bench/latest.txt`). It never changes your settings.
-- **Low-power mode** (Settings → Performance → Power): cheap versions of all heavy effects (no
-  blurred backdrops or reflections, no sketch before transitions, no hover video previews, the
-  battery FPS limit all the time).
+- **Smoother layout switches** (M1b): the cross-fade between two layouts no longer redraws the old
+  layout on every frame (it is a frozen picture, so it is drawn once), its two screen-sized
+  helper images are reused for 10 seconds instead of being made again for every switch, and the
+  cross-fade shader is prepared when the picker starts instead of during the first switch.
 
 ### Important: use the full path for the custom programs
 
 The custom programs live in `~/.local/opt/skwd-custom/bin/`, which is not on your PATH. Typing
 just `skwd-helm` or `skwd-wall-v2` runs the **official** programs.
 
-The picker takes over the screen and keyboard while it is open, and closing it ends the
-program, so start it and the benchmark with **one** command (in a terminal on the laptop or
-over SSH; `wayland-1` is your display's name, see `ls /run/user/(id -u)/`):
+### Run the benchmark (one command)
+
+Type this in a terminal on the laptop or over SSH, then do not touch the keyboard or mouse for
+about 40 seconds:
 
 ```bash
-pkill -x skwd-wall-v2; WAYLAND_DISPLAY=wayland-1 ~/.local/opt/skwd-custom/bin/skwd-wall-v2 >/dev/null 2>&1 & sleep 3; ~/.local/opt/skwd-custom/bin/skwd-helm ui bench
+~/.local/opt/skwd-custom/bin/skwd-helm ui bench
 ```
 
-Do not touch the laptop for about 45 seconds while the picker moves by itself. When it stops
-moving, press Esc to close it; the report is printed in the terminal and saved in
-`~/.cache/skwd-wall-v2/bench/latest.txt` (older runs: `ls ~/.cache/skwd-wall-v2/bench/`).
+It does everything by itself: if the official picker (or an older custom one) is still running
+in the background, it closes it first; it starts the custom picker, moves it around, prints the
+report, saves it in
+`~/.cache/skwd-wall-v2/bench/latest.txt` (older runs: `ls ~/.cache/skwd-wall-v2/bench/`) and
+closes the picker again, so you get your keyboard back. Over SSH it finds your screen by itself.
 
-To compare with the old, slower way of saving settings:
+To see how fast the picker is on the other graphics card (your RTX 3050 instead of the built-in
+Intel one), run it once more with:
 
 ```bash
-pkill -x skwd-wall-v2; WAYLAND_DISPLAY=wayland-1 SKWD_WALL_SYNC_CONFIG=1 ~/.local/opt/skwd-custom/bin/skwd-wall-v2 >/dev/null 2>&1 & sleep 3; ~/.local/opt/skwd-custom/bin/skwd-helm ui bench
+~/.local/opt/skwd-custom/bin/skwd-helm ui bench --gpu high
 ```
+
+How to read the report:
+
+- `frames` and `frame gap`: the frames really drawn and the time between them while something
+  moves (pauses between two animations are not counted). On a 144 Hz screen a perfect frame gap
+  is 6.9 ms; 13.9 ms means a frame missed one refresh.
+- `click -> frame`, `key -> frame`, `switch -> frame`: how long after the action the picture was
+  ready.
+- `settings-click` and `settings-click-old`: the new way of saving settings and the old one
+  (before M1), measured in the same run on your disk.
+- `navigate` and `navigate-uncapped`: moving with your FPS limit and without it. If the second
+  is clearly faster, the report tells you which Max FPS to set.
+- Under `layouts`, one block per layout: how long its first frame took and the slowest frame
+  after the switch, with what the renderer did in it and how busy the UI thread was (busy
+  close to the frame time = work on the processor; much lower = waiting for the graphics chip).
+- `In short:` at the end says it in plain words.
 
 Your Hyprland shortcut must also use the full path, or it opens the official picker. Find it
 with `grep -rn skwd ~/.config/hypr/` and change it to

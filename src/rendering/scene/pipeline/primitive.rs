@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use iced::Rectangle;
 use iced::widget::shader::{Primitive, Viewport};
@@ -12,8 +13,9 @@ use super::model::{
     ScenePrimitive, TransUniformRaw,
 };
 use super::textures::{upload_instances, upload_near_container, upload_near_rgba};
+use super::transition_resources::release_targets_due;
 use crate::contracts::preview::Upload;
-use crate::contracts::rendering::TransSnap;
+use crate::contracts::rendering::{RenderWork, TransSnap};
 
 pub(super) fn sandy_target_required(
     visible: bool,
@@ -21,6 +23,14 @@ pub(super) fn sandy_target_required(
     res_scale: Option<f32>,
 ) -> bool {
     visible && !transitioning && res_scale.is_some_and(sandy_is_scaled)
+}
+
+/// Runs `step` and adds its duration to `slot`.
+fn timed<R>(slot: &mut Duration, step: impl FnOnce() -> R) -> R {
+    let started = Instant::now();
+    let result = step();
+    *slot += started.elapsed();
+    result
 }
 
 impl Primitive for ScenePrimitive {
@@ -34,10 +44,51 @@ impl Primitive for ScenePrimitive {
         bounds: &Rectangle,
         viewport: &Viewport,
     ) {
+        let started = Instant::now();
+        let mut work = RenderWork::default();
+        self.prepare_scene(pipeline, device, queue, bounds, viewport, &mut work);
+        if let Some(stats) = &self.stats {
+            work.prepare = started.elapsed();
+            stats.record_prepare(started, work);
+        }
+    }
+
+    fn draw(&self, _pipeline: &ScenePipeline, _render_pass: &mut wgpu::RenderPass<'_>) -> bool {
+        false
+    }
+
+    fn render(
+        &self,
+        pipeline: &ScenePipeline,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &wgpu::TextureView,
+        clip_bounds: &Rectangle<u32>,
+    ) {
+        let started = Instant::now();
+        self.render_scene(pipeline, encoder, target, clip_bounds);
+        if let Some(stats) = &self.stats {
+            stats.record_encode(started.elapsed());
+        }
+    }
+}
+
+impl ScenePrimitive {
+    fn prepare_scene(
+        &self,
+        pipeline: &mut ScenePipeline,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        bounds: &Rectangle,
+        viewport: &Viewport,
+        work: &mut RenderWork,
+    ) {
         let sf = viewport.scale_factor();
         crate::contracts::display::set_surface_scale(sf);
         let transitioning = self.render.transition.is_some();
-        if !transitioning && pipeline.targets.is_some() {
+        if !transitioning
+            && pipeline.targets.is_some()
+            && release_targets_due(self.render.vis > 0.0, pipeline.targets_used, Instant::now())
+        {
             pipeline.release_transition_targets();
         }
         let sandy_target = sandy_target_required(
@@ -49,7 +100,7 @@ impl Primitive for ScenePrimitive {
             pipeline.release_sandy_target();
         }
         if pipeline.far_layers < self.render.far_layers {
-            pipeline.recreate_far(device, self.render.far_layers);
+            timed(&mut work.atlas_grow, || pipeline.recreate_far(device, self.render.far_layers));
         }
         if pipeline.near_layers < self.render.near_layers {
             let target = self
@@ -57,21 +108,23 @@ impl Primitive for ScenePrimitive {
                 .near_layers
                 .next_multiple_of(pipeline.near_grow_chunk)
                 .min(pipeline.near_cap);
-            pipeline.recreate_near(device, queue, target);
+            timed(&mut work.atlas_grow, || pipeline.recreate_near(device, queue, target));
         }
-        self.drain_uploads(pipeline, queue);
+        let (count, bytes) = timed(&mut work.uploads, || self.drain_uploads(pipeline, queue));
+        work.upload_count = count;
+        work.upload_bytes = bytes;
         if self.render.vis <= 0.0 {
             return;
         }
         if let Some(nv) = &self.render.sandy {
-            pipeline.ensure_sandy(device);
+            timed(&mut work.pipelines, || pipeline.ensure_sandy(device));
             let scaled = sandy_is_scaled(nv.res_scale);
             let ssf = if scaled { sf * nv.res_scale } else { sf };
             if sandy_target {
                 let (ow, oh) =
                     sandy_target_dimensions(bounds.width, bounds.height, sf, nv.res_scale);
-                pipeline.ensure_sandy_blit(device);
-                pipeline.ensure_sandy_target(device, ow, oh);
+                timed(&mut work.pipelines, || pipeline.ensure_sandy_blit(device));
+                timed(&mut work.targets, || pipeline.ensure_sandy_target(device, ow, oh));
             }
             let uniform = SandyUniformRaw {
                 center: [nv.center[0] * ssf, nv.center[1] * ssf],
@@ -139,15 +192,11 @@ impl Primitive for ScenePrimitive {
         }
 
         if let Some(trans) = &self.render.transition {
-            prepare_transition(pipeline, device, queue, bounds, sf, trans);
+            prepare_transition(pipeline, device, queue, bounds, sf, trans, work);
         }
     }
 
-    fn draw(&self, _pipeline: &ScenePipeline, _render_pass: &mut wgpu::RenderPass<'_>) -> bool {
-        false
-    }
-
-    fn render(
+    fn render_scene(
         &self,
         pipeline: &ScenePipeline,
         encoder: &mut wgpu::CommandEncoder,
@@ -269,10 +318,12 @@ impl Primitive for ScenePrimitive {
         let Some(targets) = &pipeline.targets else { return };
         let Some(trans_bind) = &pipeline.trans_bind else { return };
         let Some(trans_pipeline) = &pipeline.trans_pipeline else { return };
-        for (view, buffer, count) in [
-            (&targets.a_view, &pipeline.old_instances, pipeline.old_count),
-            (&targets.b_view, &pipeline.instances, pipeline.instance_count),
-        ] {
+        // The old layout is a frozen snapshot: draw it into A once per switch,
+        // not on every frame of the cross-fade.
+        let draw_old = !pipeline.old_drawn.swap(true, std::sync::atomic::Ordering::Relaxed);
+        let old = (&targets.a_view, &pipeline.old_instances, pipeline.old_count);
+        let new = (&targets.b_view, &pipeline.instances, pipeline.instance_count);
+        for (view, buffer, count) in draw_old.then_some(old).into_iter().chain([new]) {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("skwd transition scene"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -334,6 +385,7 @@ impl Primitive for BrowserScenePrimitive {
             render: self.render.clone(),
             uploads: self.uploads.clone(),
             pool: self.pool.clone(),
+            stats: None,
         };
         let origin = self.origin;
         if pipeline.0.embedded_origin != origin {
@@ -384,6 +436,7 @@ impl Primitive for BrowserScenePrimitive {
             render: self.render.clone(),
             uploads: self.uploads.clone(),
             pool: self.pool.clone(),
+            stats: None,
         };
         <ScenePrimitive as Primitive>::draw(&scene, &pipeline.0, render_pass)
     }
@@ -399,18 +452,25 @@ impl Primitive for BrowserScenePrimitive {
             render: self.render.clone(),
             uploads: self.uploads.clone(),
             pool: self.pool.clone(),
+            stats: None,
         };
         <ScenePrimitive as Primitive>::render(&scene, &pipeline.0, encoder, target, clip_bounds);
     }
 }
 
 impl ScenePrimitive {
-    fn drain_uploads(&self, pipeline: &mut ScenePipeline, queue: &wgpu::Queue) {
+    /// Copies every queued thumbnail tile to the GPU; returns how many and their size.
+    fn drain_uploads(&self, pipeline: &mut ScenePipeline, queue: &wgpu::Queue) -> (u32, u64) {
         pipeline.out_copy = false;
         let mut uploads = self.uploads.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut count = 0;
+        let mut bytes = 0;
         for up in uploads.drain(..) {
+            count += 1;
+            bytes += up.data.len() as u64;
             self.apply_upload(pipeline, queue, up);
         }
+        (count, bytes)
     }
 
     fn apply_upload(&self, pipeline: &mut ScenePipeline, queue: &wgpu::Queue, mut up: Upload) {
@@ -471,6 +531,7 @@ fn prepare_transition(
     bounds: &Rectangle,
     sf: f32,
     trans: &TransSnap,
+    work: &mut RenderWork,
 ) {
     let old_same = pipeline
         .last_old
@@ -486,11 +547,13 @@ fn prepare_transition(
             &scaled_old,
         );
         pipeline.last_old = Some((trans.old.clone(), sf));
+        pipeline.invalidate_old_layout();
     }
     let w = (bounds.width * sf).round().max(1.0) as u32;
     let h = (bounds.height * sf).round().max(1.0) as u32;
-    pipeline.ensure_transition_pipeline(device);
-    pipeline.ensure_transition_targets(device, w, h);
+    timed(&mut work.pipelines, || pipeline.ensure_transition_pipeline(device));
+    timed(&mut work.targets, || pipeline.ensure_transition_targets(device, w, h));
+    pipeline.targets_used = Some(Instant::now());
     let uniform = TransUniformRaw {
         resolution: [w as f32, h as f32],
         origin: trans.origin,

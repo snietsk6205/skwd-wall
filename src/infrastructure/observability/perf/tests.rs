@@ -54,3 +54,17 @@ fn write_report_saves_latest_and_dated_copies() {
         .count();
     assert_eq!(dated, 2);
 }
+
+#[test]
+fn thread_cpu_time_counts_work_not_sleep() {
+    let before = thread_cpu_time();
+    std::thread::sleep(Duration::from_millis(20));
+    let slept = thread_cpu_time().saturating_sub(before);
+    assert!(slept < Duration::from_millis(15), "sleeping used {slept:?} of CPU");
+    let started = std::time::Instant::now();
+    let mut spin = 0_u64;
+    while started.elapsed() < Duration::from_millis(20) {
+        spin = std::hint::black_box(spin.wrapping_add(1));
+    }
+    assert!(thread_cpu_time().saturating_sub(before) >= Duration::from_millis(10));
+}

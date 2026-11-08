@@ -11,7 +11,11 @@ const INITIAL_INSTANCES: usize = 128;
 
 impl Pipeline for ScenePipeline {
     fn new(device: &wgpu::Device, _queue: &wgpu::Queue, format: wgpu::TextureFormat) -> Self {
-        Self::create(device, format, ThumbFormat::Compressed)
+        let mut pipeline = Self::create(device, format, ThumbFormat::Compressed);
+        // Built now, before the first frame, instead of in the middle of the
+        // first layout switch.
+        pipeline.ensure_transition_pipeline(device);
+        pipeline
     }
 }
 
@@ -242,6 +246,8 @@ impl ScenePipeline {
             old_count: 0,
             format,
             targets: None,
+            targets_used: None,
+            old_drawn: std::sync::atomic::AtomicBool::new(false),
             trans_pipeline: None,
             trans_layout,
             trans_uniform,

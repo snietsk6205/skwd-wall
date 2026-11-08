@@ -1,0 +1,92 @@
+skwd-wall custom benchmark
+version 1.0.0-beta.26  gpu llvmpipe (LLVM 20.1.2, 256 bits)  screen 512x288  ui scale 1.00  wallpapers 40  low power off  fps cap 120  total 32.7 s
+GPU preference none  present mode vsync  one config save on this disk: 1.17 ms
+idle                  3.0 s  CPU   4.7 %  redraws    0  frames    0
+      update.other              1x  avg   0.23 ms  max   0.23 ms
+      view                      1x  avg   0.07 ms  max   0.07 ms
+navigate              3.0 s  CPU 350.0 %  redraws   81  frames   80  frame gap p50/p95/p99/max 39.1/46.3/46.8/46.8 ms (26 fps)  smooth 0.0 %
+      key -> frame p50/p95/max 0.6/1.1/1.3 ms (24 times)
+      update.frame             78x  avg   0.08 ms  max   0.17 ms
+      update.other             56x  avg   0.14 ms  max   0.64 ms
+      view                     82x  avg   0.10 ms  max   0.55 ms
+      tick                     81x  avg   0.06 ms  max   0.16 ms
+      the first benchmark's method (gaps between ticks) would say: p99 46.7 ms, smooth 0.0 %
+navigate-uncapped     3.3 s  CPU 348.9 %  redraws   87  frames   88  frame gap p50/p95/p99/max 36.5/53.1/77.7/77.7 ms (27 fps)  smooth 0.0 %
+      key -> frame p50/p95/max 0.6/0.6/0.7 ms (24 times)
+      update.frame             86x  avg   0.08 ms  max   0.20 ms
+      update.other             65x  avg   0.11 ms  max   0.64 ms
+      view                     88x  avg   0.09 ms  max   0.17 ms
+      tick                     89x  avg   0.07 ms  max   0.18 ms
+      the first benchmark's method (gaps between ticks) would say: p99 53.4 ms, smooth 0.0 %
+settings-click        1.8 s  CPU  14.5 %  redraws   12  frames   13
+      click -> frame p50/p95/max 1.4/1.4/1.4 ms (12 times)
+      update.settings          12x  avg   0.56 ms  max   0.60 ms
+      update.other             13x  avg   0.63 ms  max   0.69 ms
+      view                     13x  avg   0.28 ms  max   0.40 ms
+      view.settings            13x  avg   0.28 ms  max   0.40 ms
+      tick                     12x  avg   0.03 ms  max   0.07 ms
+      apply_layout             12x  avg   0.10 ms  max   0.13 ms
+      settings.init_inputs     12x  avg   0.38 ms  max   0.43 ms
+      the first benchmark's method (gaps between ticks) would say: p99 151.5 ms, smooth 0.0 %
+settings-click-old    1.9 s  CPU  14.0 %  redraws   12  frames   13
+      click (old save) -> frame p50/p95/max 3.1/4.4/55.3 ms (12 times)
+      update.settings          12x  avg   0.57 ms  max   0.68 ms
+      update.other             13x  avg   6.14 ms  max  54.10 ms
+      view                     13x  avg   0.40 ms  max   0.51 ms
+      view.settings            13x  avg   0.39 ms  max   0.50 ms
+      tick                     12x  avg   0.02 ms  max   0.02 ms
+      apply_layout             12x  avg   0.09 ms  max   0.13 ms
+      settings.init_inputs     12x  avg   0.39 ms  max   0.52 ms
+      bench.old_save           12x  avg   5.54 ms  max  52.99 ms
+      the first benchmark's method (gaps between ticks) would say: p99 204.9 ms, smooth 0.0 %
+settings-slider       1.1 s  CPU 229.5 %  redraws  147  frames  145  frame gap p50/p95/p99/max 7.4/9.1/10.4/11.2 ms (136 fps)  smooth 100.0 %
+      slider -> frame p50/p95/max 0.8/1.2/3.2 ms (30 times)
+      update.settings          30x  avg   0.19 ms  max   1.64 ms
+      update.frame            131x  avg   0.03 ms  max   0.11 ms
+      update.other             31x  avg   0.28 ms  max   1.76 ms
+      view                    148x  avg   0.29 ms  max   0.52 ms
+      view.settings           148x  avg   0.28 ms  max   0.52 ms
+      tick                    131x  avg   0.02 ms  max   0.09 ms
+      apply_layout             30x  avg   0.06 ms  max   0.09 ms
+      the first benchmark's method (gaps between ticks) would say: p99 15.1 ms, smooth 100.0 %
+layouts              10.0 s  CPU 134.9 %  redraws   73  frames   74  frame gap p50/p95/p99/max 37.7/201.1/236.1/285.5 ms (27 fps)  smooth 12.5 %
+      switch -> frame p50/p95/max 1.6/9.2/9.2 ms (9 times)
+      update.frame             64x  avg   0.12 ms  max   0.21 ms
+      update.other             17x  avg   0.49 ms  max   1.18 ms
+      view                     74x  avg   0.09 ms  max   0.12 ms
+      tick                     73x  avg   0.10 ms  max   0.20 ms
+      apply_layout              9x  avg   0.24 ms  max   0.30 ms
+      settings.init_inputs      9x  avg   0.43 ms  max   0.65 ms
+      the first benchmark's method (gaps between ticks) would say: p99 221.0 ms, smooth 12.3 %
+      hex         first frame    1.6 ms (waited 1.4 ms for the frame to start; renderer 0.2 ms (render targets 0.1), UI thread busy 3 of 112 ms)
+        frames 5 (median 61.2 ms); slowest 111.1 ms, 1 ms after the switch (renderer 0.1 ms, UI thread busy 5 of 173 ms); idle after 264 ms
+      coverflow   first frame    9.2 ms (waited 1.8 ms for the frame to start; renderer 7.5 ms (atlas growth 7.1, 3 uploads 0.9 MB 0.3), UI thread busy 5 of 115 ms)
+        frames 6 (median 34.3 ms); slowest 113.8 ms, 2 ms after the switch (renderer 0.1 ms, UI thread busy 6 of 149 ms); idle after 252 ms
+      showcase    first frame    1.6 ms (waited 1.5 ms for the frame to start; renderer 0.1 ms, UI thread busy 3 of 47 ms)
+        frames 10 (median 17.7 ms); slowest 45.5 ms, 2 ms after the switch (renderer 0.1 ms, UI thread busy 4 of 63 ms); idle after 184 ms
+      depth       first frame    1.3 ms (waited 1.2 ms for the frame to start; renderer 0.1 ms, UI thread busy 3 of 33 ms)
+        frames 9 (median 21.9 ms); slowest 31.8 ms, 1 ms after the switch (renderer 0.1 ms, UI thread busy 4 of 58 ms); idle after 189 ms
+      collection  first frame    1.3 ms (waited 1.2 ms for the frame to start; renderer 0.1 ms, UI thread busy 2 of 38 ms)
+        frames 8 (median 25.4 ms); slowest 37.7 ms, 1 ms after the switch (renderer 0.1 ms, UI thread busy 4 of 60 ms); idle after 185 ms
+      hand        first frame    2.0 ms (waited 1.9 ms for the frame to start; renderer 0.1 ms, UI thread busy 4 of 287 ms)
+        frames 5 (median 203.6 ms); slowest 285.5 ms, 2 ms after the switch (renderer 0.1 ms, UI thread busy 5 of 490 ms); idle after 896 ms
+      sandy       first frame    1.2 ms (waited 1.1 ms for the frame to start; renderer 0.1 ms, UI thread busy 3 of 237 ms)
+        frames 18 (median 40.5 ms); slowest 236.1 ms, 1 ms after the switch (renderer 0.1 ms, UI thread busy 4 of 278 ms); idle after 881 ms
+      slices      first frame    1.7 ms (waited 1.3 ms for the frame to start; renderer 0.4 ms (6 uploads 0.6 MB 0.3), UI thread busy 3 of 71 ms)
+        frames 6 (median 35.5 ms); slowest 70.2 ms, 1 ms after the switch (renderer 0.1 ms, UI thread busy 4 of 106 ms); idle after 208 ms
+      wall        first frame    1.3 ms (waited 1.2 ms for the frame to start; renderer 0.1 ms, UI thread busy 2 of 70 ms)
+        frames 6 (median 37.6 ms); slowest 69.2 ms, 1 ms after the switch (renderer 0.1 ms, UI thread busy 4 of 107 ms); idle after 217 ms
+idle-after            3.0 s  CPU   4.3 %  redraws    0  frames    0
+      update.other              1x  avg   0.24 ms  max   0.24 ms
+      view                      1x  avg   0.08 ms  max   0.08 ms
+
+In short:
+- Screen: the fastest frames came 35.1 ms apart (about 28 Hz); 94 % of the frames while moving were ready for the next refresh. Each frame (CPU + GPU) must be ready within one refresh, or it waits for the one after (that halves the frame rate).
+- Moving with the arrow keys: 26 fps (half the frames 39.1 ms apart or less).
+- The same without the FPS cap (general.maxFps limit): 27 fps.
+- Settings click, new way (saved in the background): shows on screen after 1.4 ms (slowest 1.4 ms).
+- Settings click, old way (saved on the UI thread, as before M1): 3.1 ms (slowest 55.3 ms).
+- Layout switch: the slowest first frame was 9.2 ms (coverflow; renderer 7.5 ms of it); the slowest frame after a switch 285.5 ms (hand).
+Goals: idle 0 redraws; smooth >= 95 %; a settings click on screen within 2 refreshes; a layout's first frame under 50 ms.
+
+Saved to ~/.cache/skwd-wall-v2/bench/latest.txt (and latest.json next to it).

@@ -459,7 +459,6 @@ impl App {
                 t0.elapsed(),
                 self.scene.render.instances.len(),
             );
-            self.runtime_state.perf.on_frame(now);
         }
         let sig = {
             crate::zone!("chrome_sig");
@@ -479,6 +478,9 @@ impl App {
             self.runtime_state.toast = None;
         }
         let animating = self.animating();
+        // Frames at a lower, intended rate (previews, fades) are not full-speed animation.
+        let full_rate = animating && self.tick_interval() <= self.config.frame_interval();
+        self.runtime_state.perf.after_tick(now, full_rate);
         let interval = self.tick_interval();
         crate::app::scene::record_animation_tick(
             animating,
