@@ -323,6 +323,11 @@ Read this first in a new session.
   (starts, benchmarks, closes: 33 s), and with a picker open plus `--gpu low` (stops it,
   restarts on the other GPU preference, header shows it). Sample report:
   `custom/previews/m1b-bench-cloud.txt` (llvmpipe: absolute numbers meaningless).
+- Checks at the end of M1b: clippy clean (pedantic, all targets) on skwd-wall, skwd-helm,
+  wall-proto; tests: skwd-wall 1629 unit + all guard tests pass; skwd-deck 1816 pass, only the
+  known `skwd-e2e --test semantic` fails; skwd-paper (unchanged) 901 pass, only the known
+  `paper-scene hlsl::tests::packed_audio_spectrum...` fails. Release build of all 11 programs
+  (installer's package list, `--locked`) OK in 23 min; the release one-command bench ran OK.
 - Next time the user sends a report, read per layout: "first frame" (should be < 50 ms) and
   "slowest frame after it" with "UI thread busy" to decide CPU vs GPU; `navigate` vs
   `navigate-uncapped` for the FPS question.
