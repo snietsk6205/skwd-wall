@@ -10,6 +10,9 @@ Personal changes on top of the official skwd-wall (by liixini), kept on the
 | `snietsk6205/skwd-paper` | the renderers (`skwd-wall-vk` draws all transitions) |
 | `liixini/skwd-lens` | unchanged; only needed to build |
 
+New to GitHub or setting up a new laptop? Read the step-by-step guide first:
+[`GUIDE.md`](GUIDE.md).
+
 ## Install (first time)
 
 The official skwd-wall must be installed and working first:
