@@ -165,6 +165,40 @@ restarting, the installer goes back to the previous state by itself.
     the library) combines two random transitions in a random way every time.
   - All of it also works after the "sketch before transition".
 
+- **Settings (R1), work in progress (branch `r1-wip`; the look will be redone):**
+  - A small **top bar**: Home, Look, Wallpapers, Motion, Playback & Power, Automation & System.
+    Point at a group (or click it, or use the arrow keys) and a **menu** shows its pages, each with
+    an icon and one plain sentence. Settings → Look → Settings window → Menu style switches the
+    menus between a **list** and a **grid**.
+  - Every page fills the window. At the top: **Back** and where you are (for example *Motion ›
+    Transitions › Combine two*). **Esc** goes back one step, and closes Settings from Home.
+  - One kind of row everywhere: the name and one sentence on the left, the control on the right.
+    A small **dot** means you changed it from the default; the **↺** button next to it puts the
+    default back. **more…** opens a longer explanation where a setting is confusing.
+  - **Simple / Advanced** (switch in the top bar): Simple hides the settings most people never need.
+    Nothing is lost: each page says how many it hides and has *Show them*.
+  - **Home**: your current wallpaper behind everything (a video wallpaper plays), pinned cards that
+    jump to their page, and *Recently changed* (click one to go back to it). *Edit cards*: Earlier,
+    Later, Remove, and *Add a card* (then pick any page from the menus). Keyboard: arrows choose,
+    Shift+arrows move a card, Delete removes, Esc finishes. The video pauses by itself in Low-power
+    mode, with Battery saver, and whenever Settings is closed; *Pause background* keeps it still.
+    Another picture or video: Look → Settings window → Home background (or *Use selected* takes
+    the wallpaper selected in the picker).
+  - **Find anything: Ctrl+K** (also straight from the picker; the old Ctrl+F still works). Type a few
+    letters of a setting, page, transition, layout or action (*benchmark*, *random wallpaper*,
+    *effects studio*, ...). **Tab** flips a switch or changes a choice right in the list, **Enter**
+    goes there, **Esc** closes. With nothing typed it shows what you used last. Change the key
+    under Automation & System → Keys & controls.
+  - **Undo**: after each change a small note says *Changed X to Y* with an **Undo** button;
+    **Ctrl+Z** undoes the last change, again and again (30 steps).
+  - **Transition previews only when you want them**: point at a transition (or move to it with the
+    arrow keys) and it plays in a small bubble next to it; *▶ Preview* or *Pin* shows it bigger until
+    you close it (Esc). Nothing takes space when you are not previewing.
+  - Settings → Look → Settings window also has: open on *Home* or *Where I left off*, and a
+    blurred picture behind the top bar.
+  - Commands (for scripts): `~/.local/opt/skwd-custom/bin/skwd-helm ui page motion/transitions`
+    opens a page (also `ui page home`, `ui menu motion`).
+
 ### Important: use the full path for the custom programs
 
 The custom programs live in `~/.local/opt/skwd-custom/bin/`, which is not on your PATH. Typing

@@ -97,15 +97,23 @@ impl App {
         let _perf = crate::infrastructure::observability::perf::span("settings.init_inputs");
         self.panels.settings.inputs.clear();
         let backends = self.theme.backends.clone().unwrap_or_default();
-        let cards = settings::build_tab_with_runtime_status(
-            &self.panels.settings.tab,
-            &self.config,
-            &self.daemon.effect_themes,
-            &self.library_session.all_folders,
-            &self.panels.settings.semantic_import_status,
-            &backends,
-            self.settings_runtime_status(),
-        );
+        // R1: a page can show sections of several old tabs.
+        let mut tabs = crate::app::update::settings_nav::page_tabs(self);
+        if !tabs.iter().any(|tab| *tab == self.panels.settings.tab) {
+            tabs.push(crate::frontend::settings::nav::static_tab(&self.panels.settings.tab));
+        }
+        let mut cards = Vec::new();
+        for tab in tabs {
+            cards.extend(settings::build_tab_with_runtime_status(
+                tab,
+                &self.config,
+                &self.daemon.effect_themes,
+                &self.library_session.all_folders,
+                &self.panels.settings.semantic_import_status,
+                &backends,
+                self.settings_runtime_status(),
+            ));
+        }
         for (_, rows) in &cards {
             for row in rows {
                 self.init_settings_row_inputs(row);

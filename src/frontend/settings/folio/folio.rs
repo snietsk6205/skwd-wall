@@ -4,9 +4,7 @@ mod tests;
 use std::collections::{HashMap, HashSet};
 
 use iced::widget::canvas::{self, Frame, Path, Stroke};
-use iced::widget::{
-    button, column, container, image, mouse_area, scrollable, stack, text, text_input,
-};
+use iced::widget::{column, container, image, mouse_area, scrollable, stack, text, text_input};
 use iced::{Alignment, Background, Color, Element, Length, Padding, Point, Rectangle};
 
 use crate::app::Message;
@@ -15,37 +13,17 @@ use crate::frontend::animation::{MotionProfile, Tween};
 use crate::frontend::components::with_alpha;
 use crate::frontend::theme::Palette;
 use crate::frontend::ui::{
-    FOLIO_INDEX_WIDTH, FOLIO_RULE_ALPHA, TYPE_SMALL, end, folio_horizontal_rule, label,
-    legible_type_scale, logical_padding, mirror_x, row, rtl, sentence_case,
+    FOLIO_RULE_ALPHA, TYPE_SMALL, end, folio_horizontal_rule, label, legible_type_scale, mirror_x,
+    row,
 };
 use crate::i18n::tr;
 
 use super::super::{
-    ActionId, Card, Control, Row, SettingsFocus, SettingsMsg, SettingsSearchResult,
-    build_tab_with_runtime_status, visible_tabs,
+    ActionId, Card, Control, Row, SettingsFocus, SettingsMsg, build_tab_with_runtime_status,
 };
 use super::control;
 
 const GLYPH_FADE: f32 = 1.0;
-
-fn category_note(tab: &str) -> &'static str {
-    tr(match tab {
-        "picker" => "settings-tab-note-picker",
-        "filter" => "settings-tab-note-filter",
-        "position" => "settings-tab-note-position",
-        "displays" => "settings-tab-note-displays",
-        "motion" => "settings-tab-note-motion",
-        "playback" => "settings-tab-note-playback",
-        "performance" => "settings-tab-note-performance",
-        "library" => "settings-tab-note-library",
-        "sources" => "settings-tab-note-sources",
-        "automation" => "settings-tab-note-automation",
-        "theme" => "settings-tab-note-theme",
-        "integrations" => "settings-tab-note-integrations",
-        "language" => "settings-tab-note-language",
-        _ => "settings-tab-note-default",
-    })
-}
 
 pub struct SourceCtx<'a> {
     pub config: &'a dyn SettingsSource,
@@ -68,7 +46,7 @@ pub struct SourceCtx<'a> {
 }
 
 impl SourceCtx<'_> {
-    fn motion(&self) -> MotionProfile {
+    pub(super) fn motion(&self) -> MotionProfile {
         MotionProfile::new(
             self.config.motion_fast_ms(),
             self.config.motion_standard_ms(),
@@ -76,7 +54,7 @@ impl SourceCtx<'_> {
         )
     }
 
-    fn cards(&self, tab: &str) -> Vec<(Card, Vec<Row>)> {
+    pub(super) fn cards(&self, tab: &str) -> Vec<(Card, Vec<Row>)> {
         let mut cards = build_tab_with_runtime_status(
             tab,
             self.config,
@@ -246,21 +224,25 @@ pub struct WorkbenchInput<'a> {
     pub chrome: ChromeCtx<'a>,
     pub profiles: ProfilesCtx<'a>,
     pub folders: FoldersCtx<'a>,
-    pub preview_path: &'a str,
-    pub transition_preview: Option<iced::advanced::image::Handle>,
-    /// Custom build (M3): what the live preview plays, shown beside it.
-    pub transition_caption: (String, String),
-    pub tab_transition: f32,
+    /// R1: pages, menus, Home, palette, toast and bubble.
+    pub nav: super::shell::NavView<'a>,
     pub tab: &'a str,
     pub selected_section: usize,
-    pub search_open: bool,
-    pub search_query: &'a str,
-    pub search_results: &'a [SettingsSearchResult],
     pub keybind_capture: Option<KeybindCaptureView>,
     pub process_picker: Option<ProcessPickerView>,
     pub weather_review: Option<super::weather_review::WeatherReviewView>,
 }
 
+/// Title of the heading row (`Control::Segment`) above row `focused`.
+fn segment_of(rows: &[Row], focused: usize) -> Option<String> {
+    rows.iter()
+        .take(focused.saturating_add(1).min(rows.len()))
+        .rev()
+        .find(|row| matches!(row.control, Control::Segment))
+        .map(|row| row.title.clone())
+}
+
+#[allow(clippy::too_many_lines)]
 pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message> {
     let WorkbenchInput {
         source,
@@ -268,113 +250,170 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
         chrome,
         profiles,
         folders,
-        preview_path,
-        transition_preview,
-        transition_caption,
-        tab_transition,
+        nav,
         tab,
         selected_section,
-        search_open,
-        search_query,
-        search_results,
         keybind_capture,
         process_picker,
         weather_review,
     } = input;
     let ChromeCtx { viewport, window: sheet, entrance, palette, .. } = chrome;
-    let window = SettingsWindow::read(source.config);
     let scale = sheet.scale();
     let motion = source.motion();
-    let cards = source.cards(tab);
-    let selected_section = selected_section.min(cards.len().saturating_sub(1));
-    let sections: Vec<(usize, &'static str)> =
-        cards.iter().enumerate().map(|(index, (card, _))| (index, card.title)).collect();
-    let (card, settings) = cards.into_iter().nth(selected_section).unwrap_or_else(|| {
-        (Card { title: tr("settings-section-general"), subtitle: "" }, Vec::new())
-    });
-    let has_selected_preset = settings.iter().any(|setting| {
-        matches!(&setting.control, Control::Presets { items, .. } if items.iter().any(|(_, active)| *active))
-    });
     let reveal = crate::frontend::animation::smoothstep(entrance.clamp(0.0, 1.0));
-    let branch_reveal = crate::frontend::animation::smoothstep(tab_transition.clamp(0.0, 1.0));
     let (panel_width, panel_height) = sheet.dims(viewport);
-    let index_width =
-        FOLIO_INDEX_WIDTH * scale.max(0.9) * if window.compact_index { 0.8 } else { 1.0 };
-    let tabs = visible_tabs(source.config);
-    let active_tab = tabs.iter().position(|(key, _)| *key == tab).unwrap_or(0);
-
-    let index = navigation(
-        &tabs,
-        active_tab,
-        tab,
-        &sections,
-        selected_section,
-        focus.keyboard_focus == SettingsFocus::Index,
-        focus.keyboard_focus == SettingsFocus::Sections,
+    let bar = super::shell::top_bar(
+        &nav,
         scale,
         palette,
-        GLYPH_FADE,
-        branch_reveal,
-        search_open,
-        search_query,
-        search_results,
+        reveal,
+        super::shell::bar_has_focus(focus.keyboard_focus),
     );
-    let page = page_view(tab, selected_section, &source, focus, profiles, folders);
-    let reading = reading_surface(
-        ReadingInput {
-            tab,
-            card,
-            settings,
-            page,
-            transition_preview,
-            transition_caption,
-            values: source.values,
-            has_selected_preset,
-            available_width: panel_width - index_width,
-            one_column: window.one_column,
+    let content_width = (panel_width - 64.0 * scale).clamp(320.0 * scale, 860.0 * scale);
+    let body: Element<'a, Message> = match nav.page {
+        None => super::home::home(
+            &nav,
+            focus.keyboard_focus,
+            content_width,
+            panel_height - super::shell::bar_height(scale),
             scale,
             palette,
-            fade: GLYPH_FADE,
-            motion,
-        },
-        focus,
-    );
-    let atmosphere: Element<'a, Message> = if preview_path.is_empty() {
-        iced::widget::Space::new().width(Length::Fill).height(Length::Fill).into()
-    } else {
-        image(image::Handle::from_path(preview_path))
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .content_fit(iced::ContentFit::Cover)
-            .opacity(0.045 * reveal)
-            .into()
+            reveal,
+        ),
+        Some(page) => {
+            if let Some(view) = page_view(tab, selected_section, &source, focus, profiles, folders)
+            {
+                let paint = super::page::Paint { scale, palette, fade: reveal, motion };
+                let content = match view {
+                    Page::Profiles(view) => super::profiles_page::profiles_page(view, paint),
+                    Page::Folders(view) => super::folders_page::folders_page(view, paint),
+                };
+                super::shell::page_frame(
+                    &nav,
+                    page,
+                    None,
+                    0,
+                    content,
+                    content_width,
+                    scale,
+                    palette,
+                    reveal,
+                )
+            } else {
+                let mut build = |name: &str| source.cards(name);
+                let full =
+                    super::super::nav::page_content(&super::super::nav::PAGES[page], &mut build)
+                        .rows(false);
+                let hidden = if nav.hides_advanced {
+                    full.iter().filter(|row| super::super::nav::row_is_advanced(row)).count()
+                } else {
+                    0
+                };
+                let rows =
+                    if nav.hides_advanced { super::super::nav::simple_rows(full) } else { full };
+                let has_selected_preset = rows.iter().any(|setting| {
+                    matches!(&setting.control, Control::Presets { items, .. } if items.iter().any(|(_, active)| *active))
+                });
+                let segment = if focus.keyboard_focus == SettingsFocus::Controls {
+                    segment_of(&rows, focus.focused_control)
+                } else {
+                    None
+                };
+                let content = super::rows::rows(
+                    super::rows::RowsInput {
+                        rows,
+                        values: source.values,
+                        has_selected_preset,
+                        width: content_width,
+                        scale,
+                        palette,
+                        fade: reveal,
+                        motion,
+                        cfg: source.config,
+                        more: nav.more,
+                        bubble: nav.bubble.clone(),
+                        playlist: nav.playlist.clone(),
+                    },
+                    focus,
+                );
+                super::shell::page_frame(
+                    &nav,
+                    page,
+                    segment,
+                    hidden,
+                    content,
+                    content_width,
+                    scale,
+                    palette,
+                    reveal,
+                )
+            }
+        }
     };
-    let page = container(stack![
-        atmosphere,
-        iced::widget::canvas(Blueprint { palette: *palette, fade: reveal })
-            .width(Length::Fill)
-            .height(Length::Fill),
-        reading,
-    ])
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .style(move |_| {
-        crate::frontend::ui::bg_style(Background::Color(with_alpha(
+    let on_home = nav.page.is_none();
+    let picture = nav.backdrop.picture.clone();
+    let backdrop: Element<'a, Message> = match picture {
+        Some(handle) => {
+            super::shell::backdrop_image(handle, if on_home { reveal } else { 0.22 * reveal })
+        }
+        None => iced::widget::Space::new().width(Length::Fill).height(Length::Fill).into(),
+    };
+    let scrim_top = if on_home { 0.42 } else { 0.86 };
+    let scrim_bottom = if on_home { 0.7 } else { 0.92 };
+    let scrim = container(text("")).width(Length::Fill).height(Length::Fill).style(move |_| {
+        crate::frontend::ui::vertical_fade_style(
             palette.surface,
-            0.965 * reveal,
-        )))
+            scrim_top * reveal,
+            (scrim_top + 0.08) * reveal,
+            scrim_bottom * reveal,
+        )
     });
-    let body = row![
-        container(index).width(Length::Fixed(index_width)),
-        container(page).width(Length::Fill),
-    ]
-    .spacing(0.0)
-    .height(Length::Fill);
-    let panel = container(body)
+    let blurred_bar: Element<'a, Message> = match (nav.bar_blur, nav.backdrop.blurred.clone()) {
+        (true, Some(handle)) => container(
+            iced::widget::image(handle)
+                .width(Length::Fill)
+                .height(Length::Fixed(panel_height))
+                .content_fit(iced::ContentFit::Cover)
+                .opacity(reveal),
+        )
+        .width(Length::Fill)
+        .height(Length::Fixed(super::shell::bar_height(scale)))
+        .clip(true)
+        .into(),
+        _ => iced::widget::Space::new().width(Length::Fill).height(Length::Fixed(0.0)).into(),
+    };
+    let rule =
+        container(text("")).width(Length::Fill).height(Length::Fixed(1.0)).style(move |_| {
+            crate::frontend::ui::bg_style(Background::Color(with_alpha(
+                palette.outline,
+                0.25 * reveal,
+            )))
+        });
+    let layout =
+        column![stack![blurred_bar, bar], rule, body].width(Length::Fill).height(Length::Fill);
+    let mut window_layers = stack![backdrop, scrim, layout];
+    if let Some((text_, can_undo)) = nav.toast.clone() {
+        window_layers = window_layers.push(super::shell::toast_layer(
+            text_,
+            can_undo,
+            scale,
+            palette,
+            nav.toast_fade * reveal,
+        ));
+    }
+    if let Some(view) = &nav.palette {
+        window_layers =
+            window_layers.push(super::shell::palette_layer(view, scale, palette, reveal));
+    }
+    let panel = container(window_layers)
         .width(Length::Fixed(panel_width))
         .height(Length::Fixed(panel_height))
         .clip(true)
-        .style(move |_| crate::frontend::ui::folio_sheet_panel_style(palette, reveal));
+        .style(move |_| {
+            let mut style = crate::frontend::ui::folio_sheet_panel_style(palette, reveal);
+            style.border.radius = (14.0).into();
+            style
+        });
     let mut layers = stack![
         mouse_area(
             container(text(""))
@@ -1027,713 +1066,9 @@ fn picker_layout_field<'a>(
     .into()
 }
 
-fn navigation<'a>(
-    tabs: &[(&'static str, &'static str)],
-    active_tab: usize,
-    selected_tab: &str,
-    sections: &[(usize, &'static str)],
-    selected_section: usize,
-    index_focused: bool,
-    section_focused: bool,
-    scale: f32,
-    palette: &'a Palette,
-    fade: f32,
-    branch_reveal: f32,
-    search_open: bool,
-    search_query: &'a str,
-    search_results: &'a [SettingsSearchResult],
-) -> Element<'a, Message> {
-    let search = search_control(search_open, search_query, search_results, scale, palette, fade);
-    let content: Element<'a, Message> = if search_open {
-        search_result_list(search_query, search_results, scale, palette, fade)
-    } else {
-        let mut tree = column![].spacing(1.0 * scale);
-        for (key, label) in tabs.iter().copied() {
-            let active = key == selected_tab;
-            let category = button(
-                row![
-                    text(if active {
-                        crate::frontend::ui::TWISTY_OPEN
-                    } else if rtl() {
-                        "◂"
-                    } else {
-                        crate::frontend::ui::TWISTY_CLOSED
-                    })
-                    .font(crate::frontend::ui::UI_FONT)
-                    .size(10.0 * legible_type_scale(scale)),
-                    text(sentence_case(label))
-                        .font(crate::frontend::ui::UI_FONT)
-                        .size(12.5 * legible_type_scale(scale)),
-                    container(text("")).width(Length::Fill),
-                ]
-                .spacing(9.0 * scale)
-                .align_y(Alignment::Center),
-            )
-            .width(Length::Fill)
-            .padding([8.0 * scale, 8.0 * scale])
-            .on_press(Message::Settings(SettingsMsg::SelectTab(key.to_string())))
-            .style(move |_theme, status| {
-                line_button_style(active, index_focused && active, palette, fade, status)
-            });
-            tree = tree.push(category);
-            if active {
-                tree = tree.push(section_branch(
-                    sections,
-                    selected_section,
-                    section_focused,
-                    scale,
-                    palette,
-                    fade,
-                    branch_reveal,
-                ));
-            }
-        }
-        tree.into()
-    };
-    let tree = scrollable(content)
-        .direction(iced::widget::scrollable::Direction::Vertical(
-            iced::widget::scrollable::Scrollbar::hidden(),
-        ))
-        .height(Length::Fill);
-    let tracker: Element<'a, Message> = if search_open {
-        container(text("")).width(Length::Fixed(14.0 * scale)).into()
-    } else {
-        iced::widget::canvas(IndexRail {
-            active: active_tab,
-            count: tabs.len(),
-            notches: true,
-            palette: *palette,
-            fade,
-        })
-        .width(Length::Fixed(14.0 * scale.max(0.9)))
-        .height(Length::Fill)
-        .into()
-    };
-    crate::frontend::ui::folio_index_shell(
-        tr("settings-nav-heading"),
-        category_note(selected_tab),
-        vec![search, row![tree, tracker].spacing(9.0 * scale).height(Length::Fill).into()],
-        17.0,
-        scale,
-        palette,
-    )
-}
-
-fn search_control<'a>(
-    open: bool,
-    query: &'a str,
-    results: &[SettingsSearchResult],
-    scale: f32,
-    palette: &'a Palette,
-    fade: f32,
-) -> Element<'a, Message> {
-    if open {
-        let submit = results.first().map_or(Message::Noop, |result| {
-            Message::Settings(SettingsMsg::OpenSearchResult(
-                result.tab.clone(),
-                result.section,
-                result.row,
-            ))
-        });
-        row![
-            label("⌕", 15.0, scale, with_alpha(palette.primary, fade)),
-            text_input(tr("settings-nav-search"), query)
-                .id(super::super::settings_search_input_id())
-                .font(crate::frontend::ui::UI_FONT)
-                .on_input(|value| Message::Settings(SettingsMsg::SearchInput(value)))
-                .on_submit(submit)
-                .size(12.0 * legible_type_scale(scale))
-                .padding([7.0 * scale, 6.0 * scale])
-                .width(Length::Fill)
-                .style(move |_theme, _status| {
-                    crate::frontend::ui::workbench_input_style(
-                        with_alpha(palette.surface_text, fade),
-                        with_alpha(palette.primary, fade),
-                    )
-                }),
-            button(
-                text("×").font(crate::frontend::ui::UI_FONT).size(14.0 * legible_type_scale(scale))
-            )
-            .padding([5.0 * scale, 8.0 * scale])
-            .on_press(Message::Settings(SettingsMsg::SearchClose))
-            .style(move |_theme, status| {
-                line_button_style(false, false, palette, fade, status)
-            }),
-        ]
-        .spacing(7.0 * scale)
-        .align_y(Alignment::Center)
-        .into()
-    } else {
-        button(
-            row![
-                label("⌕", 15.0, scale, with_alpha(palette.primary, fade)),
-                text(tr("settings-nav-search"))
-                    .font(crate::frontend::ui::UI_FONT)
-                    .size(11.5 * legible_type_scale(scale)),
-                container(text("")).width(Length::Fill),
-                label(
-                    tr("settings-nav-search-shortcut"),
-                    9.0,
-                    scale,
-                    with_alpha(palette.surface_text, 0.42 * fade)
-                ),
-            ]
-            .spacing(8.0 * scale)
-            .align_y(Alignment::Center),
-        )
-        .width(Length::Fill)
-        .padding([8.0 * scale, 8.0 * scale])
-        .on_press(Message::Settings(SettingsMsg::SearchOpen))
-        .style(move |_theme, status| line_button_style(false, false, palette, fade, status))
-        .into()
-    }
-}
-
-fn search_result_list<'a>(
-    query: &str,
-    results: &'a [SettingsSearchResult],
-    scale: f32,
-    palette: &'a Palette,
-    fade: f32,
-) -> Element<'a, Message> {
-    if results.is_empty() {
-        return container(label(
-            if query.trim().is_empty() {
-                tr("settings-nav-search-empty-hint")
-            } else {
-                tr("settings-nav-search-no-results")
-            },
-            10.5,
-            scale,
-            with_alpha(palette.surface_text, 0.5 * fade),
-        ))
-        .padding([12.0 * scale, 8.0 * scale])
-        .into();
-    }
-    let mut list = column![].spacing(1.0 * scale);
-    for result in results {
-        list = list.push(
-            button(
-                column![
-                    text(&result.title)
-                        .font(crate::frontend::ui::UI_FONT)
-                        .size(12.0 * legible_type_scale(scale)),
-                    label(
-                        format!(
-                            "{}  /  {}",
-                            sentence_case(&result.tab_label),
-                            result.section_title,
-                        ),
-                        9.0,
-                        scale,
-                        with_alpha(palette.primary, 0.72 * fade),
-                    ),
-                ]
-                .spacing(3.0 * scale),
-            )
-            .width(Length::Fill)
-            .padding([9.0 * scale, 8.0 * scale])
-            .on_press(Message::Settings(SettingsMsg::OpenSearchResult(
-                result.tab.clone(),
-                result.section,
-                result.row,
-            )))
-            .style(move |_theme, status| line_button_style(false, false, palette, fade, status)),
-        );
-    }
-    list.into()
-}
-
-fn section_branch<'a>(
-    sections: &[(usize, &'static str)],
-    selected: usize,
-    keyboard_focused: bool,
-    scale: f32,
-    palette: &'a Palette,
-    fade: f32,
-    reveal: f32,
-) -> Element<'a, Message> {
-    let mut children = column![].spacing(1.0 * scale);
-    for (index, title) in sections.iter().copied() {
-        let active = index == selected;
-        children = children.push(
-            button(
-                row![
-                    label(
-                        if active { "◆" } else { "◇" },
-                        8.0,
-                        scale,
-                        with_alpha(palette.primary, if active { fade } else { 0.44 * fade }),
-                    ),
-                    text(title)
-                        .font(crate::frontend::ui::UI_FONT)
-                        .size(11.5 * legible_type_scale(scale)),
-                    container(text("")).width(Length::Fill),
-                ]
-                .spacing(9.0 * scale)
-                .align_y(Alignment::Center),
-            )
-            .width(Length::Fill)
-            .padding([7.0 * scale, 7.0 * scale])
-            .on_press(Message::Settings(SettingsMsg::SelectSection(index)))
-            .style(move |_theme, status| {
-                line_button_style(active, keyboard_focused && active, palette, fade, status)
-            }),
-        );
-    }
-    let guide =
-        container(text("")).width(Length::Fixed(1.0)).height(Length::Fill).style(move |_| {
-            crate::frontend::ui::bg_style(Background::Color(with_alpha(
-                palette.primary,
-                0.42 * fade * reveal,
-            )))
-        });
-    container(row![guide, children].spacing(9.0 * scale))
-        .width(Length::Fill)
-        .height(Length::Fixed(branch_height(sections.len(), scale, reveal)))
-        .padding(logical_padding(2.0 * scale, 0.0, 4.0 * scale, 17.0 * scale))
-        .clip(true)
-        .into()
-}
-
-fn branch_height(section_count: usize, scale: f32, reveal: f32) -> f32 {
-    (section_count as f32 * 36.0 * scale.max(1.0) + 6.0 * scale) * reveal.clamp(0.0, 1.0)
-}
-
-struct ReadingInput<'a> {
-    tab: &'a str,
-    card: Card,
-    settings: Vec<Row>,
-    page: Option<Page<'a>>,
-    transition_preview: Option<iced::advanced::image::Handle>,
-    transition_caption: (String, String),
-    values: &'a HashMap<String, String>,
-    has_selected_preset: bool,
-    available_width: f32,
-    one_column: bool,
-    scale: f32,
-    palette: &'a Palette,
-    fade: f32,
-    motion: MotionProfile,
-}
-
-fn take_transition_preview(settings: &mut Vec<Row>) -> bool {
-    let present = settings.iter().any(|row| matches!(row.control, Control::Preview));
-    settings.retain(|row| !matches!(row.control, Control::Preview));
-    present
-}
-
-fn transition_preview_stage<'a>(
-    handle: Option<iced::advanced::image::Handle>,
-    width: f32,
-    scale: f32,
-    palette: &'a Palette,
-    fade: f32,
-) -> Element<'a, Message> {
-    let height = (width * 9.0 / 16.0).clamp(250.0 * scale, 430.0 * scale);
-    let frame: Element<'a, Message> = if let Some(handle) = handle {
-        image(handle)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .content_fit(iced::ContentFit::Cover)
-            .into()
-    } else {
-        container(label(
-            tr("settings-control-live-backdrop"),
-            11.0,
-            scale,
-            with_alpha(palette.primary, 0.78 * fade),
-        ))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .center_x(Length::Fill)
-        .center_y(Length::Fill)
-        .into()
-    };
-    container(frame)
-        .width(Length::Fill)
-        .height(Length::Fixed(height))
-        .clip(true)
-        .style(move |_| {
-            crate::frontend::ui::box_style(
-                with_alpha(Color::BLACK, 0.9 * fade),
-                with_alpha(palette.primary, 0.58 * fade),
-            )
-        })
-        .into()
-}
-
-/// Custom build (M3): a 16:9 live preview with the name and description of
-/// what it plays beside it.
-fn pinned_preview(
-    handle: Option<iced::advanced::image::Handle>,
-    (title, desc): (String, String),
-    width: f32,
-    scale: f32,
-    palette: &Palette,
-    fade: f32,
-) -> Element<'_, Message> {
-    let height = (width * 0.3).clamp(132.0 * scale, 216.0 * scale);
-    let stage_width = (height * 16.0 / 9.0).min(width);
-    let stage = container(transition_preview_stage(handle, stage_width, scale, palette, fade))
-        .width(Length::Fixed(stage_width))
-        .height(Length::Fixed(height))
-        .clip(true);
-    let caption = column![
-        label(title, 15.0, scale, with_alpha(palette.surface_text, fade)),
-        label(desc, TYPE_SMALL, scale, with_alpha(palette.surface_text, 0.62 * fade))
-            .line_height(iced::widget::text::LineHeight::Relative(1.38)),
-        label(
-            "▶ Preview on any transition below plays it here. Use makes it the one that plays.",
-            TYPE_SMALL,
-            scale,
-            with_alpha(palette.surface_text, 0.45 * fade),
-        )
-        .line_height(iced::widget::text::LineHeight::Relative(1.38)),
-    ]
-    .spacing(8.0 * scale)
-    .width(Length::Fill);
-    if width - stage_width < 220.0 * scale {
-        return column![stage, caption].spacing(10.0 * scale).into();
-    }
-    row![stage, caption].spacing(18.0 * scale).align_y(Alignment::Center).into()
-}
-
 /// Custom build (M3): id of the Settings reading pane's scrollable, so a
 /// picker command (`skwd-helm ui settings-scroll <px>`) can scroll it.
 pub const READING_PANE: &str = "folio.settings.reading";
-
-fn reading_columns(available_width: f32, scale: f32) -> (f32, f32, bool) {
-    let content_width = (available_width - 76.0 * scale).max(1.0);
-    let column_width = ((content_width - 34.0 * scale) * 0.5).max(1.0);
-    (content_width, column_width, column_width < 260.0 * scale)
-}
-
-fn reading_surface<'a>(input: ReadingInput<'a>, focus: FocusCtx<'_>) -> Element<'a, Message> {
-    let ReadingInput {
-        tab,
-        card,
-        mut settings,
-        page,
-        transition_preview,
-        transition_caption,
-        values,
-        has_selected_preset,
-        available_width,
-        one_column,
-        scale,
-        palette,
-        fade,
-        motion,
-    } = input;
-    let (section_title, section_subtitle) = (card.title, card.subtitle);
-    let header = column![
-        row![
-            text(section_title)
-                .font(crate::frontend::ui::UI_FONT)
-                .size(46.0 * scale.clamp(0.88, 1.08))
-                .line_height(iced::widget::text::LineHeight::Relative(1.0))
-                .color(with_alpha(palette.surface_text, fade)),
-            container(text("")).width(Length::Fill),
-            crate::frontend::ui::folio_icon_action(
-                crate::frontend::ui::EYE_CLOSED,
-                Message::Stash,
-                scale,
-                palette,
-            ),
-            crate::frontend::ui::folio_action(
-                "×",
-                false,
-                Some(Message::ToggleSettings),
-                Length::Shrink,
-                scale,
-                palette,
-            ),
-        ]
-        .spacing(8.0 * scale)
-        .align_y(Alignment::Start),
-        container(
-            label(
-                if section_subtitle.is_empty() { category_note(tab) } else { section_subtitle },
-                TYPE_SMALL,
-                scale,
-                with_alpha(palette.surface_text, 0.56 * fade),
-            )
-            .line_height(iced::widget::text::LineHeight::Relative(1.4)),
-        )
-        .width(Length::Fill),
-        folio_horizontal_rule(with_alpha(palette.outline, FOLIO_RULE_ALPHA * fade)),
-    ]
-    .spacing(12.0 * scale);
-    let (content_width, column_width, single_column) = reading_columns(available_width, scale);
-    let single_column = single_column || one_column;
-    let has_transition_preview = take_transition_preview(&mut settings);
-    let paint = super::page::Paint { scale, palette, fade, motion };
-    let controls = match page {
-        Some(Page::Profiles(view)) => super::profiles_page::profiles_page(view, paint),
-        Some(Page::Folders(view)) => super::folders_page::folders_page(view, paint),
-        None => field_grid(
-            settings,
-            tab == "sources" || single_column,
-            values,
-            has_selected_preset,
-            focus,
-            column_width,
-            scale,
-            palette,
-            fade,
-            motion,
-        ),
-    };
-    if has_transition_preview {
-        // Custom build (M3): the live preview stays pinned above the list, so
-        // ▶ Preview on any transition shows it right away.
-        let stage = pinned_preview(
-            transition_preview,
-            transition_caption,
-            content_width,
-            scale,
-            palette,
-            fade,
-        );
-        let top = container(column![header, stage].spacing(16.0 * scale))
-            .width(Length::Fill)
-            .padding(Padding {
-                top: 34.0 * scale,
-                right: 38.0 * scale,
-                bottom: 10.0 * scale,
-                left: 38.0 * scale,
-            });
-        let list = scrollable(container(controls).width(Length::Fill).padding(Padding {
-            top: 14.0 * scale,
-            right: 38.0 * scale,
-            bottom: 48.0 * scale,
-            left: 38.0 * scale,
-        }))
-        .direction(iced::widget::scrollable::Direction::Vertical(
-            iced::widget::scrollable::Scrollbar::hidden(),
-        ))
-        .id(crate::frontend::ui::pane_id(READING_PANE))
-        .width(Length::Fill)
-        .height(Length::Fill);
-        return column![top, list].width(Length::Fill).height(Length::Fill).into();
-    }
-    let page = column![header, controls].spacing(28.0 * scale);
-    scrollable(container(page).width(Length::Fill).padding(Padding {
-        top: 34.0 * scale,
-        right: 38.0 * scale,
-        bottom: 48.0 * scale,
-        left: 38.0 * scale,
-    }))
-    .direction(iced::widget::scrollable::Direction::Vertical(
-        iced::widget::scrollable::Scrollbar::hidden(),
-    ))
-    .id(crate::frontend::ui::pane_id(READING_PANE))
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into()
-}
-
-fn field_grid<'a>(
-    settings: Vec<Row>,
-    full_width: bool,
-    values: &'a HashMap<String, String>,
-    has_selected_preset: bool,
-    focus: FocusCtx<'_>,
-    column_width: f32,
-    scale: f32,
-    palette: &'a Palette,
-    fade: f32,
-    motion: MotionProfile,
-) -> Element<'a, Message> {
-    if settings.is_empty() {
-        return label(
-            tr("settings-section-empty"),
-            12.0,
-            scale,
-            with_alpha(palette.surface_text, 0.56 * fade),
-        )
-        .into();
-    }
-
-    let mut remaining: Vec<_> = settings.into_iter().enumerate().collect();
-    let mut page = column![].spacing(30.0 * scale);
-    while !remaining.is_empty() {
-        if full_width || remaining[0].1.control.is_wide_field() {
-            let (index, setting) = remaining.remove(0);
-            page = page.push(field(
-                setting,
-                index,
-                values,
-                has_selected_preset,
-                focus,
-                column_width * 2.0 + 34.0 * scale,
-                scale,
-                palette,
-                fade,
-                motion,
-            ));
-            continue;
-        }
-        let compact = remaining[0].1.control.is_compact_field();
-        let count = remaining
-            .iter()
-            .take_while(|(_, row)| row.control.is_compact_field() == compact)
-            .count();
-        let group: Vec<_> = remaining.drain(..count).collect();
-        page = page.push(if compact {
-            compact_field_grid(
-                group,
-                values,
-                has_selected_preset,
-                focus,
-                column_width,
-                scale,
-                palette,
-                fade,
-                motion,
-            )
-        } else {
-            regular_field_grid(
-                group,
-                values,
-                has_selected_preset,
-                focus,
-                column_width,
-                scale,
-                palette,
-                fade,
-                motion,
-            )
-        });
-    }
-    page.into()
-}
-
-#[allow(clippy::too_many_arguments)]
-fn regular_field_grid<'a>(
-    settings: Vec<(usize, Row)>,
-    values: &'a HashMap<String, String>,
-    has_selected_preset: bool,
-    focus: FocusCtx<'_>,
-    column_width: f32,
-    scale: f32,
-    palette: &'a Palette,
-    fade: f32,
-    motion: MotionProfile,
-) -> Element<'a, Message> {
-    let mut grid = column![].spacing(30.0 * scale);
-    let mut settings = settings.into_iter();
-    while let Some((left_index, left)) = settings.next() {
-        let left = field(
-            left,
-            left_index,
-            values,
-            has_selected_preset,
-            focus,
-            column_width,
-            scale,
-            palette,
-            fade,
-            motion,
-        );
-        let pair: Element<'a, Message> = if let Some((right_index, right)) = settings.next() {
-            let right = field(
-                right,
-                right_index,
-                values,
-                has_selected_preset,
-                focus,
-                column_width,
-                scale,
-                palette,
-                fade,
-                motion,
-            );
-            row![
-                container(left).width(Length::FillPortion(1)),
-                container(text("")).width(Length::Fixed(1.0)).height(Length::Fill).style(
-                    move |_| crate::frontend::ui::bg_style(Background::Color(with_alpha(
-                        palette.outline,
-                        0.34 * fade,
-                    )))
-                ),
-                container(right).width(Length::FillPortion(1)),
-            ]
-            .spacing(17.0 * scale)
-            .align_y(Alignment::Start)
-            .into()
-        } else {
-            row![
-                container(left).width(Length::FillPortion(1)),
-                container(text("")).width(Length::FillPortion(1)),
-            ]
-            .spacing(35.0 * scale)
-            .align_y(Alignment::Start)
-            .into()
-        };
-        grid = grid.push(pair);
-    }
-    grid.into()
-}
-
-#[allow(clippy::too_many_arguments)]
-fn compact_field_grid<'a>(
-    mut settings: Vec<(usize, Row)>,
-    values: &'a HashMap<String, String>,
-    has_selected_preset: bool,
-    focus: FocusCtx<'_>,
-    column_width: f32,
-    scale: f32,
-    palette: &'a Palette,
-    fade: f32,
-    motion: MotionProfile,
-) -> Element<'a, Message> {
-    let right = settings.split_off(settings.len().div_ceil(2));
-    let mut left_column = column![].spacing(0.0);
-    for (index, setting) in settings {
-        left_column = left_column.push(field(
-            setting,
-            index,
-            values,
-            has_selected_preset,
-            focus,
-            column_width,
-            scale,
-            palette,
-            fade,
-            motion,
-        ));
-    }
-    let mut right_column = column![].spacing(0.0);
-    for (index, setting) in right {
-        right_column = right_column.push(field(
-            setting,
-            index,
-            values,
-            has_selected_preset,
-            focus,
-            column_width,
-            scale,
-            palette,
-            fade,
-            motion,
-        ));
-    }
-    row![
-        container(left_column).width(Length::FillPortion(1)),
-        container(text("")).width(Length::Fixed(1.0)).height(Length::Fill).style(move |_| {
-            crate::frontend::ui::bg_style(Background::Color(with_alpha(
-                palette.outline,
-                0.34 * fade,
-            )))
-        }),
-        container(right_column).width(Length::FillPortion(1)),
-    ]
-    .spacing(17.0 * scale)
-    .align_y(Alignment::Start)
-    .into()
-}
 
 fn compact_field_copy(
     title: &str,
@@ -2065,7 +1400,7 @@ fn compact_group_field<'a>(
     )
 }
 
-fn field<'a>(
+pub(super) fn field<'a>(
     setting: Row,
     index: usize,
     values: &'a HashMap<String, String>,
@@ -2367,16 +1702,6 @@ fn detail_rows<'a>(
     content.into()
 }
 
-fn line_button_style(
-    active: bool,
-    focused: bool,
-    palette: &Palette,
-    fade: f32,
-    status: button::Status,
-) -> button::Style {
-    crate::frontend::ui::folio_line_button_style(active, focused, palette, fade, status)
-}
-
 fn tracker_position(active: usize, count: usize) -> f32 {
     if count <= 1 { 0.0 } else { active.min(count - 1) as f32 / (count - 1) as f32 }
 }
@@ -2472,22 +1797,5 @@ impl canvas::Program<Message> for Blueprint {
         let marker = crate::frontend::ui::diamond(centre, 7.0);
         frame.stroke(&marker, Stroke::default().with_color(accent).with_width(1.3));
         vec![frame.into_geometry()]
-    }
-}
-
-/// Layout of the Settings sheet's content (Settings → Picker → Settings
-/// window). Size, place and scale are the shared `SheetWindow`.
-struct SettingsWindow {
-    one_column: bool,
-    compact_index: bool,
-}
-
-impl SettingsWindow {
-    fn read(cfg: &dyn SettingsSource) -> Self {
-        use crate::contracts::settings::keys::settings_window as key;
-        Self {
-            one_column: cfg.text(key::COLUMNS) == "one",
-            compact_index: cfg.flag(key::COMPACT_INDEX),
-        }
     }
 }

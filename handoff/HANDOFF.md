@@ -202,6 +202,15 @@ Read this first in a new session.
 - **M1b Speed follow-up (done, Phase 7 below).**
 - **M2 Window size everywhere (done, Phase 8 below).**
 - **M3 Transitions (done, Phase 9 below).**
+- **R1 Settings redesign, part 1: UNFINISHED** (branch `r1-wip` in skwd-wall and skwd-deck, see
+  "R1 (unfinished)" below). The user did not like the visual design and will redo it in a new
+  session, **keeping the structure**. Nothing of R1 is on `my-custom`.
+- **R2 Settings redesign, part 2:** page changes with 8 of the user's transitions ported to the
+  picker (Inkwell Drop, Iris, Honeycomb, Lens, Triangles, Crossfade, Ripple, Slide; from where the
+  user clicked; short; choosable or off), cards that follow the cursor, an optional liquid/blurred
+  glass top bar, customisation of the new layout, polish from the user's R1 feedback.
+- **"Transitions problem" talk:** the user has a problem with transitions to discuss first (do
+  not change the renderer or the daemon's transition logic before that talk).
 - **M4 Sketch:** genuinely different original styles (only pencil is good today); controls for
   drawing order (by brightness/depth layers, edges first, one continuous line, scribble,
   stipple), stroke width, hatch direction, paper texture, colour vs mono, speed; tick several
@@ -490,6 +499,102 @@ Read this first in a new session.
   (installer's package list, `--locked`) OK (55 min here, under load from the tests); the release
   renderer drew `combo:split-circle:aurora:shutter`. Live: Settings in headless sway (screenshots),
   playlist order through the daemon (see above).
+
+## R1 (unfinished): Settings redesign, part 1 (branch `r1-wip`)
+- **Status:** stopped by the user mid-session. The user does **not** like the visual design and
+  will redo it in a new session, but wants to keep the structure (navigation map, state, update
+  logic, keys, commands). Branch `r1-wip` in **skwd-wall** and **skwd-deck** (skwd-paper unchanged).
+  Nothing was pushed to `my-custom`. Code builds (picker + deck crates). At the last full run all
+  1650 picker unit tests and all guard tests (module map, layers, ownership, style/scrim ratchets,
+  orphaned locale keys) passed and clippy (pedantic) was clean; small changes after that run (bench
+  exclusion from undo, Home-background signature, page scroll reset) were built but the final
+  test run was stopped. **First thing next session:** `cargo test --tests` and `cargo clippy
+  --all-targets` in skwd-wall, `cargo test -p skwd-config` in skwd-deck.
+- **Done and works** (tested in headless sway; screenshots `custom/previews/r1-*.jpg` show the
+  current — to be redone — look):
+  - **Navigation map** `src/frontend/settings/nav/` (pure, tests in `nav/tests.rs`):
+    `map.rs` = `GROUPS` (6: Home, Look, Wallpapers, Motion, Playback & Power, Automation & System)
+    and `PAGES` (43 pages, key "group/page", icon, label, one sentence). Each page lists `Ref`s to
+    **old** sections: `Ref::Section(tab, Title)` (by card title: `Title::Key` locale key or
+    `Title::Text` custom English card) or `Ref::Rest(tab)` (every section of that tab no other page
+    names: theme, displays, sources, language, integrations). Test
+    `every_section_has_exactly_one_page`. `find_page`, `static_tab`, `group_pages`, `page_index`.
+  - **Page content** `nav/content.rs`: `page_content(page, build)` (a `build(tab)` closure gives
+    one old tab), `PageContent::rows(simple)` (several sections → `Control::Segment` heading rows),
+    `simple_rows`, `primary()`, `locate(tab, section, row)`, `page_for_section`, `page_has_cards`.
+  - **Old tab/section mapping**: `app/update/settings.rs` `select_settings_section`,
+    `set_settings_tab`, `open_settings_search_result` map onto pages; `show()` sets
+    `settings.tab/section` to the page's primary section so folders, excluded, profiles and the
+    layout studio still use their special views; Home sets tab "home" (old section numbers then
+    count as "picker"). `skwd-helm ui tab/section/settings-search/settings-result/settings-scroll`
+    keep working.
+  - **New config keys** (skwd-deck `crates/skwd-config/src/{key_catalog,schema,keys_tests}.rs`):
+    `settingsWindow.homeCards` (default "motion/transitions,look/layout,wallpapers/folders,
+    look/colours,look/bar,playback/power"), `.openOn` (home/last), `.lastPage`, `.menuStyle`
+    (list/grid), `.barBlur`, `.view` (simple/advanced; default simple), `.homeBackground`
+    (wallpaper/custom/none), `.homeBackgroundPath`, `.homePaused`, `.recent`; `keys.palette`.
+    Their rows: `src/frontend/settings/tabs/window_tab.rs` (Settings window card; Columns and Narrow
+    index rows removed, keys kept). Palette keybind: `domain/input/action.rs` `InputAction::Palette`
+    (default ctrl+k), `contracts/picker/keybindings.rs`, locale `keybind-palette` (14 locales),
+    `app/input.rs` → `Message::OpenPalette`.
+  - **App state** `src/app/state/settings_nav.rs` (`SettingsState.nav: SettingsNav`): page/history,
+    menu, bar item, tweens, palette, undo + toast, bubble, Home backdrop, label cache, recent lines,
+    `deadline()` for the frame clock. `SettingsFocus` is now Controls | Bar | Menu | Home.
+  - **Update logic** `src/app/update/settings_nav.rs`: `show/back`, top bar + menu keyboard
+    (arrows, Enter, Esc; Up from first row → bar; Tab walks rows and wraps; Ctrl+Tab next page),
+    hover menus (close after 260 ms via the frame-clock deadline), Home cards, reset to default
+    (`default_value` from the schema), value words for the toast, palette, undo, bubble.
+  - **Command palette**: index + fuzzy search `nav/palette.rs` (every page, row incl. rows in
+    folds, transition, layout, 15 actions); app side `settings_nav.rs` (`open_palette`,
+    `palette_results`, Tab = change in place, Enter = run, empty query = recent picks + recently
+    changed + pages); Ctrl+K from the picker too; Ctrl+F and "/" open it.
+  - **Undo**: `settings_nav::record` (called from `settings_policy::stage_value/save_value`, only
+    while Settings is open and no benchmark runs; merges one path within 1.5 s), 30 steps, Ctrl+Z,
+    toast "Changed X to Y — Undo"; `apply_value` replays through the normal handlers.
+  - **Breadcrumb** (Back, Group › Page › heading of the focused row; `segment_of` in folio.rs).
+  - **Simple/Advanced**: `nav/advanced.rs` (`ADVANCED` paths, prefixes, `ADVANCED_PAGES`) — the
+    list of advanced rows is in that file with comments; "Simple view hides N … Show them".
+  - **More… texts**: `nav/explain.rs` (28 settings).
+  - **Edit cards** (Earlier/Later/Remove, Add via the menus, keyboard Shift+arrows/Delete) and
+    **Recently changed** (label cache `SettingLabel` with page/row, `refresh_recent`).
+  - **Helm/picker commands** (`app/update/ui_command.rs`): `ui page <group/page|page|group|home>`,
+    `ui menu <group>`, `ui settings-key <up|down|left|right|enter|esc|tab|undo|palette>`; `ui state`
+    reports settings.page/menu/palette/palette_results/bubble/undo_steps/toast/edit_cards/anim.
+  - **Preview bubble**: `nav/bubble.rs` (`bubble_target`: which rows preview what),
+    `ticks.rs::wants_transition_preview` = a bubble is shown (reuses the M3
+    `TransitionPreviewWorker`); keyboard focus and hover show it, ▶ Preview / Pin pins it bigger,
+    Esc closes; hidden while the palette or a menu is open. M3's pinned preview is removed.
+  - **Home background** `src/app/update/settings_home.rs` + `src/infrastructure/preview/
+    home_backdrop.rs` (`Wake::HomeBackdrop`): current wallpaper / custom file / none; picture decoded
+    and blurred once per change; video via `LiveStreamer` only on Home while Settings is open, not
+    stashed, not paused, not in Low-power mode or Battery saver. Measured: 0 idle redraws on a page
+    and on a paused Home; ~22 frames/s with a playing video.
+  - **Overlay widget** `src/frontend/ui/misc/anchored.rs` (`Anchored`, state-driven overlay: `Below`
+    for menus, `AboveEnd` + `min_top` for the bubble) and shared styles
+    `src/frontend/ui/misc/r1_style.rs` (the style ratchet forbids inline style structs elsewhere).
+- **Half done (the visual layer the user wants redone):**
+  - `src/frontend/settings/folio/shell.rs` (top bar, menus list/grid, breadcrumb, page frame,
+    palette layer, toast), `folio/rows.rs` (one-column row style, dot + reset, "more…", bubble
+    panel), `folio/home.rs` (Home cards, recent card, footer), `folio/folio.rs::settings_workbench`
+    (backdrop + gradient scrim + optional blurred bar strip). All functional; look not approved.
+  - Animations exist (menu fade/slide, page fade/slide, bubble/toast fade, card lift; off in
+    Low-power mode via `SettingsNav::settle` and the view's `still` flag) but follow the current
+    look and need redoing with it.
+  - Benchmark: done in the cloud (headless sway 512x288@144, debug-optimised build, a release
+    build compiling alongside, so noisy): settings click→frame p50 1.4 ms vs 1.2 ms before R1,
+    `update.settings` 0.59 vs 0.50 ms, idle 0 redraws, same redraw count per click. Re-run after the
+    redesign (`~/.local/opt/skwd-custom/bin/skwd-helm ui bench`).
+  - Docs: custom/README.md "Settings (R1)" section describes the current behaviour (marked work in
+    progress); custom/previews/README.md lists the r1 screenshots.
+- **Not started / not done:**
+  - Final release build of all programs (was running when stopped), final test + clippy run.
+  - Number values in palette results (shows "Setting"), remembering "more…" state, hover shots.
+  - Everything in R2 (page-change transitions, cursor-following cards, liquid glass bar).
+- Other notes: the headless test recipe in "Testing in a cloud session" still applies; extra
+  helpers used: a calm test video (`ffmpeg -f lavfi -i "gradients=s=1280x720:c0=0x0b1d3a:
+  c1=0x6a2c70:c2=0xf08a5d:c3=0x1f8a8a:nb_colors=4:speed=0.015:r=24" -t 8 -vf gblur=sigma=2
+  -pix_fmt yuv420p clip.mp4`, then `skwd-helm apply clip.mp4`), `ui page …`, `ui menu …`,
+  `ui settings-key …`, `grim`.
 
 ## Testing in a cloud session
 - Scripts from the last session (recreate in the scratchpad): a headless sway + `skwd-walld` +

@@ -109,7 +109,9 @@ fn preview_sketch_env(config: &crate::infrastructure::config::Config, base: u64)
 
 pub(super) fn tick(app: &mut App, now: Instant, w: f32, h: f32) -> Task<Message> {
     let animating = app.animating();
-    let wake_due = animating || app.scene.preview_deadline_due(now);
+    let settings_due = app.panels.settings.open
+        && app.panels.settings.nav.deadline().is_some_and(|deadline| now >= deadline);
+    let wake_due = animating || app.scene.preview_deadline_due(now) || settings_due;
     if !crate::app::scene::animation_tick_due(wake_due, app.runtime_state.next_animation_tick, now)
     {
         app.preview_resources.render_loop_active = animating;

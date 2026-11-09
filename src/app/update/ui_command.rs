@@ -295,6 +295,27 @@ pub(crate) fn ui_state_json(app: &App) -> String {
         },
     });
     state["keyboard_focus"] = json!(app.scene.kb_nav);
+    // R1: the redesigned Settings window.
+    let nav = &app.panels.settings.nav;
+    state[SETTINGS_FIELD]["page"] =
+        json!(nav.page.map(|page| crate::frontend::settings::nav::PAGES[page].key));
+    state[SETTINGS_FIELD]["menu"] =
+        json!(nav.menu.map(|group| crate::frontend::settings::nav::GROUPS[group].key));
+    state[SETTINGS_FIELD]["palette"] =
+        json!(nav.palette.as_ref().map(|palette| palette.query.clone()));
+    state[SETTINGS_FIELD]["palette_results"] =
+        json!(crate::app::update::settings_nav::palette_results(app).len());
+    state[SETTINGS_FIELD]["bubble"] =
+        json!(nav.bubble.as_ref().map(|bubble| bubble.shader.clone()));
+    state[SETTINGS_FIELD]["undo_steps"] = json!(nav.undo.len());
+    state[SETTINGS_FIELD]["toast"] = json!(nav.toast.as_ref().map(|toast| toast.text.clone()));
+    state[SETTINGS_FIELD]["edit_cards"] = json!(nav.edit_cards);
+    state[SETTINGS_FIELD]["anim"] = json!({
+        "menu": nav.menu_anim.x,
+        "page": nav.page_anim.x,
+        "toast": nav.toast_anim.x,
+        "bubble": nav.bubble_anim.x,
+    });
     state["hover"] = json!(app.scene.hover);
     state[SETTINGS_FIELD][WEATHER_REVIEW_FIELD] =
         app.panels.settings.weather_review_category.map_or(serde_json::Value::Null, |category| {
@@ -430,6 +451,64 @@ pub(super) fn run_ui_command(app: &mut App, cmd: &str) -> Task<Message> {
             let open = super::update_inner(app, Message::ToggleSettings);
             Task::batch([open, super::update_inner(app, Message::SetSettingsTab(tab))])
         }
+        // R1: `ui page <group/page>` (or a page or group name; "home").
+        "page" => {
+            let mut tasks = Vec::new();
+            if !app.panels.settings.open {
+                tasks.push(super::update_inner(app, Message::ToggleSettings));
+            }
+            let message = if arg.is_empty() || arg == "home" {
+                crate::frontend::settings::SettingsMsg::OpenHome
+            } else if let Some(page) = crate::frontend::settings::nav::find_page(&arg) {
+                crate::frontend::settings::SettingsMsg::OpenPage(page)
+            } else {
+                log::warn!("ui command: unknown settings page '{arg}'");
+                return Task::batch(tasks);
+            };
+            tasks.push(super::update_inner(app, Message::Settings(message)));
+            Task::batch(tasks)
+        }
+        // R1: `ui menu <group>` opens a group's menu (screenshots, keyboard tests).
+        "menu" => {
+            let Some(group) =
+                crate::frontend::settings::nav::GROUPS.iter().position(|group| group.key == arg)
+            else {
+                log::warn!("ui command: unknown settings group '{arg}'");
+                return Task::none();
+            };
+            let mut tasks = Vec::new();
+            if !app.panels.settings.open {
+                tasks.push(super::update_inner(app, Message::ToggleSettings));
+            }
+            tasks.push(super::update_inner(
+                app,
+                Message::Settings(crate::frontend::settings::SettingsMsg::MenuClick(group)),
+            ));
+            Task::batch(tasks)
+        }
+        // R1: `ui settings-key <name>` presses a Settings key (tests, screenshots).
+        "settings-key" => {
+            use crate::frontend::settings::SettingsKey;
+            let key = match arg.as_str() {
+                "up" => SettingsKey::Up,
+                "down" => SettingsKey::Down,
+                "left" => SettingsKey::Previous,
+                "right" => SettingsKey::Next,
+                "enter" => SettingsKey::Activate,
+                "esc" => SettingsKey::Cancel,
+                "tab" => SettingsKey::FocusNext { backwards: false },
+                "undo" => SettingsKey::Undo,
+                "palette" => SettingsKey::Search,
+                other => {
+                    log::warn!("ui command: unknown settings key '{other}'");
+                    return Task::none();
+                }
+            };
+            super::update_inner(
+                app,
+                Message::Settings(crate::frontend::settings::SettingsMsg::Key(key)),
+            )
+        }
         "section" => match arg.parse::<usize>() {
             Ok(section) if app.panels.settings.open => super::update_inner(
                 app,
@@ -502,6 +581,13 @@ pub(super) fn run_ui_command(app: &mut App, cmd: &str) -> Task<Message> {
                 )
             },
         ),
+        "settings-result" if app.panels.settings.nav.palette.is_some() => {
+            let index = arg.parse::<usize>().unwrap_or(0);
+            super::update_inner(
+                app,
+                Message::Settings(crate::frontend::settings::SettingsMsg::PaletteRun(index)),
+            )
+        }
         "settings-result" => {
             let index = arg.parse::<usize>().unwrap_or(0);
             let Some(result) = app.panels.settings.search_results.get(index).cloned() else {

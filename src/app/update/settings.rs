@@ -57,7 +57,7 @@ pub(super) fn update(app: &mut App, msg: SettingsMsg) -> Task<Message> {
         }
         SettingsMsg::BackgroundCommit(output) => super::settings_background::commit(app, &output),
         SettingsMsg::SelectSection(section) => select_settings_section(app, section),
-        SettingsMsg::LeaveLayoutStudio => select_settings_section(app, 0),
+        SettingsMsg::LeaveLayoutStudio => super::settings_nav::back(app),
         SettingsMsg::FocusControl(control) => {
             commit_settings_input_edit(app);
             close_settings_search(app);
@@ -125,6 +125,9 @@ pub(super) fn update(app: &mut App, msg: SettingsMsg) -> Task<Message> {
             app.retick();
             unfocus_settings_input()
         }
+        SettingsMsg::SearchInput(query) if app.panels.settings.nav.palette.is_some() => {
+            super::settings_nav::update(app, SettingsMsg::PaletteInput(query))
+        }
         SettingsMsg::SearchInput(query) => {
             app.panels.settings.search_query = query;
             refresh_settings_search(app);
@@ -135,7 +138,7 @@ pub(super) fn update(app: &mut App, msg: SettingsMsg) -> Task<Message> {
             open_settings_search_result(app, tab, section, row)
         }
         SettingsMsg::SelectTab(tab) => {
-            app.panels.settings.focus = SettingsFocus::Index;
+            app.panels.settings.focus = SettingsFocus::Bar;
             set_settings_tab(app, tab)
         }
         SettingsMsg::Key(key) => settings_key(app, key),
@@ -228,6 +231,35 @@ pub(super) fn update(app: &mut App, msg: SettingsMsg) -> Task<Message> {
             app.retick();
             Task::none()
         }
+        msg @ (SettingsMsg::OpenHome
+        | SettingsMsg::OpenPage(_)
+        | SettingsMsg::OpenPageRow(..)
+        | SettingsMsg::Back
+        | SettingsMsg::MenuClick(_)
+        | SettingsMsg::MenuHover(_)
+        | SettingsMsg::MenuLeave
+        | SettingsMsg::ToggleView
+        | SettingsMsg::ShowAllRows
+        | SettingsMsg::ResetPath(_)
+        | SettingsMsg::ToggleMore(_)
+        | SettingsMsg::PaletteOpen
+        | SettingsMsg::PaletteClose
+        | SettingsMsg::PaletteInput(_)
+        | SettingsMsg::PaletteSubmit
+        | SettingsMsg::PaletteRun(_)
+        | SettingsMsg::PaletteHover(_)
+        | SettingsMsg::PaletteChange(..)
+        | SettingsMsg::Undo
+        | SettingsMsg::EditCards(_)
+        | SettingsMsg::CardMove(..)
+        | SettingsMsg::CardRemove(_)
+        | SettingsMsg::CardAdd(_)
+        | SettingsMsg::CardHover(_)
+        | SettingsMsg::HomePause
+        | SettingsMsg::BubbleShow(..)
+        | SettingsMsg::BubbleHide(_)
+        | SettingsMsg::BubblePin(..)
+        | SettingsMsg::BubbleClose) => super::settings_nav::update(app, msg),
         SettingsMsg::WeatherReviewToggle(key) => {
             super::weather_review::toggle(app, &key);
             Task::none()
@@ -419,8 +451,12 @@ fn settings_key(app: &mut App, key: SettingsKey) -> Task<Message> {
     if app.panels.settings.weather_review_category.is_some() {
         return super::weather_review::key(app, key);
     }
+    if let Some(task) = super::settings_nav::key(app, key) {
+        return task;
+    }
     match key {
         SettingsKey::Search => open_settings_search(app),
+        SettingsKey::Undo | SettingsKey::Reorder { .. } | SettingsKey::Delete => Task::none(),
         SettingsKey::Cancel => {
             if app.panels.settings.search_open {
                 close_settings_search(app);
@@ -432,7 +468,7 @@ fn settings_key(app: &mut App, key: SettingsKey) -> Task<Message> {
                 app.retick();
                 Task::none()
             } else {
-                super::panels::toggle_settings(app)
+                super::settings_nav::back(app)
             }
         }
         SettingsKey::FocusNext { backwards } => {
@@ -464,24 +500,13 @@ fn settings_key(app: &mut App, key: SettingsKey) -> Task<Message> {
             commit_settings_input_edit(app);
             close_settings_search(app);
             app.panels.settings.focused_choice = None;
-            move_settings_tab(app, if backwards { -1 } else { 1 })
+            next_page(app, backwards)
         }
         SettingsKey::Previous | SettingsKey::Next | SettingsKey::Up | SettingsKey::Down => {
             if app.panels.settings.search_open {
                 return Task::none();
             }
             match app.panels.settings.focus {
-                SettingsFocus::Index => match key {
-                    SettingsKey::Up | SettingsKey::Down => move_settings_index(app, key),
-                    SettingsKey::Next => focus_settings_sections(app),
-                    _ => Task::none(),
-                },
-                SettingsFocus::Sections => match key {
-                    SettingsKey::Up | SettingsKey::Down => move_settings_section(app, key),
-                    SettingsKey::Next => drill_into_settings_controls(app),
-                    SettingsKey::Previous => drill_out_to_settings_index(app),
-                    _ => Task::none(),
-                },
                 SettingsFocus::Controls if app.panels.settings.focused_choice.is_some() => {
                     match key {
                         SettingsKey::Up | SettingsKey::Down => {
@@ -499,9 +524,9 @@ fn settings_key(app: &mut App, key: SettingsKey) -> Task<Message> {
                 SettingsFocus::Controls => match key {
                     SettingsKey::Up => move_settings_control(app, -1),
                     SettingsKey::Down => move_settings_control(app, 1),
-                    SettingsKey::Previous => focus_settings_sections(app),
                     _ => Task::none(),
                 },
+                SettingsFocus::Bar | SettingsFocus::Menu | SettingsFocus::Home => Task::none(),
             }
         }
         SettingsKey::Activate => {
@@ -518,9 +543,13 @@ fn settings_key(app: &mut App, key: SettingsKey) -> Task<Message> {
 }
 
 fn open_settings_search(app: &mut App) -> Task<Message> {
+    // R1: the command palette replaces the plain search.
+    if app.panels.settings.open {
+        return super::settings_nav::open_palette(app);
+    }
     commit_settings_input_edit(app);
     app.panels.settings.search_open = true;
-    app.panels.settings.focus = SettingsFocus::Index;
+    app.panels.settings.focus = SettingsFocus::Bar;
     app.panels.settings.focused_choice = None;
     refresh_settings_search(app);
     app.retick();
@@ -555,6 +584,16 @@ fn open_settings_search_result(
     section: usize,
     row: usize,
 ) -> Task<Message> {
+    // R1: old search results open the page that shows that section.
+    let located = {
+        let mut build = |name: &str| super::settings_nav::build_tab_for(app, name);
+        crate::frontend::settings::nav::locate(&tab, section, row, &mut build)
+    };
+    if let Some((page, row)) = located {
+        close_settings_search(app);
+        super::settings_nav::show(app, Some(page), Some(row), true);
+        return Task::batch([super::settings_nav::scroll_to_focus(app), unfocus_settings_input()]);
+    }
     let tab_task = set_settings_tab(app, tab);
     let section_count = settings_cards(app).len();
     if section_count == 0 {
@@ -593,6 +632,27 @@ fn open_settings_search_result(
     Task::batch([tab_task, unfocus_settings_input()])
 }
 
+/// R1: Ctrl+Tab: the next page (of all groups, in menu order).
+fn next_page(app: &mut App, backwards: bool) -> Task<Message> {
+    let count = crate::frontend::settings::nav::PAGES.len();
+    let next = match app.panels.settings.nav.page {
+        None if backwards => count - 1,
+        None => 0,
+        Some(page) if backwards => (page + count - 1) % count,
+        Some(page) => (page + 1) % count,
+    };
+    super::settings_nav::show(app, Some(next), None, true);
+    Task::none()
+}
+
+pub(super) fn commit_input_edit(app: &mut App) {
+    commit_settings_input_edit(app);
+}
+
+pub(super) fn unfocus_input() -> Task<Message> {
+    unfocus_settings_input()
+}
+
 fn unfocus_settings_input() -> Task<Message> {
     iced::widget::operation::focus(iced::widget::Id::new("settings-workbench-keyboard-focus"))
 }
@@ -620,10 +680,8 @@ fn settings_control_pages(app: &App) -> Vec<Vec<crate::frontend::settings::Row>>
     {
         return Vec::new();
     }
-    let rows = settings_cards(app)
-        .into_iter()
-        .nth(app.panels.settings.section)
-        .map_or_else(Vec::new, |(_, rows)| rows);
+    // R1: the open page's rows (one or more old sections, Simple view applied).
+    let rows = super::settings_nav::page_rows(app);
     (!rows.is_empty()).then_some(rows).into_iter().collect()
 }
 
@@ -704,76 +762,6 @@ fn next_choice(control: &Control, current: usize, forwards: bool) -> Option<usiz
         .find(|index| choice_enabled(control, *index))
 }
 
-fn move_settings_tab(app: &mut App, delta: isize) -> Task<Message> {
-    let tabs = crate::frontend::settings::visible_tabs(&app.config);
-    if tabs.is_empty() {
-        return Task::none();
-    }
-    let current = tabs.iter().position(|(key, _)| *key == app.panels.settings.tab).unwrap_or(0);
-    let next = (current as isize + delta).rem_euclid(tabs.len() as isize) as usize;
-    app.panels.settings.focus = SettingsFocus::Index;
-    set_settings_tab(app, tabs[next].0.to_string())
-}
-
-fn move_settings_index(app: &mut App, key: SettingsKey) -> Task<Message> {
-    let tabs = crate::frontend::settings::visible_tabs(&app.config);
-    if tabs.is_empty() {
-        return Task::none();
-    }
-    let current = tabs.iter().position(|(tab, _)| *tab == app.panels.settings.tab).unwrap_or(0);
-    let next = match key {
-        SettingsKey::Up => current.saturating_sub(1),
-        SettingsKey::Down => (current + 1).min(tabs.len() - 1),
-        _ => current,
-    };
-    if next == current {
-        return Task::none();
-    }
-    app.panels.settings.focus = SettingsFocus::Index;
-    set_settings_tab(app, tabs[next].0.to_string())
-}
-
-fn move_settings_section(app: &mut App, key: SettingsKey) -> Task<Message> {
-    let count = settings_cards(app).len();
-    if count == 0 {
-        return Task::none();
-    }
-    let current = app.panels.settings.section.min(count - 1);
-    let section = match key {
-        SettingsKey::Up => current.saturating_sub(1),
-        SettingsKey::Down => (current + 1).min(count - 1),
-        _ => current,
-    };
-    if section == current {
-        return Task::none();
-    }
-    select_settings_section(app, section)
-}
-
-fn focus_settings_sections(app: &mut App) -> Task<Message> {
-    app.panels.settings.focus = SettingsFocus::Sections;
-    app.panels.settings.focused_choice = None;
-    app.retick();
-    Task::none()
-}
-
-fn drill_into_settings_controls(app: &mut App) -> Task<Message> {
-    let pages = settings_control_pages(app);
-    if pages.first().is_none_or(Vec::is_empty) {
-        return Task::none();
-    }
-    focus_keyboard_control(app, 0, 0);
-    app.retick();
-    Task::none()
-}
-
-fn drill_out_to_settings_index(app: &mut App) -> Task<Message> {
-    app.panels.settings.focus = SettingsFocus::Index;
-    app.panels.settings.focused_choice = None;
-    app.retick();
-    Task::none()
-}
-
 fn move_settings_control(app: &mut App, delta: isize) -> Task<Message> {
     let pages = settings_control_pages(app);
     if pages.is_empty() {
@@ -795,13 +783,27 @@ fn move_settings_control(app: &mut App, delta: isize) -> Task<Message> {
     let (page, control) = positions[next];
     focus_keyboard_control(app, page, control);
     app.retick();
-    Task::none()
+    super::settings_nav::scroll_to_focus(app)
 }
 
 fn select_settings_section(app: &mut App, section: usize) -> Task<Message> {
+    // R1: an old section number opens the page that shows it (Home counts
+    // as the old first tab, Picker).
+    let tab = crate::frontend::settings::nav::static_tab(&app.panels.settings.tab).to_string();
+    let page = {
+        let mut build = |name: &str| super::settings_nav::build_tab_for(app, name);
+        crate::frontend::settings::nav::page_for_section(&tab, section, &mut build)
+    };
+    if let Some(page) = page {
+        super::settings_nav::show(app, Some(page), None, true);
+        // The old section stays the reference (folders, studio, ...).
+        app.panels.settings.tab = tab;
+        app.panels.settings.section = section;
+        return super::settings_nav::scroll_to_focus(app);
+    }
     commit_settings_input_edit(app);
     close_settings_search(app);
-    app.panels.settings.focus = SettingsFocus::Sections;
+    app.panels.settings.focus = SettingsFocus::Bar;
     app.panels.settings.focused_choice = None;
     app.panels.settings.focused_control = 0;
     app.panels.settings.control_page = 0;
@@ -838,26 +840,14 @@ fn move_settings_tab_focus(app: &mut App, backwards: bool) {
     let pages = settings_control_pages(app);
     let positions = settings_control_positions(&pages);
     match app.panels.settings.focus {
-        SettingsFocus::Index if backwards => {
-            if let Some(&(page, control)) = positions.last() {
-                focus_keyboard_control(app, page, control);
-            } else {
-                app.panels.settings.focus = SettingsFocus::Sections;
-            }
-        }
-        SettingsFocus::Index => app.panels.settings.focus = SettingsFocus::Sections,
-        SettingsFocus::Sections if backwards => app.panels.settings.focus = SettingsFocus::Index,
-        SettingsFocus::Sections => {
+        SettingsFocus::Bar | SettingsFocus::Menu | SettingsFocus::Home => {
             if let Some(&(page, control)) = positions.first() {
                 focus_keyboard_control(app, page, control);
-            } else {
-                app.panels.settings.focus = SettingsFocus::Index;
             }
         }
         SettingsFocus::Controls => {
             if positions.is_empty() {
-                app.panels.settings.focus =
-                    if backwards { SettingsFocus::Sections } else { SettingsFocus::Index };
+                app.panels.settings.focus = SettingsFocus::Bar;
                 return;
             }
             let current = positions
@@ -873,12 +863,12 @@ fn move_settings_tab_focus(app: &mut App, backwards: bool) {
                 {
                     focus_keyboard_control(app, page, control);
                 } else {
-                    app.panels.settings.focus = SettingsFocus::Sections;
+                    app.panels.settings.focus = SettingsFocus::Bar;
                 }
             } else if let Some(&(page, control)) = positions.get(current + 1) {
                 focus_keyboard_control(app, page, control);
             } else {
-                app.panels.settings.focus = SettingsFocus::Index;
+                app.panels.settings.focus = SettingsFocus::Bar;
             }
         }
     }
@@ -893,6 +883,7 @@ fn focus_keyboard_control(app: &mut App, page: usize, control: usize) {
     if page_changed {
         app.panels.settings.control_anim.run(0.0, 1.0);
     }
+    super::settings_nav::bubble_for_focus(app);
 }
 
 fn tab_within_motion_weights(app: &mut App, backwards: bool) -> Option<Task<Message>> {
@@ -929,17 +920,8 @@ fn move_settings_choice(app: &mut App, forwards: bool) -> Task<Message> {
 
 fn activate_settings_focus(app: &mut App) -> Task<Message> {
     match app.panels.settings.focus {
-        SettingsFocus::Index => {
-            app.panels.settings.focus = SettingsFocus::Sections;
-            app.retick();
-            Task::none()
-        }
-        SettingsFocus::Sections => {
-            move_settings_tab_focus(app, false);
-            app.retick();
-            Task::none()
-        }
         SettingsFocus::Controls => activate_settings_control(app),
+        SettingsFocus::Bar | SettingsFocus::Menu | SettingsFocus::Home => Task::none(),
     }
 }
 
@@ -1250,6 +1232,18 @@ pub(super) fn settings_commit(app: &mut App) -> Task<Message> {
 
 pub(super) fn set_settings_tab(app: &mut App, tab: String) -> Task<Message> {
     let tab = crate::frontend::settings::canonical_category(tab);
+    // R1: an old tab name opens the page with its first section.
+    let page = {
+        let mut build = |name: &str| super::settings_nav::build_tab_for(app, name);
+        crate::frontend::settings::nav::page_for_section(&tab, 0, &mut build)
+    };
+    if let Some(page) = page {
+        super::settings_nav::show(app, Some(page), None, true);
+        app.panels.settings.tab = tab;
+        app.panels.settings.section = 0;
+        app.panels.settings.focus = SettingsFocus::Bar;
+        return super::settings_nav::scroll_to_focus(app);
+    }
     commit_settings_input_edit(app);
     close_settings_search(app);
     let changed = app.panels.settings.tab != tab;
@@ -1859,6 +1853,24 @@ pub(super) fn settings_run(app: &mut App, id: ActionId) -> Task<Message> {
         | ActionId::PlaylistClear
         | ActionId::PlaylistAddFavourites
         | ActionId::ComboSwap => return super::settings_transitions::run(app, id),
+        ActionId::HomeUseSelected => {
+            let path = app
+                .library_session
+                .filtered
+                .get(app.scene.current)
+                .and_then(|&index| app.library_session.library.catalog().items.get(index as usize))
+                .map(|item| item.path.clone());
+            if let Some(path) = path {
+                use skwd_config::keys::settings_window as window;
+                super::settings_policy::save_value(app, window::HOME_BACKGROUND_PATH, &json!(path));
+                super::settings_policy::save_value(app, window::HOME_BACKGROUND, &json!("custom"));
+                app.init_settings_inputs();
+            }
+        }
+        ActionId::EditHomeCards => {
+            super::settings_nav::show(app, None, None, true);
+            app.panels.settings.nav.edit_cards = true;
+        }
         ActionId::RemoveSemanticModel(_) => {
             run_array_action(app, &id);
             reconcile_semantic_model(app);

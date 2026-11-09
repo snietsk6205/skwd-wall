@@ -85,3 +85,4 @@ settings-keybinds-second-keys-desc = Définissez la seconde touche de chaque dir
 settings-keybinds-second-keys-wasd = WASD
 settings-keybinds-second-keys-vim = Vim (H J K L)
 settings-keybind-capture-second-title = { $action } : seconde touche
+keybind-palette = Command palette (find any setting)

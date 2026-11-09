@@ -189,7 +189,7 @@ fn theme_designer_owns_keyboard() {
     let mut app = test_app();
     app.panels.settings.open = true;
     app.panels.settings.section = 0;
-    app.panels.settings.focus = crate::frontend::settings::SettingsFocus::Sections;
+    app.panels.settings.focus = crate::frontend::settings::SettingsFocus::Bar;
     crate::app::helpers::theme_designer_open(&mut app);
     assert!(app.panels.theme_designer.is_some());
 

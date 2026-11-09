@@ -84,3 +84,4 @@ settings-keybinds-second-keys-desc = 各方向の2つ目のキーをまとめて
 settings-keybinds-second-keys-wasd = WASD
 settings-keybinds-second-keys-vim = Vim (H J K L)
 settings-keybind-capture-second-title = { $action }：2つ目のキー
+keybind-palette = Command palette (find any setting)

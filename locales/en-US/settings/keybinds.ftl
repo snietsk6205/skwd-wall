@@ -85,3 +85,4 @@ settings-keybinds-second-keys-desc = Set the second key for every direction at o
 settings-keybinds-second-keys-wasd = WASD
 settings-keybinds-second-keys-vim = Vim (H J K L)
 settings-keybind-capture-second-title = { $action }: second key
+keybind-palette = Command palette (find any setting)

@@ -74,6 +74,8 @@ pub(crate) fn stash(app: &mut App) -> iced::Task<Message> {
     }
     app.runtime_state.stashed = true;
     app.panels.transition_preview.stop();
+    // R1: a video behind Settings → Home never plays while hidden.
+    app.panels.settings.nav.home.streamer = None;
     app.scene.release_while_hidden();
     log::info!("stashed the overlay");
     crate::shell::stash_surface(id, true)

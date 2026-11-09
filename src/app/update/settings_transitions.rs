@@ -11,16 +11,31 @@ use crate::frontend::settings::ActionId;
 use crate::frontend::settings::{list_moved, list_toggled, transition_list};
 
 fn save_list(app: &mut App, path: &str, list: &[String]) {
-    app.config.save_key(path, json!(list.join(",")));
+    super::settings_policy::save_value(app, path, &json!(list.join(",")));
 }
 
 fn list(app: &App, path: &str) -> Vec<String> {
     transition_list(&app.config.str_path(path))
 }
 
-/// Shows `name` (a transition key, "combo" or a combination name) in the live preview.
+/// Shows `name` (a transition key, "combo" or a combination name) in the
+/// preview bubble, pinned (R1: ▶ Preview pins the bubble bigger).
 pub(super) fn preview(app: &mut App, name: Option<String>) {
-    app.panels.transition_preview.focus = name;
+    let Some(name) = name else {
+        super::settings_nav::close_bubble(app);
+        return;
+    };
+    let row = app
+        .panels
+        .settings
+        .nav
+        .bubble
+        .as_ref()
+        .map_or(app.panels.settings.focused_control, |bubble| bubble.row);
+    let _ = super::settings_nav::update(
+        app,
+        crate::frontend::settings::SettingsMsg::BubblePin(name, row),
+    );
     app.invalidate_settings();
     app.retick();
 }
@@ -72,8 +87,8 @@ pub(super) fn run(app: &mut App, id: ActionId) -> Task<Message> {
             let second = app.config.str_path(keys::COMBO_SECOND);
             let first = if first.is_empty() { String::from("burn") } else { first };
             let second = if second.is_empty() { String::from("ripple") } else { second };
-            app.config.save_key(keys::COMBO_FIRST, json!(second));
-            app.config.save_key(keys::COMBO_SECOND, json!(first));
+            super::settings_policy::save_value(app, keys::COMBO_FIRST, &json!(second));
+            super::settings_policy::save_value(app, keys::COMBO_SECOND, &json!(first));
         }
         _ => return Task::none(),
     }

@@ -14,8 +14,25 @@ pub enum Wake {
     Hide,
     Command(String),
     Query(#[allow(dead_code)] String, Reply),
-    EffectSrc { card: usize, source: String, rgba: Arc<Vec<u8>>, w: u32, h: u32 },
+    EffectSrc {
+        card: usize,
+        source: String,
+        rgba: Arc<Vec<u8>>,
+        w: u32,
+        h: u32,
+    },
     Semantic(crate::infrastructure::semantic::SemanticResult),
+    /// R1: the Settings Home background, decoded (sharp, blurred).
+    HomeBackdrop {
+        source: String,
+        #[allow(clippy::type_complexity)]
+        decoded: Option<
+            Box<(
+                crate::infrastructure::preview::BackdropPixels,
+                crate::infrastructure::preview::BackdropPixels,
+            )>,
+        >,
+    },
 }
 
 type ReplyFn = Box<dyn FnOnce(&str) + Send>;

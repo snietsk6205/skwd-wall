@@ -12,3 +12,8 @@ pub fn weather_review_input_id() -> iced::widget::Id {
     const WEATHER_REVIEW_SEARCH_ID: &str = "settings-weather-review-search";
     WEATHER_REVIEW_SEARCH_ID.into()
 }
+
+/// R1: the command palette's text box.
+pub fn palette_input_id() -> iced::widget::Id {
+    "settings-palette".into()
+}

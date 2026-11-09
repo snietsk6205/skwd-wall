@@ -57,6 +57,7 @@ pub(super) fn toggle_settings(app: &mut App) -> Task<Message> {
         app.call_tracked("theme.backends", json!({}), Pending::ThemeBackends);
         app.call_tracked("theme.apps", json!({}), Pending::AppThemes);
         app.chrome.pane_scrolls.remove("settings");
+        super::settings_nav::on_open(app);
     }
     app.retick();
     app.invalidate_settings();

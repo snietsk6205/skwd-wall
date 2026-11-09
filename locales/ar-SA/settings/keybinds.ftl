@@ -85,3 +85,4 @@ settings-keybinds-second-keys-desc = عيّن المفتاح الثاني لكل
 settings-keybinds-second-keys-wasd = WASD
 settings-keybinds-second-keys-vim = Vim (H J K L)
 settings-keybind-capture-second-title = { $action }: المفتاح الثاني
+keybind-palette = Command palette (find any setting)

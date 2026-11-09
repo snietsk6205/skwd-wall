@@ -99,6 +99,8 @@ pub(crate) struct SettingsState {
     pub(crate) sddm_themes: Vec<String>,
     pub(crate) sddm_checking: bool,
     pub(crate) sddm_rollback: Option<SddmRollback>,
+    /// R1: the redesigned window (pages, menus, palette, undo, Home).
+    pub(crate) nav: super::SettingsNav,
 }
 
 impl Default for SettingsState {
@@ -112,7 +114,7 @@ impl Default for SettingsState {
             tab: String::from("picker"),
             section: 0,
             control_page: 0,
-            focus: SettingsFocus::Sections,
+            focus: SettingsFocus::Home,
             focused_control: 0,
             focused_choice: None,
             expanded_details: HashSet::new(),
@@ -159,6 +161,7 @@ impl Default for SettingsState {
             sddm_themes: Vec::new(),
             sddm_checking: false,
             sddm_rollback: None,
+            nav: super::SettingsNav::default(),
         }
     }
 }
@@ -171,6 +174,7 @@ impl SettingsState {
         motion.retime_tween(&mut self.control_anim, MotionTier::Fast);
         motion.retime_tween(&mut self.profile_enter, MotionTier::Fast);
         motion.retime_tween(&mut self.profile_marker, MotionTier::Fast);
+        self.nav.retime(motion);
         for reveal in self.bar_reveals.values_mut() {
             motion.retime_tween(reveal, MotionTier::Fast);
         }

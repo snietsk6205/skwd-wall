@@ -8,6 +8,7 @@ mod perf;
 mod preview;
 mod runtime;
 mod settings;
+mod settings_nav;
 mod source_browser;
 mod tags;
 mod tasks;
@@ -25,6 +26,10 @@ pub(crate) use preview::PreviewResources;
 pub(crate) use runtime::AppRuntimeState;
 pub(crate) use settings::{
     FolderUndo, KeybindCapture, SddmRollback, SettingsInputEdit, SettingsState, WeatherRefresh,
+};
+pub(crate) use settings_nav::{
+    Bubble, MENU_CLOSE_MS, PaletteState, SettingLabel, SettingsNav, TOAST_SECONDS, UNDO_STEPS,
+    UndoEntry, UndoToast,
 };
 pub(crate) use source_browser::SourceBrowserState;
 pub(crate) use tags::{SearchMode, TagState};

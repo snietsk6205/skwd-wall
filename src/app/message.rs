@@ -26,6 +26,8 @@ pub enum Message {
     KeyReveal,
     KeyEffects,
     KeyStudio,
+    /// R1: the Settings command palette (Ctrl+K), from the picker too.
+    OpenPalette,
     ApplyCurrent,
     SetColorFilter(i64),
     SetTypeFilter(String),

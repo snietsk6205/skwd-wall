@@ -85,3 +85,4 @@ settings-keybinds-second-keys-desc = ہر سمت کی دوسری کلید ایک
 settings-keybinds-second-keys-wasd = WASD
 settings-keybinds-second-keys-vim = Vim (H J K L)
 settings-keybind-capture-second-title = { $action }: دوسری کلید
+keybind-palette = Command palette (find any setting)

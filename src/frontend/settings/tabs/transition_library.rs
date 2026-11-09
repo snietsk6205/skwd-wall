@@ -120,7 +120,7 @@ pub(super) fn tab_library(builder: &mut Builder<'_>) {
     let cfg = builder.cfg;
     builder.card(
         LIBRARY_CARD,
-        "Every transition with a short description. ▶ plays it in the live preview above without choosing it.",
+        "Every transition with a short description. Point at one (or move to it with the arrow keys) to see it play in a small bubble; ▶ Preview shows it bigger until you close it.",
     );
     builder.text_field(
         "Search",

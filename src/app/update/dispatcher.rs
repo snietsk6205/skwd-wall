@@ -109,6 +109,7 @@ pub(crate) fn update_inner(app: &mut App, message: Message) -> Task<Message> {
         Message::KeyReveal => navigation::key_reveal(app),
         Message::KeyEffects => navigation::key_effects(app),
         Message::KeyStudio => navigation::key_studio(app),
+        Message::OpenPalette => super::settings_nav::open_palette(app),
         Message::SetColorFilter(value) => filters::set_color_filter(app, value),
         Message::SetTypeFilter(kind) => {
             app.change_filters(|filters| filters.kind = kind);

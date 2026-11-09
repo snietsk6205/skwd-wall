@@ -22,6 +22,7 @@ pub(super) fn finish(
         app.chrome.bar.cache.clear();
     }
     app.sync_filter_bar_chrome();
+    super::settings_home::sync(app);
     let hard_overlay = app.picker_obscured();
     let (design_mode, scene_hidden) = scene_visibility(
         app.panels.settings.open,

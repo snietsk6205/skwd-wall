@@ -84,3 +84,4 @@ settings-keybinds-second-keys-desc = 一次设置每个方向的第二个按键�
 settings-keybinds-second-keys-wasd = WASD
 settings-keybinds-second-keys-vim = Vim (H J K L)
 settings-keybind-capture-second-title = { $action }：第二按键
+keybind-palette = Command palette (find any setting)

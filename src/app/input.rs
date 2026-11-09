@@ -85,6 +85,18 @@ pub(crate) fn settings_key_message(
         {
             SettingsKey::Search
         }
+        keyboard::Key::Character(character)
+            if modifiers.control() && character.eq_ignore_ascii_case("z") =>
+        {
+            SettingsKey::Undo
+        }
+        keyboard::Key::Named(Named::ArrowLeft) if modifiers.shift() => {
+            SettingsKey::Reorder { earlier: true }
+        }
+        keyboard::Key::Named(Named::ArrowRight) if modifiers.shift() => {
+            SettingsKey::Reorder { earlier: false }
+        }
+        keyboard::Key::Named(Named::Delete) => SettingsKey::Delete,
         keyboard::Key::Named(Named::Escape) => SettingsKey::Cancel,
         keyboard::Key::Named(Named::Tab) if modifiers.control() => {
             SettingsKey::CategoryNext { backwards: modifiers.shift() }
@@ -119,6 +131,7 @@ pub(crate) fn action_message(action: crate::domain::input::InputAction) -> Messa
         InputAction::Reveal => Message::KeyReveal,
         InputAction::Effects => Message::KeyEffects,
         InputAction::Studio => Message::KeyStudio,
+        InputAction::Palette => Message::OpenPalette,
         InputAction::SceneProperties => Message::OpenSceneProps,
         InputAction::Settings => Message::ToggleSettings,
         InputAction::Help => Message::ToggleHelp,

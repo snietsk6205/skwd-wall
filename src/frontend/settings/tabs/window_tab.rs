@@ -13,7 +13,11 @@ const POSITIONS: [(&str, &str); 5] = [
     ("bottom", "Bottom"),
 ];
 
-const COLUMNS: [(&str, &str); 2] = [("auto", "Automatic"), ("one", "One column")];
+const OPEN_ON: [(&str, &str); 2] = [("home", "Home"), ("last", "Where I left off")];
+const MENU_STYLES: [(&str, &str); 2] = [("list", "List"), ("grid", "Grid")];
+const VIEWS: [(&str, &str); 2] = [("simple", "Simple"), ("advanced", "Advanced")];
+const BACKGROUNDS: [(&str, &str); 3] =
+    [("wallpaper", "Current wallpaper"), ("custom", "A picture or video"), ("none", "None")];
 
 fn chips(path: &str, options: &[(&str, &str)], current: &str) -> Control {
     let current = if options.iter().any(|(key, _)| *key == current) {
@@ -88,6 +92,7 @@ fn tab_bar(builder: &mut Builder<'_>) {
 }
 
 pub(super) fn tab_window(builder: &mut Builder<'_>) {
+    use keys::settings_window as window;
     tab_bar(builder);
     let cfg = builder.cfg;
     builder.card("Selection", "How the selected card is marked while you use the keyboard.");
@@ -125,15 +130,52 @@ pub(super) fn tab_window(builder: &mut Builder<'_>) {
         "Where the window and the panels sit on the screen. The layout studio uses Left or Right for its side; Centre keeps the tag cloud under the cards.",
         chips(keys::settings_window::POSITION, &POSITIONS, &position),
     );
-    let columns = cfg.text(keys::settings_window::COLUMNS);
     builder.row(
-        "Columns",
-        "Automatic shows two columns of settings when there is room; One column is easier to read in a small window.",
-        chips(keys::settings_window::COLUMNS, &COLUMNS, &columns),
+        "Open Settings on",
+        "Home shows your pinned cards each time. Where I left off opens the page you used last.",
+        chips(window::OPEN_ON, &OPEN_ON, &cfg.text(window::OPEN_ON)),
+    );
+    builder.row(
+        "Menu style",
+        "How a group in the top bar shows its pages: a list (icon, name and sentence) or a grid of tiles.",
+        chips(window::MENU_STYLE, &MENU_STYLES, &cfg.text(window::MENU_STYLE)),
+    );
+    builder.row(
+        "View",
+        "Simple hides the advanced settings; Advanced shows every setting. The switch in the top bar does the same. Search (Ctrl+K) always finds everything.",
+        chips(window::VIEW, &VIEWS, &cfg.text(window::VIEW)),
     );
     builder.toggle(
-        "Narrow index",
-        "A slimmer list of pages on the left, leaving more room for the settings.",
-        keys::settings_window::COMPACT_INDEX,
+        "Blurred top bar",
+        "Put a soft, blurred copy of the Home picture behind the top bar.",
+        window::BAR_BLUR,
+    );
+    builder.row(
+        "Home background",
+        "The living picture behind Home: your current wallpaper (a video plays), a picture or video you choose, or none.",
+        chips(window::HOME_BACKGROUND, &BACKGROUNDS, &cfg.text(window::HOME_BACKGROUND)),
+    );
+    builder.text_field(
+        "Background file",
+        "With \"A picture or video\": the full path of the file, for example ~/Pictures/sea.mp4.",
+        window::HOME_BACKGROUND_PATH,
+        "~/Pictures/...",
+    );
+    builder.action(
+        "Use the selected wallpaper",
+        "Takes the wallpaper selected in the picker as the Home background.",
+        ActionId::HomeUseSelected,
+        "Use selected",
+    );
+    builder.toggle(
+        "Pause the background",
+        "Keeps a video background still. It also stops by itself in Low-power mode, with Battery saver, and whenever Settings is closed.",
+        window::HOME_PAUSED,
+    );
+    builder.action(
+        "Home cards",
+        "Add, remove and reorder the cards on Home.",
+        ActionId::EditHomeCards,
+        "Edit cards",
     );
 }

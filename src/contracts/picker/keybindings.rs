@@ -51,7 +51,7 @@ impl KeyBindingGroup {
     }
 }
 
-pub const KEY_BINDINGS: [KeyBindingDescriptor; 46] = [
+pub const KEY_BINDINGS: [KeyBindingDescriptor; 47] = [
     KeyBindingDescriptor {
         action: InputAction::Select,
         path: skwd_config::keys::keybind::SELECT,
@@ -110,6 +110,12 @@ pub const KEY_BINDINGS: [KeyBindingDescriptor; 46] = [
         action: InputAction::Playlists,
         path: skwd_config::keys::keybind::PLAYLISTS,
         title_key: "keybind-playlists",
+        group: KeyBindingGroup::Panels,
+    },
+    KeyBindingDescriptor {
+        action: InputAction::Palette,
+        path: skwd_config::keys::keybind::PALETTE,
+        title_key: "keybind-palette",
         group: KeyBindingGroup::Panels,
     },
     KeyBindingDescriptor {

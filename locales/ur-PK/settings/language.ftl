@@ -1,5 +1,4 @@
 settings-tab-language = زبان
-settings-tab-note-language = پکر اور ترتیبات میں استعمال ہونے والی زبان منتخب کریں۔
 settings-language-card = انٹرفیس کی زبان
 settings-language-card-desc = تبدیلیاں فوراً لاگو ہوتی ہیں اور اگلی بار کھولنے کے لیے محفوظ رہتی ہیں۔
 settings-language-choice-label = زبان

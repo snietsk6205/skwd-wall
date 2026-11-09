@@ -86,6 +86,7 @@ pub fn page_section(tab: &str, section: usize) -> Option<PageSection> {
     }
 }
 
+#[cfg(test)]
 pub fn is_transition_preview_section(tab: &str, section: usize) -> bool {
     const WALLPAPER_TRANSITIONS: usize = 3;
     tab == "motion" && section == WALLPAPER_TRANSITIONS

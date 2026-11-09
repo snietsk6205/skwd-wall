@@ -45,6 +45,8 @@ pub enum InputAction {
     Favourite,
     Effects,
     Studio,
+    /// R1: the Settings command palette (find any setting or action).
+    Palette,
     SceneProperties,
     Playlists,
     Settings,
@@ -87,7 +89,7 @@ pub enum InputAction {
 }
 
 impl InputAction {
-    pub const ALL: [Self; 46] = [
+    pub const ALL: [Self; 47] = [
         Self::Select,
         Self::Apply,
         Self::Flip,
@@ -95,6 +97,7 @@ impl InputAction {
         Self::Favourite,
         Self::Effects,
         Self::Studio,
+        Self::Palette,
         Self::SceneProperties,
         Self::Playlists,
         Self::Settings,
@@ -145,6 +148,7 @@ impl InputAction {
             Self::Favourite => "f",
             Self::Effects => "ctrl+click",
             Self::Studio => "shift+right-click, e",
+            Self::Palette => "ctrl+k",
             Self::SceneProperties => "shift+w",
             Self::Playlists => "p",
             Self::Settings => "shift+s",

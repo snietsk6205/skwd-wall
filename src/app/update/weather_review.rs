@@ -166,7 +166,10 @@ pub(super) fn key(app: &mut App, key: crate::frontend::settings::SettingsKey) ->
             }
             app.retick();
         }
-        SettingsKey::Search => {}
+        SettingsKey::Search
+        | SettingsKey::Undo
+        | SettingsKey::Reorder { .. }
+        | SettingsKey::Delete => {}
     }
     Task::none()
 }

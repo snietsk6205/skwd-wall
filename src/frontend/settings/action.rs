@@ -81,6 +81,10 @@ pub enum ActionId {
     PlaylistAddFavourites,
     /// Custom build (M3): swap the first and second transition of the combination.
     ComboSwap,
+    /// R1: show the wallpaper selected in the picker behind Home.
+    HomeUseSelected,
+    /// R1: add, remove and reorder the cards on Home.
+    EditHomeCards,
 }
 
 impl ActionId {
@@ -99,15 +103,23 @@ impl ActionId {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsFocus {
-    Index,
-    Sections,
     Controls,
+    /// R1: the top bar (groups, view switch, palette button).
+    Bar,
+    /// R1: an open group menu.
+    Menu,
+    /// R1: the cards on Home.
+    Home,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SettingsKey {
-    FocusNext { backwards: bool },
-    CategoryNext { backwards: bool },
+    FocusNext {
+        backwards: bool,
+    },
+    CategoryNext {
+        backwards: bool,
+    },
     Search,
     Previous,
     Next,
@@ -115,6 +127,14 @@ pub enum SettingsKey {
     Down,
     Activate,
     Cancel,
+    /// R1: Ctrl+Z.
+    Undo,
+    /// R1: Shift+Left/Right (move a Home card in edit mode).
+    Reorder {
+        earlier: bool,
+    },
+    /// R1: the Delete key (remove a Home card in edit mode).
+    Delete,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -150,9 +170,11 @@ pub enum SettingsMsg {
     EditFolder(String),
     FolderDraft(crate::contracts::settings::FolderKind, String),
     SearchOpen,
+    #[allow(dead_code, reason = "kept for old picker commands")]
     SearchClose,
     SearchInput(String),
     OpenSearchResult(String, usize, usize),
+    #[cfg_attr(not(test), allow(dead_code, reason = "kept for old picker commands"))]
     SelectTab(String),
     Key(SettingsKey),
     Run(ActionId),
@@ -173,4 +195,44 @@ pub enum SettingsMsg {
     WeatherReviewTab(WeatherReviewTab),
     WeatherReviewSearch(String),
     WeatherReviewToggle(String),
+    /// R1: Home, a page (index into `nav::PAGES`), a page row, or back.
+    OpenHome,
+    OpenPage(usize),
+    OpenPageRow(usize, usize),
+    Back,
+    /// R1: group menus: click toggles, the pointer opens and leaves.
+    MenuClick(usize),
+    MenuHover(usize),
+    MenuLeave,
+    /// R1: Simple / Advanced view.
+    ToggleView,
+    /// R1: show every row of this page (Simple view hides some).
+    ShowAllRows,
+    /// R1: put a setting back to its default.
+    ResetPath(String),
+    /// R1: open or close a row's longer explanation.
+    ToggleMore(String),
+    /// R1: command palette.
+    PaletteOpen,
+    PaletteClose,
+    PaletteInput(String),
+    PaletteSubmit,
+    PaletteRun(usize),
+    PaletteHover(usize),
+    /// Change result `index` in place (`Some(value)` picks that choice).
+    PaletteChange(usize, Option<String>),
+    /// R1: undo the last change (toast button or Ctrl+Z).
+    Undo,
+    /// R1: Home cards.
+    EditCards(bool),
+    CardMove(usize, bool),
+    CardRemove(usize),
+    CardAdd(usize),
+    CardHover(Option<usize>),
+    HomePause,
+    /// R1: preview bubble next to a row (shader, row).
+    BubbleShow(String, usize),
+    BubbleHide(usize),
+    BubblePin(String, usize),
+    BubbleClose,
 }

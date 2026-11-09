@@ -17,6 +17,8 @@ mod schedule;
 mod settings;
 pub(in crate::app) mod settings_background;
 mod settings_folders;
+pub(in crate::app) mod settings_home;
+pub(in crate::app) mod settings_nav;
 pub(in crate::app) mod settings_policy;
 mod settings_profiles;
 mod settings_transitions;

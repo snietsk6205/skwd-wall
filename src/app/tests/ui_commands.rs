@@ -395,14 +395,29 @@ fn ui_commands_drive_settings_search() {
             Message::Daemon(crate::infrastructure::runtime::Wake::Command(value.to_string())),
         );
     };
+    // R1: the command palette replaced the plain search.
     command(&mut app, "settings-search battery");
     assert!(app.panels.settings.open);
-    assert!(app.panels.settings.search_open);
-    assert_eq!(app.panels.settings.search_query, "battery");
-    assert!(!app.panels.settings.search_results.is_empty());
+    let palette = app.panels.settings.nav.palette.as_ref().expect("palette open");
+    assert_eq!(palette.query, "battery");
+    assert!(!crate::app::update::settings_nav::palette_results(&app).is_empty());
     command(&mut app, "settings-result 0");
-    assert_eq!(app.panels.settings.focus, crate::frontend::settings::SettingsFocus::Controls);
-    assert!(!app.panels.settings.search_open);
+    assert!(app.panels.settings.nav.palette.is_none());
+    assert!(app.panels.settings.nav.page.is_some());
+    command(&mut app, "page motion/transitions");
+    let page =
+        app.panels.settings.nav.page.map(|page| crate::frontend::settings::nav::PAGES[page].key);
+    assert_eq!(page, Some("motion/transitions"));
+    command(&mut app, "page home");
+    assert_eq!(app.panels.settings.nav.page, None);
+    command(&mut app, "tab library");
+    let page =
+        app.panels.settings.nav.page.map(|page| crate::frontend::settings::nav::PAGES[page].key);
+    assert_eq!(page, Some("wallpapers/folders"));
+    command(&mut app, "section 2");
+    let page =
+        app.panels.settings.nav.page.map(|page| crate::frontend::settings::nav::PAGES[page].key);
+    assert_eq!(page, Some("wallpapers/profiles"));
 }
 
 #[test]

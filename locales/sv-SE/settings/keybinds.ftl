@@ -85,3 +85,4 @@ settings-keybinds-second-keys-desc = Ställ in den andra tangenten för varje ri
 settings-keybinds-second-keys-wasd = WASD
 settings-keybinds-second-keys-vim = Vim (H J K L)
 settings-keybind-capture-second-title = { $action }: andra tangent
+keybind-palette = Command palette (find any setting)

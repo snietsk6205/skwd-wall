@@ -62,6 +62,7 @@ impl App {
         self.panels.settings.armed = None;
         self.panels.settings.sddm_themes.clear();
         self.panels.settings.folder_undo = None;
+        crate::app::update::settings_nav::on_close(self);
         crate::app::update::settings_policy::flush_staged(self);
         self.release_settings_preview();
         self.retick();

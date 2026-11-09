@@ -1545,7 +1545,8 @@ fn layout_studio_inset_while_live() {
     app.scene.viewport = (1280.0, 720.0);
     let _ = update(&mut app, Message::ToggleSettings);
     assert!(app.panels.settings.open);
-    assert_eq!(app.panels.settings.tab, "picker");
+    // R1: Settings opens on Home.
+    assert_eq!(app.panels.settings.nav.page, None);
     assert_eq!(app.panels.settings.inset_target, 0.0);
 
     let _ = update(&mut app, Message::Settings(SettingsMsg::SelectSection(1)));
@@ -1556,26 +1557,18 @@ fn layout_studio_inset_while_live() {
     assert_eq!(app.panels.settings.inset_target, 0.0);
     assert_eq!(app.panels.settings.section, 4);
     assert_eq!(app.panels.settings.control_page, 0);
-    assert_eq!(app.panels.settings.section_anim.x, 0.0);
 
     let _ = update(&mut app, Message::SetSettingsTab(String::from("picker")));
     assert_eq!(app.panels.settings.tab, "picker");
     assert_eq!(app.panels.settings.section, 0);
-    assert_eq!(app.panels.settings.control_page, 0);
     assert_eq!(app.panels.settings.inset_target, 0.0);
 
     let _ = update(&mut app, Message::SetSettingsTab(String::from("search")));
     assert_eq!(app.panels.settings.tab, "filter");
     assert_eq!(app.panels.settings.inset_target, 0.0);
-    assert_eq!(app.panels.settings.section_anim.x, 0.0);
 
     let _ = update(&mut app, Message::SetSettingsTab(String::from("motion")));
     assert_eq!(app.panels.settings.tab, "motion");
-    assert_eq!(app.panels.settings.inset_target, 0.0);
-    assert_eq!(app.panels.settings.section_anim.x, 0.0);
-
-    let _ = update(&mut app, Message::SetSettingsTab(String::from("picker")));
-    assert_eq!(app.panels.settings.tab, "picker");
     assert_eq!(app.panels.settings.inset_target, 0.0);
 }
 
@@ -1613,10 +1606,10 @@ fn layout_studio_returns_to_settings() {
 
     let _ = update(&mut app, Message::Settings(SettingsMsg::LeaveLayoutStudio));
 
+    // R1: Back from the studio returns to where it was opened (Home here).
     assert!(app.panels.settings.open);
-    assert_eq!(app.panels.settings.tab, "picker");
-    assert_eq!(app.panels.settings.section, 0);
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
+    assert_eq!(app.panels.settings.nav.page, None);
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Home);
     assert_eq!(app.panels.settings.inset_target, 0.0);
     let mut now = Instant::now();
     tick_frames(&mut app, &mut now, 60);
@@ -1652,82 +1645,67 @@ fn studio_saves_applies_on_canvas() {
 
 #[test]
 fn workbench_keyboard_navigation() {
+    use crate::frontend::settings::nav::{GROUPS, PAGES};
     use crate::frontend::settings::{SettingsFocus, SettingsKey, SettingsMsg};
 
+    let key = |app: &mut App, key| {
+        let _ = update(app, Message::Settings(SettingsMsg::Key(key)));
+    };
     let mut app = test_app();
     app.scene.viewport = (1536.0, 960.0);
     let _ = update(&mut app, Message::ToggleSettings);
-    let _ = update(&mut app, Message::SetSettingsTab(String::from("picker")));
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
-    assert_eq!(app.panels.settings.section, 0);
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Home);
 
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Down)));
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
-    assert_eq!(app.panels.settings.section, 1);
+    // Up from the first row of cards reaches the top bar; Right walks it.
+    key(&mut app, SettingsKey::Up);
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Bar);
+    key(&mut app, SettingsKey::Next);
+    key(&mut app, SettingsKey::Next);
+    assert_eq!(app.panels.settings.nav.bar_item, 2);
 
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Up)));
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
-    assert_eq!(app.panels.settings.section, 0);
+    // Down opens that group's menu; arrows pick a page; Enter opens it.
+    key(&mut app, SettingsKey::Down);
+    assert_eq!(app.panels.settings.nav.menu, Some(2));
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Menu);
+    key(&mut app, SettingsKey::Down);
+    key(&mut app, SettingsKey::Activate);
+    let page = app.panels.settings.nav.page.expect("page open");
+    assert_eq!(PAGES[page].group, 2);
+    assert_eq!(PAGES[page].key, "wallpapers/excluded");
+    assert_eq!(app.panels.settings.nav.menu, None);
 
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Previous)));
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Index);
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Next)));
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
+    // Left/Right in a list menu switch to the neighbouring group; Esc closes.
+    let _ = update(&mut app, Message::Settings(SettingsMsg::MenuClick(3)));
+    app.panels.settings.focus = SettingsFocus::Menu;
+    key(&mut app, SettingsKey::Next);
+    assert_eq!(app.panels.settings.nav.menu, Some(4));
+    key(&mut app, SettingsKey::Cancel);
+    assert_eq!(app.panels.settings.nav.menu, None);
+    assert!(app.panels.settings.open);
 
+    // A page with rows: Down/Up move between controls, Activate unfolds.
     let _ = update(&mut app, Message::SetSettingsTab(String::from("sources")));
-
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Next)));
+    key(&mut app, SettingsKey::FocusNext { backwards: false });
     assert_eq!(app.panels.settings.focus, SettingsFocus::Controls);
     assert_eq!(app.panels.settings.focused_control, 0);
-
     let before = app.config.flag_default_true(skwd_config::keys::features::WALLHAVEN);
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Activate)));
+    key(&mut app, SettingsKey::Activate);
     assert!(app.panels.settings.expanded_details.contains("source.wallhaven"));
     assert_eq!(app.config.flag_default_true(skwd_config::keys::features::WALLHAVEN), before);
-
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Next)));
-    assert_eq!(app.panels.settings.focused_control, 0);
-
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Down)));
+    key(&mut app, SettingsKey::Down);
     assert_eq!(app.panels.settings.focused_control, 1);
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Up)));
+    key(&mut app, SettingsKey::Up);
     assert_eq!(app.panels.settings.focused_control, 0);
+    key(&mut app, SettingsKey::Up);
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Bar);
 
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Previous)));
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Next)));
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Controls);
-
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: false })),
-    );
-    assert_eq!(app.panels.settings.focused_control, 1);
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: true })),
-    );
-    assert_eq!(app.panels.settings.focused_control, 0);
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: true })),
-    );
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: true })),
-    );
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Index);
-    let tab_before = app.panels.settings.tab.clone();
-    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Down)));
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Index);
-    assert_ne!(app.panels.settings.tab, tab_before);
-
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: false })),
-    );
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
+    // Esc goes back one level (Home), then closes Settings.
+    key(&mut app, SettingsKey::Cancel);
+    assert!(app.panels.settings.open);
+    key(&mut app, SettingsKey::Cancel);
+    key(&mut app, SettingsKey::Cancel);
+    assert!(!app.panels.settings.open || app.panels.settings.nav.page.is_none());
+    assert_eq!(GROUPS.len(), 6);
 }
 
 #[test]
@@ -1742,25 +1720,22 @@ fn workbench_mouse_tab_owns_focus() {
         update(&mut app, Message::Settings(SettingsMsg::SelectTab(String::from("performance"))));
 
     assert_eq!(app.panels.settings.tab, "performance");
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Index);
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Bar);
+    assert!(app.panels.settings.nav.page.is_some());
 }
 
 #[test]
 fn workbench_tab_leaves_search() {
-    use crate::frontend::settings::{SettingsFocus, SettingsKey, SettingsMsg};
+    use crate::frontend::settings::{SettingsKey, SettingsMsg};
 
     let mut app = test_app();
     let _ = update(&mut app, Message::ToggleSettings);
-    let _ = update(&mut app, Message::Settings(SettingsMsg::SearchOpen));
-    assert!(app.panels.settings.search_open);
-
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: false })),
-    );
-
-    assert!(!app.panels.settings.search_open);
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
+    // R1: Ctrl+F and "/" open the command palette.
+    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Search)));
+    assert!(app.panels.settings.nav.palette.is_some());
+    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Cancel)));
+    assert!(app.panels.settings.nav.palette.is_none());
+    assert!(app.panels.settings.open);
 }
 
 #[test]
@@ -1769,47 +1744,51 @@ fn workbench_tab_cycles_focus() {
 
     let mut app = test_app();
     let _ = update(&mut app, Message::ToggleSettings);
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Home);
 
     let tab = |app: &mut App, backwards| {
         let _ =
             update(app, Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards })));
     };
     tab(&mut app, false);
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Bar);
+    tab(&mut app, false);
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Home);
+
+    let _ = update(&mut app, Message::SetSettingsTab(String::from("picker")));
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Bar);
+    tab(&mut app, false);
     assert_eq!(app.panels.settings.focus, SettingsFocus::Controls);
-    assert_eq!(app.panels.settings.focused_control, 0);
+    let first = app.panels.settings.focused_control;
     tab(&mut app, false);
-    assert_ne!((app.panels.settings.control_page, app.panels.settings.focused_control), (0, 0));
+    assert_ne!(app.panels.settings.focused_control, first);
     tab(&mut app, true);
-    assert_eq!(app.panels.settings.control_page, 0);
-    assert_eq!(app.panels.settings.focused_control, 0);
+    assert_eq!(app.panels.settings.focused_control, first);
     tab(&mut app, true);
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
-    tab(&mut app, true);
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Index);
-    tab(&mut app, false);
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Sections);
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Bar);
 }
 
 #[test]
 fn workbench_ctrl_tab_cycles_pages() {
-    use crate::frontend::settings::{SettingsFocus, SettingsKey, SettingsMsg};
+    use crate::frontend::settings::nav::{PAGES, page_index};
+    use crate::frontend::settings::{SettingsKey, SettingsMsg};
 
     let mut app = test_app();
     let _ = update(&mut app, Message::ToggleSettings);
     let _ = update(&mut app, Message::SetSettingsTab(String::from("picker")));
+    let start = app.panels.settings.nav.page.expect("page");
+    assert_eq!(Some(start), page_index("look/basics"));
     let _ = update(
         &mut app,
         Message::Settings(SettingsMsg::Key(SettingsKey::CategoryNext { backwards: false })),
     );
-    assert_eq!(app.panels.settings.tab, "filter");
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Index);
+    assert_eq!(app.panels.settings.nav.page, Some((start + 1) % PAGES.len()));
 
     let _ = update(
         &mut app,
         Message::Settings(SettingsMsg::Key(SettingsKey::CategoryNext { backwards: true })),
     );
-    assert_eq!(app.panels.settings.tab, "picker");
+    assert_eq!(app.panels.settings.nav.page, Some(start));
 }
 
 #[test]
@@ -1846,68 +1825,60 @@ fn workbench_tab_walks_grouped_fields() {
         Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: false })),
     );
     assert!(app.panels.settings.input_edit.is_none());
-    assert_eq!(app.panels.settings.focus, SettingsFocus::Index);
+    assert_eq!(app.panels.settings.focus, SettingsFocus::Bar);
 }
 
 #[test]
 fn settings_search_opens_canonical_control() {
-    use crate::frontend::settings::{SettingsFocus, SettingsMsg};
+    use crate::frontend::settings::nav::PAGES;
+    use crate::frontend::settings::{Control, SettingsFocus, SettingsMsg};
 
     let mut app = test_app();
     let _ = update(&mut app, Message::ToggleSettings);
     let _ = update(&mut app, Message::Settings(SettingsMsg::SearchOpen));
-    assert!(app.panels.settings.search_open);
+    assert!(app.panels.settings.nav.palette.is_some());
     let _ = update(
         &mut app,
-        Message::Settings(SettingsMsg::SearchInput(String::from("battery saver"))),
+        Message::Settings(SettingsMsg::SearchInput(String::from("automatic battery saver"))),
     );
-    let result = app
-        .panels
-        .settings
-        .search_results
-        .iter()
-        .find(|result| result.tab == "performance")
-        .cloned()
-        .expect("performance search result");
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::OpenSearchResult(result.tab, result.section, result.row)),
-    );
-    assert_eq!(app.panels.settings.tab, "performance");
-    assert_eq!(app.panels.settings.section, result.section);
+    let _ = update(&mut app, Message::Settings(SettingsMsg::PaletteSubmit));
+    let page = app.panels.settings.nav.page.expect("page open");
+    assert_eq!(PAGES[page].key, "playback/power");
     assert_eq!(app.panels.settings.focus, SettingsFocus::Controls);
-    assert!(!app.panels.settings.search_open);
-    assert!(app.panels.settings.search_query.is_empty());
+    let rows = crate::app::update::settings_nav::page_rows(&app);
+    let row = &rows[app.panels.settings.focused_control];
+    assert!(
+        matches!(&row.control, Control::Toggle { path, .. } if path == skwd_config::keys::performance::BATTERY_SAVER),
+        "{}",
+        row.title
+    );
+    assert!(app.panels.settings.nav.palette.is_none());
 }
 
 #[test]
 fn settings_search_inline_keybind() {
-    use crate::frontend::settings::{SettingsFocus, SettingsMsg};
+    use crate::frontend::settings::nav::PAGES;
+    use crate::frontend::settings::{Control, SettingsFocus, SettingsMsg};
 
     let mut app = test_app();
     let _ = update(&mut app, Message::ToggleSettings);
     let _ = update(&mut app, Message::Settings(SettingsMsg::SearchOpen));
     let _ = update(
         &mut app,
-        Message::Settings(SettingsMsg::SearchInput(String::from("toggle playlists"))),
+        Message::Settings(SettingsMsg::SearchInput(String::from("keys.playlists"))),
     );
-    let result = app
-        .panels
-        .settings
-        .search_results
-        .iter()
-        .find(|result| result.tab == "picker")
-        .cloned()
-        .expect("shortcut search result");
+    let _ = update(&mut app, Message::Settings(SettingsMsg::PaletteSubmit));
 
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::OpenSearchResult(result.tab, result.section, result.row)),
-    );
-
+    let page = app.panels.settings.nav.page.expect("page open");
+    assert_eq!(PAGES[page].key, "system/keys");
     assert_eq!(app.panels.settings.section, 4);
     assert!(app.panels.settings.bar_reveals.is_empty());
     assert_eq!(app.panels.settings.focus, SettingsFocus::Controls);
+    let rows = crate::app::update::settings_nav::page_rows(&app);
+    assert!(matches!(
+        &rows[app.panels.settings.focused_control].control,
+        Control::KeyBinding { path, .. } if path == skwd_config::keys::keybind::PLAYLISTS
+    ));
 }
 
 #[test]
@@ -1935,27 +1906,20 @@ fn workbench_keyboard_skips_control_segments() {
 
 #[test]
 fn workbench_enter_commits_escape_restores() {
-    use crate::frontend::settings::{SettingsKey, SettingsMsg};
+    use crate::frontend::settings::{Control, SettingsKey, SettingsMsg};
 
     let mut app = test_app();
     app.scene.viewport = (1536.0, 960.0);
     let _ = update(&mut app, Message::ToggleSettings);
     let _ = update(&mut app, Message::SetSettingsTab(String::from("picker")));
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: false })),
-    );
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: false })),
-    );
-
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: false })),
-    );
-
     let key = skwd_config::keys::general::UI_SCALE;
+    let rows = crate::app::update::settings_nav::page_rows(&app);
+    let index = rows
+        .iter()
+        .position(|row| matches!(&row.control, Control::Number { path, .. } if path == key))
+        .expect("UI scale row");
+    let _ = update(&mut app, Message::Settings(SettingsMsg::FocusControl(index)));
+
     let original = app.config.num_path(key);
     let original_input = app.panels.settings.inputs.get(key).cloned().unwrap();
 
@@ -1984,15 +1948,18 @@ fn workbench_enter_commits_escape_restores() {
 
 #[test]
 fn workbench_escape_leaves_choice() {
-    use crate::frontend::settings::{SettingsKey, SettingsMsg};
+    use crate::frontend::settings::{Control, SettingsKey, SettingsMsg};
 
     let mut app = test_app();
     app.scene.viewport = (1536.0, 960.0);
     let _ = update(&mut app, Message::ToggleSettings);
-    let _ = update(
-        &mut app,
-        Message::Settings(SettingsMsg::Key(SettingsKey::FocusNext { backwards: false })),
-    );
+    let _ = update(&mut app, Message::SetSettingsTab(String::from("picker")));
+    let rows = crate::app::update::settings_nav::page_rows(&app);
+    let index = rows
+        .iter()
+        .position(|row| matches!(row.control, Control::Chips { .. } | Control::Dropdown { .. }))
+        .expect("a choice row");
+    let _ = update(&mut app, Message::Settings(SettingsMsg::FocusControl(index)));
     let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Activate)));
     assert!(app.panels.settings.focused_choice.is_some());
 
@@ -2000,6 +1967,10 @@ fn workbench_escape_leaves_choice() {
     assert!(app.panels.settings.open);
     assert!(app.panels.settings.focused_choice.is_none());
 
+    // R1: Esc goes back one level (to Home), then closes Settings.
+    let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Cancel)));
+    assert!(app.panels.settings.open);
+    assert_eq!(app.panels.settings.nav.page, None);
     let _ = update(&mut app, Message::Settings(SettingsMsg::Key(SettingsKey::Cancel)));
     assert!(!app.panels.settings.open);
 }

@@ -108,21 +108,6 @@ impl Control {
         matches!(self, Self::Toggle { .. } | Self::ToggleAction { .. })
     }
 
-    pub fn is_compact_field(&self) -> bool {
-        self.is_inline_editor() || self.is_group_editor() || self.is_compact_action()
-    }
-
-    pub fn is_wide_field(&self) -> bool {
-        matches!(
-            self,
-            Self::StackBar { .. }
-                | Self::Segment
-                | Self::Code { .. }
-                | Self::AppTheme { .. }
-                | Self::Details { .. }
-        )
-    }
-
     pub fn is_focusable(&self) -> bool {
         !matches!(self, Self::Segment)
     }

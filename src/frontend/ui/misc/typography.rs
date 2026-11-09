@@ -28,6 +28,7 @@ pub fn label<'a>(
     iced::widget::text(content).font(UI_FONT).size(size * legible_type_scale(scale)).color(color)
 }
 
+#[cfg(test)]
 pub fn sentence_case(label: &str) -> String {
     let mut value = label.to_ascii_lowercase();
     if let Some(first) = value.get_mut(0..1) {

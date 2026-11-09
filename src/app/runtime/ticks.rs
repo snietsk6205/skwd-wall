@@ -47,7 +47,14 @@ impl App {
             let overlay = (self.config.perf_overlay() || self.runtime_state.metrics.hud_enabled)
                 .then(|| self.runtime_state.last_tick.unwrap_or(now) + Duration::from_millis(1100))
                 .map(|deadline| deadline.max(now));
-            [self.scene.preview_deadline(), toast, overlay].into_iter().flatten().min()
+            let settings = self
+                .panels
+                .settings
+                .open
+                .then(|| self.panels.settings.nav.deadline())
+                .flatten()
+                .map(|deadline| deadline.max(now));
+            [self.scene.preview_deadline(), toast, overlay, settings].into_iter().flatten().min()
         };
         self.runtime_state.frame_clock.schedule(deadline);
     }
@@ -81,14 +88,11 @@ impl App {
         !matches!(self.scene.mode, Mode::Slices | Mode::Depth) && self.scene.flip_open()
     }
 
+    /// R1: the transition preview only plays in the floating bubble.
     pub(in crate::app) fn wants_transition_preview(&self) -> bool {
-        let transition_section = crate::frontend::settings::is_transition_preview_section(
-            &self.panels.settings.tab,
-            self.panels.settings.section,
-        );
         self.panels.settings.open
-            && self.panels.settings.tab == "motion"
-            && transition_section
+            && !self.runtime_state.stashed
+            && self.panels.settings.nav.bubble.is_some()
             && self.config.flag_default_true(skwd_config::keys::transition::ENABLED)
             && self.config.flag_default_true(skwd_config::keys::transition::PREVIEW)
     }
@@ -157,6 +161,7 @@ impl App {
             || (self.panels.settings.open && !self.panels.settings.section_anim.settled())
             || (self.panels.settings.open && !self.panels.settings.control_anim.settled())
             || (self.panels.settings.open && self.panels.settings.profile_animating())
+            || (self.panels.settings.open && self.panels.settings.nav.animating())
             || ((self.panels.settings.open || self.panels.effects.is_some())
                 && self.panels.settings.bars_animating())
             || self
@@ -534,6 +539,8 @@ impl App {
             self.panels.settings.section_anim.tick(dt);
             self.panels.settings.control_anim.tick(dt);
             self.panels.settings.tick_profile(dt);
+            self.panels.settings.nav.tick(dt);
+            crate::app::update::settings_nav::tick_menu(self, std::time::Instant::now());
         }
         if self.panels.settings.open || self.panels.effects.is_some() {
             self.panels.settings.tick_bars(dt);

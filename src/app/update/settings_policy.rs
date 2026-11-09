@@ -8,6 +8,7 @@ pub(super) fn stage_value(app: &mut App, path: &str, value: &Value) {
     let Some(value) = skwd_config::schema::normalize_value(path, value) else {
         return;
     };
+    super::settings_nav::record(app, path, app.config.value_at(path), &value);
     sync_audio(app, path, &value);
     mark_deferred_reload(app, path);
     app.config.set_key(path, value);
@@ -21,6 +22,7 @@ pub(super) fn save_value(app: &mut App, path: &str, value: &Value) {
     let Some(value) = skwd_config::schema::normalize_value(path, value) else {
         return;
     };
+    super::settings_nav::record(app, path, app.config.value_at(path), &value);
     app.config.ensure_selector_enabled();
     if path == skwd_config::keys::lock_screens::MODE
         && value.as_str() != Some(skwd_config::keys::lock_screens::OFF)
@@ -167,6 +169,7 @@ fn sync_picker_runtime(app: &mut App, path: &str) {
         crate::i18n::set_language(&app.config.str_path(path));
         crate::shell::reload_ui_font(previous);
         app.panels.settings.search_results.clear();
+        app.panels.settings.nav.labels = None;
         app.retick();
     }
     if path.starts_with("videoPreview.")

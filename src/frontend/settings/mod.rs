@@ -5,6 +5,7 @@ mod folio;
 mod input_ids;
 mod layout;
 mod model;
+pub mod nav;
 mod search;
 mod tables;
 mod tabs;
@@ -15,13 +16,15 @@ pub use action::{
     ActionId, SettingsFocus, SettingsKey, SettingsMsg, WEATHER_REVIEW_TAB_COUNT, WeatherReviewTab,
 };
 pub use folio::READING_PANE;
+pub use folio::{Backdrop, BubbleView, NavView, PaletteView, RecentItem};
 pub use folio::{
     ChromeCtx, FocusCtx, FoldersCtx, KeybindCaptureView, ProcessPickerView, ProfilesCtx, SourceCtx,
     WorkbenchInput, picker_layout_workbench, settings_workbench, state_position,
 };
 pub use folio::{WeatherReviewItem, WeatherReviewView};
 pub use input_ids::{
-    PRESET_NAME_KEY, settings_search_input_id, weather_review_input_id, workbench_input_id,
+    PRESET_NAME_KEY, palette_input_id, settings_search_input_id, weather_review_input_id,
+    workbench_input_id,
 };
 pub use layout::{
     STUDIO_EDGE_GAP, picker_layout_studio_align, picker_layout_studio_height,
@@ -34,6 +37,7 @@ pub use model::{
 };
 pub use search::{SettingsSearchResult, search_settings};
 pub(crate) use tables::SHADERS;
+#[cfg(test)]
 pub(crate) use tables::is_transition_preview_section;
 pub use tables::{
     PageSection, SHADER_FAMILY_KEY, canonical_category, family_default, is_picker_layout_section,

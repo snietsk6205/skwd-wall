@@ -29,6 +29,7 @@ pub(super) fn settings_layer(app: &App) -> Element<'_, Message> {
         return settings::picker_layout_workbench(&source, focus, chrome);
     }
     settings::settings_workbench(settings::WorkbenchInput {
+        nav: nav_view(app),
         source,
         focus,
         chrome,
@@ -47,19 +48,78 @@ pub(super) fn settings_layer(app: &App) -> Element<'_, Message> {
                 .as_ref()
                 .map(|undo| (undo.kind, undo.path.as_str())),
         },
-        preview_path: app.selected_settings_preview_path(),
-        transition_preview: app.panels.transition_preview.handle.clone(),
-        transition_caption: transition_caption(app),
-        tab_transition: app.panels.settings.tab_anim.x,
         tab: &app.panels.settings.tab,
         selected_section: app.panels.settings.section,
-        search_open: app.panels.settings.search_open,
-        search_query: &app.panels.settings.search_query,
-        search_results: &app.panels.settings.search_results,
         keybind_capture: keybind_capture_view(app),
         process_picker: process_picker_view(app),
         weather_review: weather_review_view(app),
     })
+}
+
+/// R1: what the redesigned window shows (page, menus, Home, palette, ...).
+fn nav_view(app: &App) -> settings::NavView<'_> {
+    use crate::app::update::{settings_home, settings_nav};
+    use skwd_config::keys::settings_window as keys;
+    let nav = &app.panels.settings.nav;
+    let still = app.config.low_power();
+    let ease = |x: f32| if still { 1.0 } else { x };
+    let palette = nav.palette.as_ref().map(|palette| {
+        let results = settings_nav::palette_results(app);
+        settings::PaletteView {
+            query: &palette.query,
+            selected: palette.selected.min(results.len().saturating_sub(1)),
+            results: results.into_iter().map(|index| &palette.entries[index]).collect(),
+            empty_query: palette.query.trim().is_empty(),
+        }
+    });
+    let bubble = nav.bubble.as_ref().map(|bubble| {
+        let (title, desc) = transition_caption(app);
+        settings::BubbleView {
+            row: bubble.row,
+            pinned: bubble.pinned,
+            title,
+            desc,
+            frame: app.panels.transition_preview.handle.clone(),
+            fade: ease(nav.bubble_anim.x),
+        }
+    });
+    let recent = if nav.page.is_none() { nav.recent.clone() } else { Vec::new() };
+    let picture = nav.home.frame.clone().or_else(|| nav.home.still.clone());
+    settings::NavView {
+        page: nav.page,
+        can_go_back: !nav.history.is_empty(),
+        menu: nav.menu,
+        menu_item: nav.menu_item,
+        menu_fade: ease(nav.menu_anim.x),
+        menu_unavailable: &nav.menu_unavailable,
+        menu_grid: app.config.str_path(keys::MENU_STYLE) == "grid",
+        bar_item: nav.bar_item,
+        page_fade: ease(nav.page_anim.x),
+        simple: settings_nav::simple_view(app),
+        hides_advanced: settings_nav::hides_advanced(app),
+        edit_cards: nav.edit_cards,
+        card_focus: nav.card_focus,
+        card_hover: nav.card_hover,
+        card_fade: ease(nav.card_anim.x),
+        home_cards: settings_nav::home_cards(app),
+        recent,
+        palette,
+        toast: nav.toast.as_ref().map(|toast| (toast.text.clone(), toast.can_undo)),
+        toast_fade: ease(nav.toast_anim.x),
+        bubble,
+        backdrop: settings::Backdrop {
+            picture,
+            blurred: nav.home.blurred.clone(),
+            video: nav.home.video,
+            paused: app.config.flag_default_config(keys::HOME_PAUSED),
+            held: if nav.home.video { settings_home::held_by(app) } else { None },
+            caption: settings_home::caption(app),
+        },
+        bar_blur: app.config.flag_default_config(keys::BAR_BLUR),
+        more: &nav.more,
+        playlist: app.config.str_path(skwd_config::keys::transition::PLAYLIST),
+        still,
+    }
 }
 
 /// Custom build (M3): the name and description of what the live preview plays.

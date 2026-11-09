@@ -63,3 +63,15 @@ Rendered with the real renderer (`skwd-wall-vk --preview-stream`, software Vulka
     repeats) and the list with Earlier / Later / Remove; the preview shows the first entry.
   - `m3-settings-combo.jpg`, `m3-settings-combo2.jpg`: *Combine two*: family then transition for
     each part, and how to combine them.
+
+## R1: Settings redesign (1280x720 unless noted)
+
+- `r1-home.jpg`: Home with the current (video) wallpaper behind pinned cards and Recently changed.
+- `r1-menu-list.jpg`, `r1-menu-grid.jpg`: a group menu as a list (Motion) and as a grid (Wallpapers).
+- `r1-page-simple.jpg`, `r1-page-advanced.jpg`: Playback & Power › Power & battery in Simple view
+  (3 advanced settings hidden) and in Advanced view; the dot and ↺ mark a changed value.
+- `r1-palette.jpg`: the command palette (Ctrl+K) with "battery saver"; Tab flipped the first result.
+- `r1-toast.jpg`: the undo note after that change.
+- `r1-bubble.jpg`, `r1-bubble-pinned.jpg`: the preview bubble next to a transition (small, pinned).
+- `r1-edit-cards.jpg`: Home in Edit cards mode.
+- `r1-large-home.jpg`, `r1-large-page.jpg`: the same at 2560x1440.

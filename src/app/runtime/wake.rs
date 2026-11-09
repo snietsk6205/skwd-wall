@@ -30,6 +30,15 @@ impl App {
             Wake::Ipc(message) => self.handle_ipc(message),
             Wake::Decoded => {
                 self.drain_decodes();
+                crate::app::update::settings_home::pull_frame(self);
+                true
+            }
+            Wake::HomeBackdrop { source, decoded } => {
+                crate::app::update::settings_home::decoded(
+                    self,
+                    &source,
+                    decoded.map(|boxed| *boxed),
+                );
                 true
             }
             Wake::EffectSrc { card, source, rgba, w, h } => {

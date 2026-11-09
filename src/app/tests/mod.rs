@@ -233,6 +233,9 @@ fn settled_preview_app() -> App {
     app.panels.settings.open = true;
     app.panels.settings.tab = String::from("motion");
     app.panels.settings.section = 3;
+    // R1: the transition preview plays in the bubble next to a row.
+    app.panels.settings.nav.bubble =
+        Some(crate::app::state::Bubble { shader: String::from("fade"), row: 0, pinned: true });
     tick_frames(&mut app, &mut now, 600);
     app
 }

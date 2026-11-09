@@ -8,7 +8,7 @@ use iced::{
 
 use crate::frontend::animation::{MotionProfile, MotionTier};
 use crate::frontend::theme::Palette;
-use crate::frontend::ui::{NERD_FONT, UI_FONT, logical_padding, mirror_x, row, with_alpha};
+use crate::frontend::ui::{UI_FONT, logical_padding, mirror_x, row, with_alpha};
 
 use super::typography::legible_type_scale;
 
@@ -603,15 +603,6 @@ pub fn folio_action<'a, Message: Clone + 'a>(
     palette: &'a Palette,
 ) -> Element<'a, Message> {
     animated_action(label, UI_FONT, active, false, message, width, scale, palette)
-}
-
-pub fn folio_icon_action<'a, Message: Clone + 'a>(
-    glyph: &'a str,
-    message: Message,
-    scale: f32,
-    palette: &'a Palette,
-) -> Element<'a, Message> {
-    animated_action(glyph, NERD_FONT, false, false, Some(message), Length::Shrink, scale, palette)
 }
 
 pub fn folio_destructive_action<'a, Message: Clone + 'a>(
