@@ -201,10 +201,7 @@ Read this first in a new session.
 - **M1 Speed (done, Phase 6 below).**
 - **M1b Speed follow-up (done, Phase 7 below).**
 - **M2 Window size everywhere (done, Phase 8 below).**
-- **M3 Transitions:** many more original ones; families, favourites, search, live preview per
-  transition; play several in turns (in order / shuffled / random without repeats); combine two
-  (A then B, blend, split screen, one as a mask for the other, more); reuse the sketch code's
-  offscreen freeze/cache for multi-pass.
+- **M3 Transitions (done, Phase 9 below).**
 - **M4 Sketch:** genuinely different original styles (only pencil is good today); controls for
   drawing order (by brightness/depth layers, edges first, one continuous line, scribble,
   stipple), stroke width, hatch direction, paper texture, colour vs mono, speed; tick several
@@ -404,6 +401,96 @@ Read this first in a new session.
   all 11 programs (installer's package list, `--locked`) OK in 23 min; the release picker docked a
   45 x 70 % playlists sheet on the left as expected. skwd-deck and skwd-paper have no M2 changes.
 
+## Phase 9 = M3 (done): transitions
+- What the user gets (Settings → Motion → Wallpaper transitions, one section so the preview stays in
+  view): 31 new original transitions, families Light and Shapes (+ pseudo families Playlist and
+  Combine two), a pinned live preview with caption, a library (search, filters, per-row ▶ Preview /
+  Favourite / + Playlist / Use), "Play in turns" (in order / shuffled / random no repeats) and
+  "Combine two" (7 ways, split has 5 shapes). User text: custom/README.md "Transitions (M3)".
+- **Renderer (skwd-paper)**:
+  - New GLSL 330 effects in `paper-shaders/src/effects/resources/{light,shapes,extra}.rs`, listed in
+    `effects/catalog.rs` (EFFECTS is now 68). Start-point edits in `ORIGIN_EFFECTS` (17 now):
+    god-rays, diamonds, shutter, lens, glass, clock-wipe. Every extra light fades out before the
+    end. All compile with glslc (build.rs compiles every entry).
+  - `paper-shaders/src/plan.rs` (+ `plan_tests.rs`): **one parser for every `--shader` value**:
+    `Plan::Single(Part::{Fade, Sand, Effect})` or `Plan::Combo { mode, first, second }`. Names:
+    `combo:<mode>:<first>:<second>`, modes `then, blend, split-{lr,tb,diagonal,circle,checker},
+    mask, sweep, light, dark`; parts may be "random". `random-mix` = random mode + two random parts.
+    paper-vk calls it through `sketch::transition_plan()` (uses `random_u32`); the old three copies
+    of the "random" roll (dmabuf_helpers, scene.rs, preview.rs) are gone; scene.rs
+    `TransitionStyle` is now an alias of `Plan`; `FadeState` and the video streamer hold `plan`.
+  - `Renderer::render_plan_to` (`vk/draw/shared/combo.rs`) is the single entry for every path
+    (videos, images, scenes, both previews); `prepare_plan` builds pipelines ahead. Combos keep
+    their state in `vk/combo.rs` `ComboState`: targets `first`, `second` (renderer size, made with
+    the sketch's `create_sketch_target` and the scene render pass), 8x8 `black`/`white` mask
+    sources, a 3-set descriptor pool, the compose pipeline (`effects/combo.glsl`, built on
+    `VK_EFFECT_HEADER`, u_style = mode, u_pid_base = split shape, texB = old wallpaper), `held`,
+    `last` (freed after 3 s idle from `render_to`, like the sketch). Non-"then" modes record both
+    parts into their targets and the compose pass in ONE command buffer (parts reuse
+    `desc_set`/`desc_set_b`; mask mode draws the first part from black to white = its mask).
+    "then": first half draws part A at progress t (0 → 0.5) directly; at the hand-over A's
+    half-way frame is frozen once into `first` (the sketch freeze idea) and part B runs from it.
+    The sketch prelude works in front of combos too (`sketch_step`). Fade parts use the
+    `crossfade` effect. Effect pipelines (built for the main render pass) are used in the scene
+    pass: same format, compatible.
+- **Daemon (skwd-deck)**:
+  - `wall-proto/src/transitions.rs`: families Random, Playlist, Combo, Fade, Wipe, Warp, Break,
+    Light, Shapes, Sand; `TransitionSpec.desc` (one sentence each); `PSEUDO_KEYS` (random,
+    random-mix, playlist, combo); `COMBO_MODES`, `COMBO_SPLITS`, `PLAYLIST_ORDERS`; helpers
+    `spec`, `is_shader`, `combo_name(mode, split, first, second)`, `label_of`, `pretty` ("crt" →
+    "CRT"). Some upstream entries moved family: chromatic-bloom → Light; honeycomb, mosaic-tumble,
+    polka-dots-curtain, puzzle-right, randomsquares → Shapes.
+  - Keys (skwd-config key_catalog/schema/keys_tests): `transition.favourites`, `.playlist` (comma
+    lists like the bar order), `.playlistOrder` (in-order/shuffle/no-repeat), `.comboFirst`,
+    `.comboSecond`, `.comboMode`, `.comboSplit`; Settings-only `.librarySearch`, `.libraryFilter`,
+    `.comboFirstFamily`, `.comboSecondFamily`.
+  - `value/transition/deck.rs` (keys spelled out, test `transition_deck_keys_match_the_schema`;
+    value/transition.rs is at its 90-line guard limit): `favourites()`, `playlist()`,
+    `playlist_order()`, `combo()`, `concrete_shader(next)`: "playlist" → next entry ("random" if
+    empty), "combo" → combination name. Pure deck logic `domain/wallpaper/transition_deck.rs`
+    (+ tests); the cursor lives in `ApplyRuntime::next_transition` (in memory: a daemon restart
+    starts the order again). **Called where the shader is first read**: walld
+    `composition/apply.rs` (static, video, WE: three places) and core `TransitionSelection::
+    Configured` + `we/adapter.rs`; downstream paths get it as Explicit, so one pick per apply.
+    Checked live: in-order playlist "burn,aurora,combo,lens" gave aurora, combo:mask:honeycomb:burn,
+    lens, burn, aurora, … on six applies (the first pick went to the start-up restore).
+  - Policy/sand-scope code still reads the configured name ("playlist"), so a sand style picked
+    from a playlist uses the "all outputs" scope. Fine for now.
+- **Picker (skwd-wall)**:
+  - `frontend/settings/tabs/transition_library.rs` (+ `transition_library/tests.rs`): cards
+    LIBRARY_CARD, PLAYLIST_CARD, COMBO_CARD (English-only like other custom cards); composed into
+    the Wallpaper transitions section with `segmented_rows` headings (`tabs/builder.rs`). Library
+    lists all entries except random/playlist/combo (random-mix included). Combo parts = family
+    chips + transition chips (writing `comboFirstFamily` picks that family's first transition:
+    `combo_part_for_family` in `app/update/settings.rs`).
+  - `transition_tab.rs`: new families get their English catalogue label (upstream ones keep their
+    tr() keys); summary rows for Playlist / Combo; `pretty` delegates to wall-proto.
+  - Actions (`frontend/settings/action.rs`): PreviewTransition, UseTransition, FavouriteTransition,
+    PlaylistToggle/Preview/Move/Remove/Clear/AddFavourites, ComboSwap → `app/update/
+    settings_transitions.rs`. Preview focus = `TransitionPreviewState.focus` (app state, not
+    config); `lifecycle::preview_shader` resolves it ("playlist" → first entry, "combo" → name).
+  - Reading pane (`folio.rs`): when a section has the preview, header + `pinned_preview` (16:9 stage
+    + caption from `app/view/settings.rs::transition_caption`) stay on top and only the rows scroll.
+    The scrollable has id `READING_PANE`; new picker command **`skwd-helm ui settings-scroll <px>`**
+    (for screenshots; headless sway has no pointer to wheel with).
+- Previews: `custom/previews/m3-*.jpg` (5 sheets + 6 Settings screenshots, see its README). Sheet
+  recipe: `SKWD_PAPER_PREVIEW_TEST=steps=10 skwd-wall-vk '*' NEW --transition-from OLD --shader
+  NAME --preview-stream --preview-size 320x180 --preview-once --stream-no-header --duration-ms
+  1000 > raw.rgba`, cut frames 1..9 with dd, `convert -size 320x180 -depth 8 rgba:`, montage rows.
+- Ideas not done (candidates for later): combos of three; per-entry durations in the playlist;
+  keeping the playlist cursor across daemon restarts; translating the new English texts; a
+  "random from favourites" order; first combo frame builds the compose pipeline lazily (one small
+  hitch per renderer).
+- Checks at the end of M3: `cargo fmt` on all three; clippy clean (workspace lints, all targets) on
+  paper-shaders + skwd-wall-vk, wall-proto + skwd-config + skwd-wall-core + skwd-walld +
+  skwd-helm, and skwd-wall. Tests: skwd-wall 1644 unit + all guard tests pass (one upstream
+  source-scan test, `preview_uses_full_stage`, now checks the pinned preview); skwd-deck 1836
+  pass, only the known `skwd-e2e --test semantic` fails; skwd-paper 910 pass, only the known
+  `paper-scene hlsl::tests::packed_audio_spectrum...` fails. Release build of all 11 programs
+  (installer's package list, `--locked`) OK (55 min here, under load from the tests); the release
+  renderer drew `combo:split-circle:aurora:shutter`. Live: Settings in headless sway (screenshots),
+  playlist order through the daemon (see above).
+
 ## Testing in a cloud session
 - Scripts from the last session (recreate in the scratchpad): a headless sway + `skwd-walld` +
   `skwd-wall` (+ `skwd-wall-scan` on PATH, or there are no thumbnails) with `HOME`,
@@ -419,3 +506,6 @@ Read this first in a new session.
   `paper-scene hlsl::tests::packed_audio_spectrum...`, `skwd-paper manager::tests::span_spawn_failure`,
   `skwd-e2e --test semantic`.
 - Disk is limited (~40 GB): use one shared `CARGO_TARGET_DIR` and `CARGO_INCREMENTAL=0`.
+- Settings screenshots (M3): `skwd-helm ui open settings`, `ui tab motion`, `ui section 3`, set keys
+  with `ui set`, scroll with `ui settings-scroll <px>`, wait ~6 s, `grim`. The daemon also needs
+  `skwd-wall-still` (build `-p skwd-wall-still`) to apply images.
