@@ -490,6 +490,18 @@ pub(super) fn run_ui_command(app: &mut App, cmd: &str) -> Task<Message> {
             }
             Task::batch(tasks)
         }
+        "settings-scroll" => arg.parse::<f32>().ok().filter(|y| y.is_finite()).map_or_else(
+            || {
+                log::warn!("ui command: usage 'settings-scroll <pixels from the top>'");
+                Task::none()
+            },
+            |y| {
+                iced::widget::operation::scroll_to(
+                    crate::frontend::ui::pane_id(crate::frontend::settings::READING_PANE),
+                    iced::widget::scrollable::AbsoluteOffset { x: 0.0, y: y.max(0.0) },
+                )
+            },
+        ),
         "settings-result" => {
             let index = arg.parse::<usize>().unwrap_or(0);
             let Some(result) = app.panels.settings.search_results.get(index).cloned() else {

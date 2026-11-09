@@ -14,6 +14,7 @@ pub(crate) mod test_source;
 pub use action::{
     ActionId, SettingsFocus, SettingsKey, SettingsMsg, WEATHER_REVIEW_TAB_COUNT, WeatherReviewTab,
 };
+pub use folio::READING_PANE;
 pub use folio::{
     ChromeCtx, FocusCtx, FoldersCtx, KeybindCaptureView, ProcessPickerView, ProfilesCtx, SourceCtx,
     WorkbenchInput, picker_layout_workbench, settings_workbench, state_position,
@@ -44,6 +45,9 @@ pub(crate) use tabs::build_tab_with_runtime_status;
 pub use tabs::{
     FOLDER_SEGMENT, SEGMENT_PREFIX, STATES, WORKSHOP_TAG, flash_key, folder_ledger,
     profile_commands, profiles_page, segment_key,
+};
+pub(crate) use tabs::{
+    combo_part_family, list_moved, list_toggled, transition_combo_name, transition_list,
 };
 
 use builder::Builder;

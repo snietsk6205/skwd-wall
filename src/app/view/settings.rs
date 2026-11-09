@@ -49,6 +49,7 @@ pub(super) fn settings_layer(app: &App) -> Element<'_, Message> {
         },
         preview_path: app.selected_settings_preview_path(),
         transition_preview: app.panels.transition_preview.handle.clone(),
+        transition_caption: transition_caption(app),
         tab_transition: app.panels.settings.tab_anim.x,
         tab: &app.panels.settings.tab,
         selected_section: app.panels.settings.section,
@@ -59,6 +60,38 @@ pub(super) fn settings_layer(app: &App) -> Element<'_, Message> {
         process_picker: process_picker_view(app),
         weather_review: weather_review_view(app),
     })
+}
+
+/// Custom build (M3): the name and description of what the live preview plays.
+fn transition_caption(app: &App) -> (String, String) {
+    use crate::contracts::settings::transitions;
+    let shader = crate::app::update::preview_shader(app);
+    let describe = |name: &str| {
+        transitions::spec(name).map_or_else(
+            || {
+                if name.starts_with(transitions::COMBO_PREFIX) {
+                    String::from("A combination of two transitions.")
+                } else {
+                    String::new()
+                }
+            },
+            |spec| spec.desc.to_string(),
+        )
+    };
+    if app.panels.transition_preview.focus.is_some() {
+        return (format!("Previewing: {}", transitions::label_of(&shader)), describe(&shader));
+    }
+    let chosen = app.config.str_path(skwd_config::keys::transition::SHADER);
+    match chosen.as_str() {
+        "playlist" => (
+            String::from("Your choice: play in turns"),
+            format!(
+                "The preview shows the first one, {}. Each wallpaper change plays the next.",
+                transitions::label_of(&shader)
+            ),
+        ),
+        _ => (format!("Your choice: {}", transitions::label_of(&shader)), describe(&shader)),
+    }
 }
 
 fn weather_review_view(app: &App) -> Option<settings::WeatherReviewView> {

@@ -22,6 +22,11 @@ mod source_defaults;
 mod system_tabs;
 pub(crate) use system_tabs::weather_category_label;
 mod theme_tabs;
+mod transition_library;
+pub(crate) use transition_library::{
+    COMBO_CARD, LIBRARY_CARD, PLAYLIST_CARD, combo_part_family, list_moved, list_toggled,
+    transition_combo_name, transition_list,
+};
 mod transition_tab;
 mod window_tab;
 

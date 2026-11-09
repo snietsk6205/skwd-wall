@@ -1276,6 +1276,15 @@ pub(super) fn set_settings_tab(app: &mut App, tab: String) -> Task<Message> {
     Task::none()
 }
 
+fn combo_part_for_family(path: &str) -> Option<&'static str> {
+    use skwd_config::keys::transition as keys;
+    match path {
+        keys::COMBO_FIRST_FAMILY => Some(keys::COMBO_FIRST),
+        keys::COMBO_SECOND_FAMILY => Some(keys::COMBO_SECOND),
+        _ => None,
+    }
+}
+
 pub(super) fn settings_pick(app: &mut App, path: &str, value: &str) -> Task<Message> {
     if super::settings_profiles::pick(app, path, value) {
         return Task::none();
@@ -1305,6 +1314,20 @@ pub(super) fn settings_pick(app: &mut App, path: &str, value: &str) -> Task<Mess
         return Task::none();
     }
 
+    if let Some(part) = combo_part_for_family(path) {
+        // Custom build (M3): a family chip of "combine two" picks the first
+        // transition of that family (or keeps the current one if it fits).
+        let current = app.config.str_path(part);
+        let fits = crate::frontend::settings::combo_part_family(&current) == value;
+        let pick = if fits {
+            current
+        } else if value == "random" {
+            String::from("random")
+        } else {
+            crate::frontend::settings::family_default("", value)
+        };
+        return settings_pick(app, part, &pick);
+    }
     if path == crate::frontend::settings::SHADER_FAMILY_KEY {
         let current = app.config.str_path(skwd_config::keys::transition::SHADER);
         let shader = crate::frontend::settings::family_default(&current, value);
@@ -1826,6 +1849,16 @@ pub(super) fn settings_run(app: &mut App, id: ActionId) -> Task<Message> {
             app.invalidate_settings();
             app.retick();
         }
+        ActionId::PreviewTransition(_)
+        | ActionId::UseTransition(_)
+        | ActionId::FavouriteTransition(_)
+        | ActionId::PlaylistToggle(_)
+        | ActionId::PlaylistPreview(_)
+        | ActionId::PlaylistMove(..)
+        | ActionId::PlaylistRemove(_)
+        | ActionId::PlaylistClear
+        | ActionId::PlaylistAddFavourites
+        | ActionId::ComboSwap => return super::settings_transitions::run(app, id),
         ActionId::RemoveSemanticModel(_) => {
             run_array_action(app, &id);
             reconcile_semantic_model(app);

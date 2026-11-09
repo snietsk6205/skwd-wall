@@ -1,44 +1,45 @@
-use crate::contracts::settings::{SettingsSource, keys};
+use crate::contracts::settings::{SettingsSource, keys, transitions};
 use crate::i18n::{tr, tr_args};
 
 use super::super::tables::{SHADER_FAMILIES, SHADER_FAMILY_KEY, shader_family, shaders_in_family};
 use super::{Builder, Control};
 
-fn family_label_key(family: &str) -> &'static str {
-    match family {
+use super::transition_library::{self as library, transition_combo_name, transition_list};
+
+/// Translated label of an upstream family; the custom build's families
+/// (playlist, combo, light, shapes) use their English catalogue label.
+fn family_label(family: &str) -> String {
+    let key = match family {
         "fade" => "settings-transitions-family-fade",
         "wipe" => "settings-transitions-family-wipe",
         "warp" => "settings-transitions-family-warp",
         "break" => "settings-transitions-family-break",
         "sand" => "settings-transitions-family-sand",
-        _ => "settings-transitions-family-random",
-    }
+        "random" => "settings-transitions-family-random",
+        _ => return catalogue_family(family).map_or("", |(_, label, _)| label).to_string(),
+    };
+    tr(key).to_string()
 }
 
-fn family_desc_key(family: &str) -> &'static str {
-    match family {
+fn family_desc(family: &str) -> String {
+    let key = match family {
         "fade" => "settings-transitions-family-fade-desc",
         "wipe" => "settings-transitions-family-wipe-desc",
         "warp" => "settings-transitions-family-warp-desc",
         "break" => "settings-transitions-family-break-desc",
         "sand" => "settings-transitions-family-sand-desc",
-        _ => "settings-transitions-family-random-desc",
-    }
+        "random" => "settings-transitions-family-random-desc",
+        _ => return catalogue_family(family).map_or("", |(_, _, desc)| desc).to_string(),
+    };
+    tr(key).to_string()
+}
+
+fn catalogue_family(family: &str) -> Option<(&'static str, &'static str, &'static str)> {
+    SHADER_FAMILIES.iter().copied().find(|(key, _, _)| *key == family)
 }
 
 pub(super) fn pretty(shader: &str) -> String {
-    let mut out = String::with_capacity(shader.len());
-    for (idx, word) in shader.split('-').enumerate() {
-        if idx > 0 {
-            out.push(' ');
-        }
-        let mut chars = word.chars();
-        if let Some(first) = chars.next() {
-            out.extend(first.to_uppercase());
-            out.push_str(chars.as_str());
-        }
-    }
-    out
+    transitions::pretty(shader)
 }
 
 fn shader_scope_path(shader: &str) -> String {
@@ -89,13 +90,11 @@ pub(super) fn tab_transitions(builder: &mut Builder<'_>) {
         "fps",
     );
 
-    let family_opts: Vec<(String, String)> = SHADER_FAMILIES
-        .iter()
-        .map(|(key, _, _)| ((*key).to_string(), tr(family_label_key(key)).to_string()))
-        .collect();
+    let family_opts: Vec<(String, String)> =
+        SHADER_FAMILIES.iter().map(|(key, _, _)| ((*key).to_string(), family_label(key))).collect();
     builder.row(
         tr("settings-transitions-family-label"),
-        tr(family_desc_key(family)),
+        &family_desc(family),
         Control::Chips {
             path: String::from(SHADER_FAMILY_KEY),
             options: family_opts,
@@ -104,7 +103,26 @@ pub(super) fn tab_transitions(builder: &mut Builder<'_>) {
             background: None,
         },
     );
-    if family != "random" {
+    if family == "playlist" {
+        let count = transition_list(&cfg.text(keys::transition::PLAYLIST)).len();
+        builder.info(
+            "Playing in turns",
+            &format!(
+                "{count} transition(s) in the playlist. Change the list and the order under \"{}\" below.",
+                library::PLAYLIST_CARD
+            ),
+        );
+    } else if family == "combo" && current == "combo" {
+        builder.info(
+            "Playing a combination",
+            &format!(
+                "{}. Change it under \"{}\" below.",
+                transitions::label_of(&transition_combo_name(cfg)),
+                library::COMBO_CARD
+            ),
+        );
+    }
+    if !matches!(family, "random" | "playlist") {
         let options: Vec<(String, String)> = shaders_in_family(family)
             .into_iter()
             .map(|name| (name.to_string(), pretty(name)))
@@ -142,6 +160,9 @@ pub(super) fn tab_transitions(builder: &mut Builder<'_>) {
         );
         builder.row("", "", Control::Preview);
     }
+    library::tab_library(builder);
+    library::tab_playlist(builder);
+    library::tab_combo(builder);
 
     builder.card(tr("settings-transitions-sand-card"), tr("settings-transitions-sand-card-desc"));
     builder.text_field(

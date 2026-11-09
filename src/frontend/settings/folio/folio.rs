@@ -248,6 +248,8 @@ pub struct WorkbenchInput<'a> {
     pub folders: FoldersCtx<'a>,
     pub preview_path: &'a str,
     pub transition_preview: Option<iced::advanced::image::Handle>,
+    /// Custom build (M3): what the live preview plays, shown beside it.
+    pub transition_caption: (String, String),
     pub tab_transition: f32,
     pub tab: &'a str,
     pub selected_section: usize,
@@ -268,6 +270,7 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
         folders,
         preview_path,
         transition_preview,
+        transition_caption,
         tab_transition,
         tab,
         selected_section,
@@ -324,6 +327,7 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
             settings,
             page,
             transition_preview,
+            transition_caption,
             values: source.values,
             has_selected_preset,
             available_width: panel_width - index_width,
@@ -1302,6 +1306,7 @@ struct ReadingInput<'a> {
     settings: Vec<Row>,
     page: Option<Page<'a>>,
     transition_preview: Option<iced::advanced::image::Handle>,
+    transition_caption: (String, String),
     values: &'a HashMap<String, String>,
     has_selected_preset: bool,
     available_width: f32,
@@ -1358,6 +1363,46 @@ fn transition_preview_stage<'a>(
         .into()
 }
 
+/// Custom build (M3): a 16:9 live preview with the name and description of
+/// what it plays beside it.
+fn pinned_preview(
+    handle: Option<iced::advanced::image::Handle>,
+    (title, desc): (String, String),
+    width: f32,
+    scale: f32,
+    palette: &Palette,
+    fade: f32,
+) -> Element<'_, Message> {
+    let height = (width * 0.3).clamp(132.0 * scale, 216.0 * scale);
+    let stage_width = (height * 16.0 / 9.0).min(width);
+    let stage = container(transition_preview_stage(handle, stage_width, scale, palette, fade))
+        .width(Length::Fixed(stage_width))
+        .height(Length::Fixed(height))
+        .clip(true);
+    let caption = column![
+        label(title, 15.0, scale, with_alpha(palette.surface_text, fade)),
+        label(desc, TYPE_SMALL, scale, with_alpha(palette.surface_text, 0.62 * fade))
+            .line_height(iced::widget::text::LineHeight::Relative(1.38)),
+        label(
+            "▶ Preview on any transition below plays it here. Use makes it the one that plays.",
+            TYPE_SMALL,
+            scale,
+            with_alpha(palette.surface_text, 0.45 * fade),
+        )
+        .line_height(iced::widget::text::LineHeight::Relative(1.38)),
+    ]
+    .spacing(8.0 * scale)
+    .width(Length::Fill);
+    if width - stage_width < 220.0 * scale {
+        return column![stage, caption].spacing(10.0 * scale).into();
+    }
+    row![stage, caption].spacing(18.0 * scale).align_y(Alignment::Center).into()
+}
+
+/// Custom build (M3): id of the Settings reading pane's scrollable, so a
+/// picker command (`skwd-helm ui settings-scroll <px>`) can scroll it.
+pub const READING_PANE: &str = "folio.settings.reading";
+
 fn reading_columns(available_width: f32, scale: f32) -> (f32, f32, bool) {
     let content_width = (available_width - 76.0 * scale).max(1.0);
     let column_width = ((content_width - 34.0 * scale) * 0.5).max(1.0);
@@ -1371,6 +1416,7 @@ fn reading_surface<'a>(input: ReadingInput<'a>, focus: FocusCtx<'_>) -> Element<
         mut settings,
         page,
         transition_preview,
+        transition_caption,
         values,
         has_selected_preset,
         available_width,
@@ -1439,16 +1485,40 @@ fn reading_surface<'a>(input: ReadingInput<'a>, focus: FocusCtx<'_>) -> Element<
             motion,
         ),
     };
-    let mut page = column![header, controls].spacing(28.0 * scale);
     if has_transition_preview {
-        page = page.push(transition_preview_stage(
+        // Custom build (M3): the live preview stays pinned above the list, so
+        // ▶ Preview on any transition shows it right away.
+        let stage = pinned_preview(
             transition_preview,
+            transition_caption,
             content_width,
             scale,
             palette,
             fade,
-        ));
+        );
+        let top = container(column![header, stage].spacing(16.0 * scale))
+            .width(Length::Fill)
+            .padding(Padding {
+                top: 34.0 * scale,
+                right: 38.0 * scale,
+                bottom: 10.0 * scale,
+                left: 38.0 * scale,
+            });
+        let list = scrollable(container(controls).width(Length::Fill).padding(Padding {
+            top: 14.0 * scale,
+            right: 38.0 * scale,
+            bottom: 48.0 * scale,
+            left: 38.0 * scale,
+        }))
+        .direction(iced::widget::scrollable::Direction::Vertical(
+            iced::widget::scrollable::Scrollbar::hidden(),
+        ))
+        .id(crate::frontend::ui::pane_id(READING_PANE))
+        .width(Length::Fill)
+        .height(Length::Fill);
+        return column![top, list].width(Length::Fill).height(Length::Fill).into();
     }
+    let page = column![header, controls].spacing(28.0 * scale);
     scrollable(container(page).width(Length::Fill).padding(Padding {
         top: 34.0 * scale,
         right: 38.0 * scale,
@@ -1458,6 +1528,7 @@ fn reading_surface<'a>(input: ReadingInput<'a>, focus: FocusCtx<'_>) -> Element<
     .direction(iced::widget::scrollable::Direction::Vertical(
         iced::widget::scrollable::Scrollbar::hidden(),
     ))
+    .id(crate::frontend::ui::pane_id(READING_PANE))
     .width(Length::Fill)
     .height(Length::Fill)
     .into()

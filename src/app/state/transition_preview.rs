@@ -4,6 +4,9 @@ use crate::infrastructure::preview::{PREVIEW_H, PREVIEW_W, TransitionPreviewWork
 pub(crate) struct TransitionPreviewState {
     worker: TransitionPreviewWorker,
     pub(crate) handle: Option<iced::advanced::image::Handle>,
+    /// Custom build (M3): the transition ▶ Preview asked for (a key, "combo"
+    /// or a combination name); `None` previews the chosen transition.
+    pub(crate) focus: Option<String>,
 }
 
 impl TransitionPreviewState {

@@ -11,8 +11,7 @@ pub(crate) fn drive_transition_preview(app: &mut App) {
         app.panels.transition_preview.stop();
         return;
     }
-    let shader = app.config.str_path(skwd_config::keys::transition::SHADER);
-    let shader = if shader.is_empty() { String::from("random") } else { shader };
+    let shader = preview_shader(app);
     let fill_mode = app.config.str_path(skwd_config::keys::display::FILL_MODE);
     let fill_mode = if fill_mode.is_empty() { String::from("fill") } else { fill_mode };
     let base =
@@ -56,6 +55,34 @@ pub(crate) fn drive_transition_preview(app: &mut App) {
     if app.panels.transition_preview.take_frame() && first {
         app.invalidate_settings();
     }
+}
+
+/// Custom build (M3): the transition the live preview plays: the one ▶ Preview
+/// asked for, else the chosen one; "playlist" previews its first entry and
+/// "combo" the configured combination.
+pub(crate) fn preview_shader(app: &App) -> String {
+    let chosen = app.config.str_path(skwd_config::keys::transition::SHADER);
+    let name = app.panels.transition_preview.focus.clone().unwrap_or(chosen);
+    concrete_preview_shader(&app.config, &name)
+}
+
+pub(crate) fn concrete_preview_shader(
+    config: &crate::infrastructure::config::Config,
+    name: &str,
+) -> String {
+    let name = if name == "playlist" {
+        crate::frontend::settings::transition_list(
+            &config.str_path(skwd_config::keys::transition::PLAYLIST),
+        )
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| String::from("random"))
+    } else if name.is_empty() {
+        String::from("random")
+    } else {
+        name.to_string()
+    };
+    if name == "combo" { crate::frontend::settings::transition_combo_name(config) } else { name }
 }
 
 fn preview_sketch_ms(config: &crate::infrastructure::config::Config) -> u64 {

@@ -39,3 +39,27 @@ Rendered with the real renderer (`skwd-wall-vk --preview-stream`, software Vulka
   `m2-theme-designer`, `m2-effects-studio`, `m2-schedule`, `m2-tag-cloud` (Centre keeps it under
   the cards), `m2-downloads` (no internet in the cloud, so it shows a network error),
   `m2-audio-mixer`, `m2-scene-properties` (a made-up test scene).
+- **M3 transitions** (real renderer, `skwd-wall-vk --preview-stream`, software Vulkan; 9 frames per
+  row from 10 % to 90 %, old picture = plasma with "OLD", new picture = green with a sun and a
+  triangle):
+  - `m3-light.jpg`: the new *Light* family: light-leak, flashbulb, aurora, prism, god-rays,
+    neon-edges, sunrise.
+  - `m3-shapes.jpg`: the new *Shapes* family: diamonds, triangles, checkerboard, stripes,
+    halftone, spiral-tiles, shutter, kaleidoscope.
+  - `m3-warp-break.jpg`: liquid, lens, flag, tunnel, accordion (Warp); glass, paper-tear, crt,
+    datamosh (Break up).
+  - `m3-fade-wipe.jpg`: luma-fade, dream-blur, film-dissolve (Fade); clock-wipe, barn-doors,
+    curtain, wave-wipe (Wipe).
+  - `m3-combos.jpg`: every way to combine two: then (burn, then ripple from burn's frozen
+    half-way frame), blend, split left|right, top/bottom, diagonal, circle, checker, mask
+    (honeycomb's shape, burn's look), sweep, both-lighter, both-darker.
+- **M3 Settings** (Motion → Wallpaper transitions, screenshots of the real app at 1280x720):
+  - `m3-settings-families.jpg`: the pinned live preview with its caption, the new families
+    (Playlist, Combine two, Light, Shapes).
+  - `m3-settings-library-light.jpg`: the transition library filtered to *Light*: one row per
+    transition with ▶ Preview, Favourite, + Playlist, Use.
+  - `m3-settings-library-search.jpg`: the library searching for "tiles".
+  - `m3-settings-playlist.jpg`: *Play in turns*: order (in order / shuffled / random, no
+    repeats) and the list with Earlier / Later / Remove; the preview shows the first entry.
+  - `m3-settings-combo.jpg`, `m3-settings-combo2.jpg`: *Combine two*: family then transition for
+    each part, and how to combine them.

@@ -136,6 +136,32 @@ restarting, the installer goes back to the previous state by itself.
   - the **tag cloud** stays in its usual place under the cards when Position is Centre, and its
     own width setting (Settings → Picker → Tag panel), if you set one, wins over the window width.
 
+- **Transitions** (M3), all in Settings → Motion → Wallpaper transitions:
+  - **31 new transitions** and two new families. *Light*: light leak, flashbulb, aurora, prism,
+    god rays, neon edges, sunrise. *Shapes*: diamonds, triangles, checkerboard, stripes,
+    halftone, spiral tiles, camera shutter, kaleidoscope. Also liquid, lens, flag, tunnel,
+    accordion (Warp), glass, paper tear, CRT switch-off, datamosh (Break up), shadows-first
+    fade, dream blur, old-film dissolve (Fade), clock wipe, barn doors, curtain, wave (Wipe).
+    God rays, diamonds, shutter, lens, glass and clock wipe follow the transition start point.
+  - The **live preview stays at the top** of the page while you scroll, with the name and a
+    one-line description of what it plays.
+  - **Transition library**: every transition with a short description, a **search** box
+    (name or any word, e.g. "light", "tiles", "water") and filters (All, Favourites, In
+    playlist, or one family). Each row has **▶ Preview** (plays it in the preview without
+    choosing it), **Favourite**, **+ Playlist** and **Use**.
+  - **Play in turns** (family *Playlist*): one transition per wallpaper change, **in order**,
+    **shuffled** (each once per round) or **random, no repeats** (never one of the last few).
+    Move entries earlier/later, remove them, add all favourites, or clear the list. An empty
+    list plays Random.
+  - **Combine two** (family *Combine two*): pick two transitions and how they work together:
+    *one after the other* (the first stops half-way, that moment is frozen, the second finishes
+    from it), *blend*, *split screen* (left|right, top/bottom, diagonal, circle, checker),
+    *first is a mask* (the first gives the shape, the second the look), *sweep*, *both,
+    lighter wins*, *both, darker wins*. **Use** plays it; **+ Playlist** keeps it in the list
+    next to others (so the list can hold several different combinations). *Random Mix* (in
+    the library) combines two random transitions in a random way every time.
+  - All of it also works after the "sketch before transition".
+
 ### Important: use the full path for the custom programs
 
 The custom programs live in `~/.local/opt/skwd-custom/bin/`, which is not on your PATH. Typing

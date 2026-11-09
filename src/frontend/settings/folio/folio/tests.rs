@@ -146,7 +146,10 @@ fn preview_uses_full_stage() {
     assert_eq!(settings.len(), 1);
     assert!(matches!(settings[0].control, Control::Static));
     let source = include_str!("../folio.rs");
-    assert!(source.contains("page = page.push(transition_preview_stage("));
+    // Custom build (M3): the stage is pinned above the scrolling list.
+    assert!(source.contains("let stage = pinned_preview("));
+    assert!(source.contains("transition_preview_stage(handle, stage_width, scale, palette, fade)"));
+    assert!(source.contains("return column![top, list]"));
     assert!(!source.contains("if let Some(handle) = transition_preview {\n        image(handle)"));
 }
 

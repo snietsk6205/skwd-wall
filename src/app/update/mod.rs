@@ -19,6 +19,7 @@ pub(in crate::app) mod settings_background;
 mod settings_folders;
 pub(in crate::app) mod settings_policy;
 mod settings_profiles;
+mod settings_transitions;
 mod spatial_nav;
 mod tags;
 pub(crate) mod theme;
@@ -29,7 +30,7 @@ pub(crate) use bench::perf_json;
 pub use dispatcher::update;
 pub(crate) use dispatcher::update_inner;
 pub(crate) use effects::effects_do_preview;
-pub(crate) use lifecycle::drive_transition_preview;
+pub(crate) use lifecycle::{drive_transition_preview, preview_shader};
 #[cfg(test)]
 pub(super) use picker::delete_wallpaper;
 use ui_command::run_ui_command;

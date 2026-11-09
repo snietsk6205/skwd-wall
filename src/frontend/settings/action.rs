@@ -61,6 +61,26 @@ pub enum ActionId {
     ResetBarOrder,
     /// Custom build: show only the essential bar buttons (`true`) or all of them.
     BarPreset(bool),
+    /// Custom build (M3): play this transition (a key or a combination name)
+    /// in the live preview without choosing it.
+    PreviewTransition(String),
+    /// Custom build (M3): make this the transition that plays ("playlist" and
+    /// "combo" included).
+    UseTransition(String),
+    /// Custom build (M3): star a transition, or unstar it.
+    FavouriteTransition(&'static str),
+    /// Custom build (M3): add a transition (or a combination name) to the
+    /// playlist, or take it out.
+    PlaylistToggle(String),
+    /// Custom build (M3): playlist entry `index` in the live preview.
+    PlaylistPreview(usize),
+    /// Custom build (M3): move playlist entry `index` one place earlier (`true`) or later.
+    PlaylistMove(usize, bool),
+    PlaylistRemove(usize),
+    PlaylistClear,
+    PlaylistAddFavourites,
+    /// Custom build (M3): swap the first and second transition of the combination.
+    ComboSwap,
 }
 
 impl ActionId {

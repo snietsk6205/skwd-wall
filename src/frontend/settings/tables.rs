@@ -116,9 +116,9 @@ pub const SHADERS: [&str; transitions::TRANSITIONS.len()] = {
     }
     out
 };
-pub const SHADER_FAMILIES: [(&str, &str, &str); 6] = {
+pub const SHADER_FAMILIES: [(&str, &str, &str); transitions::FAMILIES.len()] = {
     use transitions::FAMILIES;
-    let mut out = [("", "", ""); 6];
+    let mut out = [("", "", ""); FAMILIES.len()];
     let mut i = 0;
     while i < FAMILIES.len() {
         out[i] = (FAMILIES[i].key(), FAMILIES[i].label(), FAMILIES[i].desc());
