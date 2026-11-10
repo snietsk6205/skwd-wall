@@ -31,18 +31,18 @@ pub(super) fn button_width(label: &str, scale: f32) -> f32 {
 
 /// One word that is a button (a choice, an action). R1b: no box; the chosen
 /// one gets a thin accent outline, the keyboard a ring.
-pub(super) fn fixed_button<'a>(
+pub(super) fn fixed_button(
     label: String,
     active: bool,
     destructive: bool,
     message: Option<Message>,
     focused: bool,
     scale: f32,
-    palette: &'a Palette,
+    palette: &Palette,
     fade: f32,
     width: f32,
     _motion: MotionProfile,
-) -> Element<'a, Message> {
+) -> Element<'_, Message> {
     let label = container(
         text(label)
             .font(crate::frontend::ui::TEXT_STRONG_FONT)
@@ -72,16 +72,17 @@ pub(super) fn fixed_button<'a>(
 
 /// A button that does something (not a choice): a thin outline that fills
 /// on hover; `strong` (asking to confirm) uses the accent.
-fn action_button<'a>(
+#[allow(clippy::too_many_arguments)]
+fn action_button(
     label: String,
     strong: bool,
     message: Message,
     focused: bool,
     scale: f32,
-    palette: &'a Palette,
+    palette: &Palette,
     fade: f32,
     width: f32,
-) -> Element<'a, Message> {
+) -> Element<'_, Message> {
     button(
         container(
             text(label)

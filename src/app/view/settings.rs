@@ -18,19 +18,18 @@ pub(super) fn settings_layer(app: &App) -> Element<'_, Message> {
         active_input: app.panels.settings.input_edit.as_ref().map(|edit| edit.key.as_str()),
         armed: app.panels.settings.armed.as_ref(),
     };
-    let mut chrome = settings::ChromeCtx {
+    // R1b: Settings has its own colours (neutral inks plus the theme's
+    // accent), the layout studio included.
+    let chrome = settings::ChromeCtx {
         viewport: app.scene.viewport,
         window: app.sheet_window(),
         rtl: crate::i18n::is_rtl(),
         entrance: app.panels.settings.entrance.x,
-        palette: &app.theme.palette,
+        palette: &app.panels.settings.nav.ink,
     };
     if settings::is_picker_layout_section(&app.panels.settings.tab, app.panels.settings.section) {
         return settings::picker_layout_workbench(&source, focus, chrome);
     }
-    // R1b: the Settings window has its own colours (neutral inks plus the
-    // theme's accent).
-    chrome.palette = &app.panels.settings.nav.ink;
     settings::settings_workbench(settings::WorkbenchInput {
         nav: nav_view(app),
         source,

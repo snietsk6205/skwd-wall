@@ -5,16 +5,15 @@
 use iced::widget::{
     button, column, container, image, mouse_area, scrollable, stack, text, text_input,
 };
-use iced::{Alignment, Background, Color, Element, Length, Padding};
+use iced::{Alignment, Color, Element, Length, Padding};
 
 use crate::app::Message;
 use crate::frontend::components::with_alpha;
 use crate::frontend::theme::Palette;
-use crate::frontend::ui::ghost_button_style as ghost;
 use crate::frontend::ui::text_button_style as quiet;
 use crate::frontend::ui::{
-    AnchorSide, DISPLAY_FONT, MONO_FONT, TEXT_FONT, TEXT_STRONG_FONT, anchored, label,
-    legible_type_scale, row, typed,
+    AnchorSide, DISPLAY_FONT, MONO_FONT, TEXT_FONT, TEXT_STRONG_FONT, anchored, legible_type_scale,
+    row, typed,
 };
 
 use super::super::nav::{self, GROUPS, ICON_BACK, PAGES, PaletteEntry, PaletteValue};
@@ -144,6 +143,7 @@ pub(super) fn rule(palette: &Palette, opacity: f32) -> Element<'_, Message> {
 /// quiet text on the right.
 pub(super) fn top_bar<'a>(
     nav: &NavView<'a>,
+    width: f32,
     scale: f32,
     palette: &'a Palette,
     fade: f32,
@@ -151,6 +151,8 @@ pub(super) fn top_bar<'a>(
 ) -> Element<'a, Message> {
     let current_group = nav.page.map_or(0, |page| PAGES[page].group);
     let bar_item = nav.bar_item;
+    // A narrow window: shorter names, no key hint, groups from the left.
+    let compact = width < 1000.0 * scale;
     let mut groups = row![].spacing(2.0 * scale).align_y(Alignment::Center);
     for (index, group) in GROUPS.iter().enumerate() {
         let active = index == current_group;
@@ -163,11 +165,23 @@ pub(super) fn top_bar<'a>(
         let message =
             if index == 0 { SettingsMsg::OpenHome } else { SettingsMsg::MenuClick(index) };
         let entry = button(
-            column![plain(group.label, MONO_FONT, 12.0, scale), underline]
-                .spacing(5.0 * scale)
-                .align_x(Alignment::Center),
+            column![
+                plain(
+                    if compact {
+                        group.label.split(" & ").next().unwrap_or(group.label)
+                    } else {
+                        group.label
+                    },
+                    MONO_FONT,
+                    12.0,
+                    scale
+                ),
+                underline
+            ]
+            .spacing(5.0 * scale)
+            .align_x(Alignment::Center),
         )
-        .padding([7.0 * scale, 11.0 * scale])
+        .padding([7.0 * scale, if compact { 7.0 } else { 11.0 } * scale])
         .on_press(Message::Settings(message))
         .style(move |_theme, status| quiet(palette, fade, active || open, focused, status));
         let entry: Element<'a, Message> = if index == 0 {
@@ -183,9 +197,12 @@ pub(super) fn top_bar<'a>(
     }
     let dim = with_alpha(palette.surface_text, 0.34 * fade);
     let search = button(
-        row![plain("Find", MONO_FONT, 11.5, scale), typed("Ctrl K", MONO_FONT, 10.0, scale, dim)]
-            .spacing(7.0 * scale)
-            .align_y(Alignment::Center),
+        row![
+            plain("Find", MONO_FONT, 11.5, scale),
+            typed(if compact { "" } else { "Ctrl K" }, MONO_FONT, 10.0, scale, dim)
+        ]
+        .spacing(if compact { 0.0 } else { 7.0 * scale })
+        .align_y(Alignment::Center),
     )
     .padding([6.0 * scale, 9.0 * scale])
     .on_press(Message::Settings(SettingsMsg::PaletteOpen))
@@ -199,15 +216,18 @@ pub(super) fn top_bar<'a>(
             with_alpha(palette.surface_text, if on { fade } else { 0.36 * fade }),
         )
     };
-    let view_switch = button(
+    let view_switch = button(if compact {
+        // Only the view in use; a click switches to the other one.
+        row![word(if nav.simple { "Simple" } else { "Advanced" }, true)]
+    } else {
         row![
             word("Simple", nav.simple),
             typed("/", MONO_FONT, 11.5, scale, dim),
             word("Advanced", !nav.simple)
         ]
         .spacing(6.0 * scale)
-        .align_y(Alignment::Center),
-    )
+        .align_y(Alignment::Center)
+    })
     .padding([6.0 * scale, 9.0 * scale])
     .on_press(Message::Settings(SettingsMsg::ToggleView))
     .style(move |_theme, status| quiet(palette, fade, false, bar_focused && bar_item == 6, status));
@@ -232,7 +252,12 @@ pub(super) fn top_bar<'a>(
     .width(Length::FillPortion(1))
     .align_x(crate::frontend::ui::end())
     .padding(Padding { right: 10.0 * scale, ..Padding::ZERO });
-    let left = container(text("")).width(Length::FillPortion(1));
+    // Wide: the groups sit in the middle. Narrow: they start at the left.
+    let left = container(text("")).width(if compact {
+        Length::Fixed(8.0 * scale)
+    } else {
+        Length::FillPortion(1)
+    });
     let content = row![left, container(groups).width(Length::Shrink), right]
         .align_y(Alignment::Center)
         .height(Length::Fixed(bar_height(scale)));
@@ -544,45 +569,46 @@ pub(super) fn page_frame<'a>(
         .into()
 }
 
-/// The command palette, over everything.
+/// The command palette, over everything: one quiet field and a list of
+/// results; values change in place.
 pub(super) fn palette_layer<'a>(
     view: &PaletteView<'a>,
     scale: f32,
     palette: &'a Palette,
     fade: f32,
 ) -> Element<'a, Message> {
-    let input = text_input("Find a setting, page, transition, layout or action…", view.query)
+    let input = text_input("Find a setting, page, transition, layout or action", view.query)
         .id(super::super::palette_input_id())
-        .font(crate::frontend::ui::UI_FONT)
+        .font(TEXT_FONT)
         .on_input(|value| Message::Settings(SettingsMsg::PaletteInput(value)))
         .on_submit(Message::Settings(SettingsMsg::PaletteSubmit))
-        .size(16.0 * legible_type_scale(scale))
+        .size(15.0 * legible_type_scale(scale))
         .padding([10.0 * scale, 12.0 * scale])
         .width(Length::Fill)
-        .style(move |_theme, _status| {
-            crate::frontend::ui::workbench_input_style(
-                with_alpha(palette.surface_text, fade),
-                with_alpha(palette.primary, fade),
-            )
-        });
+        .style(move |_theme, status| crate::frontend::ui::quiet_input_style(palette, fade, status));
     let mut list = column![].spacing(2.0 * scale);
     if view.empty_query {
-        list = list.push(label(
-            "Recent and suggested",
-            10.0,
-            scale,
-            with_alpha(palette.surface_text, 0.5 * fade),
-        ));
+        list = list.push(
+            container(typed(
+                "Recent and suggested",
+                MONO_FONT,
+                10.0,
+                scale,
+                with_alpha(palette.surface_text, 0.42 * fade),
+            ))
+            .padding([2.0 * scale, 10.0 * scale]),
+        );
     }
     if view.results.is_empty() {
         list = list.push(
-            container(label(
+            container(typed(
                 "Nothing found. Try fewer letters or another word.",
+                TEXT_FONT,
                 12.0,
                 scale,
                 with_alpha(palette.surface_text, 0.6 * fade),
             ))
-            .padding([14.0 * scale, 6.0 * scale]),
+            .padding([14.0 * scale, 10.0 * scale]),
         );
     }
     for (position, entry) in view.results.iter().enumerate() {
@@ -591,98 +617,73 @@ pub(super) fn palette_layer<'a>(
             PaletteValue::Toggle { value, .. } => {
                 let on = *value;
                 button(
-                    container(label(
-                        if on { "On" } else { "Off" },
-                        11.0,
-                        scale,
-                        with_alpha(
-                            if on { palette.primary_text } else { palette.surface_text },
-                            fade,
-                        ),
-                    ))
-                    .padding([3.0 * scale, 10.0 * scale])
-                    .style(move |_| {
-                        crate::frontend::ui::surface_style(
-                            with_alpha(
-                                if on { palette.primary } else { palette.surface_text },
-                                if on { 0.95 * fade } else { 0.12 * fade },
-                            ),
-                            999.0,
-                            (0.0, Color::TRANSPARENT),
-                            None,
-                        )
-                    }),
+                    text(if on { "On" } else { "Off" })
+                        .font(MONO_FONT)
+                        .size(10.5 * legible_type_scale(scale)),
                 )
-                .padding(0)
+                .padding([3.0 * scale, 9.0 * scale])
                 .on_press(Message::Settings(SettingsMsg::PaletteChange(position, None)))
-                .style(|_theme, _status| button::Style::default())
+                .style(move |_theme, status| {
+                    crate::frontend::ui::filter_button_style(palette, fade, on, status)
+                })
                 .into()
             }
             PaletteValue::Choice { options, current, .. } => {
-                let mut chips = row![].spacing(3.0 * scale);
+                let mut chips = row![].spacing(2.0 * scale).align_y(Alignment::Center);
                 for (key, text_) in options.iter().take(5) {
                     let on = key == current;
                     chips = chips.push(
-                        button(label(
-                            text_.clone(),
-                            10.5,
-                            scale,
-                            with_alpha(
-                                if on { palette.primary_text } else { palette.surface_text },
-                                fade,
-                            ),
-                        ))
+                        button(
+                            text(text_.clone())
+                                .font(MONO_FONT)
+                                .size(10.0 * legible_type_scale(scale)),
+                        )
                         .padding([3.0 * scale, 7.0 * scale])
                         .on_press(Message::Settings(SettingsMsg::PaletteChange(
                             position,
                             Some(key.clone()),
                         )))
                         .style(move |_theme, status| {
-                            let hovered = matches!(status, button::Status::Hovered);
-                            crate::frontend::ui::rounded_button_style(
-                                with_alpha(
-                                    if on { palette.primary } else { palette.surface_text },
-                                    if on {
-                                        0.95 * fade
-                                    } else if hovered {
-                                        0.16 * fade
-                                    } else {
-                                        0.07 * fade
-                                    },
-                                ),
-                                999.0,
-                                (0.0, Color::TRANSPARENT),
-                                Color::TRANSPARENT,
-                                None,
-                            )
+                            crate::frontend::ui::filter_button_style(palette, fade, on, status)
                         }),
                     );
                 }
                 if options.len() > 5 {
-                    chips = chips.push(label(
+                    chips = chips.push(typed(
                         format!("+{}", options.len() - 5),
+                        MONO_FONT,
                         10.0,
                         scale,
-                        with_alpha(palette.surface_text, 0.5 * fade),
+                        with_alpha(palette.surface_text, 0.42 * fade),
                     ));
                 }
                 chips.into()
             }
-            PaletteValue::None => {
-                label(entry.kind.label(), 9.5, scale, with_alpha(palette.surface_text, 0.45 * fade))
-                    .into()
-            }
+            PaletteValue::None => typed(
+                entry.kind.label(),
+                MONO_FONT,
+                9.5,
+                scale,
+                with_alpha(palette.surface_text, 0.38 * fade),
+            )
+            .into(),
         };
         let copy = column![
-            label(entry.title.clone(), 13.0, scale, with_alpha(palette.surface_text, fade)),
-            label(entry.crumb.clone(), 10.0, scale, with_alpha(palette.primary, 0.75 * fade)),
+            text(entry.title.clone()).font(TEXT_STRONG_FONT).size(13.0 * legible_type_scale(scale)),
+            typed(
+                entry.crumb.clone(),
+                MONO_FONT,
+                9.5,
+                scale,
+                with_alpha(palette.surface_text, 0.42 * fade)
+            ),
         ]
-        .spacing(1.0 * scale)
+        .spacing(2.0 * scale)
         .width(Length::Fill);
         let item = button(
             row![
-                container(icon(entry.icon, 15.0, scale, with_alpha(palette.primary, 0.9 * fade)))
-                    .width(Length::Fixed(24.0 * scale)),
+                container(icon(entry.icon, 14.0, scale, with_alpha(palette.primary, 0.9 * fade)))
+                    .width(Length::Fixed(22.0 * scale)),
                 copy,
                 value,
             ]
@@ -692,33 +693,31 @@ pub(super) fn palette_layer<'a>(
         .width(Length::Fill)
         .padding([7.0 * scale, 10.0 * scale])
         .on_press(Message::Settings(SettingsMsg::PaletteRun(position)))
-        .style(move |_theme, status| ghost(palette, fade, false, selected, status));
+        .style(move |_theme, status| quiet(palette, fade, selected, selected, status));
         list = list.push(
             mouse_area(item).on_enter(Message::Settings(SettingsMsg::PaletteHover(position))),
         );
     }
-    let hints = label(
-        "↑↓ choose · Tab change in place · Enter go there · Esc close",
+    let hints = typed(
+        "Arrow keys choose, Tab changes it here, Enter goes there, Esc closes",
+        MONO_FONT,
         9.5,
         scale,
-        with_alpha(palette.surface_text, 0.45 * fade),
+        with_alpha(palette.surface_text, 0.34 * fade),
     );
-    let card = container(column![input, list, hints].spacing(10.0 * scale))
-        .width(Length::Fixed(640.0 * scale))
-        .padding(12.0 * scale)
-        .style(move |_| {
-            crate::frontend::ui::surface_style(
-                with_alpha(palette.surface_container, fade),
-                16.0,
-                (1.0, with_alpha(palette.outline, 0.6 * fade)),
-                Some((with_alpha(Color::BLACK, 0.5 * fade), 20.0, 48.0)),
-            )
-        });
-    let scrim =
-        mouse_area(container(text("")).width(Length::Fill).height(Length::Fill).style(move |_| {
-            crate::frontend::ui::bg_style(Background::Color(with_alpha(Color::BLACK, 0.35 * fade)))
-        }))
-        .on_press(Message::Settings(SettingsMsg::PaletteClose));
+    let card = container(
+        column![input, list, container(hints).padding([0.0, 10.0 * scale])].spacing(10.0 * scale),
+    )
+    .width(Length::Fixed(640.0 * scale))
+    .padding(12.0 * scale)
+    .style(move |_| crate::frontend::ui::floating_panel_style(palette, fade));
+    let scrim = mouse_area(
+        container(text(""))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(move |_| crate::frontend::ui::ink_fill(palette.surface, 0.72 * fade)),
+    )
+    .on_press(Message::Settings(SettingsMsg::PaletteClose));
     stack![
         scrim,
         container(iced::widget::opaque(card))
@@ -729,7 +728,7 @@ pub(super) fn palette_layer<'a>(
     .into()
 }
 
-/// "Changed X to Y — Undo" at the bottom of the window.
+/// "Changed X to Y" with Undo, at the bottom of the window.
 pub(super) fn toast_layer(
     text_: String,
     can_undo: bool,
@@ -738,58 +737,47 @@ pub(super) fn toast_layer(
     fade: f32,
 ) -> Element<'_, Message> {
     let ease = crate::frontend::animation::smoothstep(fade.clamp(0.0, 1.0));
-    let mut content = row![
-        icon(nav::ICON_HISTORY, 14.0, scale, with_alpha(palette.primary, ease)),
-        label(text_, 12.0, scale, with_alpha(palette.surface_text, ease)),
-    ]
-    .spacing(9.0 * scale)
-    .align_y(Alignment::Center);
+    let mut content =
+        row![typed(text_, TEXT_FONT, 12.0, scale, with_alpha(palette.surface_text, ease))]
+            .spacing(12.0 * scale)
+            .align_y(Alignment::Center);
     if can_undo {
         content = content.push(
             button(
                 row![
-                    icon(nav::ICON_UNDO, 13.0, scale, with_alpha(palette.primary_text, ease)),
-                    label("Undo", 12.0, scale, with_alpha(palette.primary_text, ease)),
-                    label("Ctrl Z", 9.0, scale, with_alpha(palette.primary_text, 0.7 * ease)),
+                    text("Undo").font(MONO_FONT).size(10.5 * legible_type_scale(scale)),
+                    typed(
+                        "Ctrl Z",
+                        MONO_FONT,
+                        9.5,
+                        scale,
+                        with_alpha(palette.primary_text, 0.6 * ease)
+                    ),
                 ]
-                .spacing(5.0 * scale)
+                .spacing(7.0 * scale)
                 .align_y(Alignment::Center),
             )
-            .padding([5.0 * scale, 10.0 * scale])
+            .padding([4.0 * scale, 9.0 * scale])
             .on_press(Message::Settings(SettingsMsg::Undo))
             .style(move |_theme, status| {
-                let hovered = matches!(status, button::Status::Hovered);
-                crate::frontend::ui::rounded_button_style(
-                    with_alpha(palette.primary, if hovered { ease } else { 0.88 * ease }),
-                    999.0,
-                    (0.0, Color::TRANSPARENT),
-                    Color::TRANSPARENT,
-                    None,
-                )
+                crate::frontend::ui::tile_action_style(palette, ease, true, false, status)
             }),
         );
     }
-    let pill = container(content)
+    let note = container(content)
         .padding(Padding {
             top: 7.0 * scale,
             right: 8.0 * scale,
             bottom: 7.0 * scale,
-            left: 14.0 * scale,
+            left: 13.0 * scale,
         })
-        .style(move |_| {
-            crate::frontend::ui::surface_style(
-                with_alpha(palette.surface_container, ease),
-                999.0,
-                (1.0, with_alpha(palette.outline, 0.6 * ease)),
-                Some((with_alpha(Color::BLACK, 0.4 * ease), 8.0, 24.0)),
-            )
-        });
-    container(iced::widget::opaque(pill))
+        .style(move |_| crate::frontend::ui::floating_panel_style(palette, ease));
+    container(iced::widget::opaque(note))
         .width(Length::Fill)
         .height(Length::Fill)
         .align_x(Alignment::Center)
         .align_y(Alignment::End)
-        .padding(Padding { bottom: 18.0 * scale + 10.0 * (1.0 - ease) * scale, ..Padding::ZERO })
+        .padding(Padding { bottom: 18.0 * scale + 8.0 * (1.0 - ease) * scale, ..Padding::ZERO })
         .into()
 }
 

@@ -238,14 +238,28 @@ pub(super) fn tab_playlist(builder: &mut Builder<'_>) {
     for (index, entry) in playlist.iter().enumerate() {
         let spec = transitions::spec(entry);
         let desc = spec.map_or("A combination of two transitions.", |spec| spec.desc);
-        builder.action_chips(
-            &format!("{}. {}", index + 1, transitions::label_of(entry)),
+        builder.tile(
+            &transitions::label_of(entry),
             desc,
+            super::Tile {
+                picture: entry.clone(),
+                tags: vec![(
+                    if index == 0 {
+                        String::from("Plays first")
+                    } else {
+                        format!("Turn {}", index + 1)
+                    },
+                    false,
+                )],
+                plus: None,
+                primary: 0,
+                active: false,
+            },
             &[
-                (ActionId::PlaylistPreview(index), "▶ Preview"),
-                (ActionId::PlaylistMove(index, true), "◀ Earlier"),
-                (ActionId::PlaylistMove(index, false), "Later ▶"),
-                (ActionId::PlaylistRemove(index), "× Remove"),
+                (ActionId::PlaylistPreview(index), "Preview big"),
+                (ActionId::PlaylistMove(index, true), "Earlier"),
+                (ActionId::PlaylistMove(index, false), "Later"),
+                (ActionId::PlaylistRemove(index), "Remove"),
             ],
         );
     }

@@ -6,7 +6,6 @@ mod folio;
 mod gallery;
 mod layout;
 mod overlay;
-mod r1_style;
 mod sheet;
 mod style;
 mod typography;
@@ -18,6 +17,8 @@ pub use dir::{Flow, end, logical_padding, mirror_x, mirror_x_for, rtl, start, st
 pub use dir::{end_for, logical_padding_for, ordered};
 pub use fade_frame::FadeFrame;
 pub use feedback::Spinner;
+#[cfg(test)]
+pub(crate) use folio::folio_diagonal_edges;
 pub use folio::{
     BUTTON_HEIGHT as FOLIO_BUTTON_HEIGHT, EYE_CLOSED, FOLIO_INDEX_WIDTH, TWISTY_CLOSED,
     TWISTY_OPEN, diamond, folio_action, folio_action_bar, folio_action_width,
@@ -25,7 +26,6 @@ pub use folio::{
     folio_ghost_field, folio_index_shell, folio_index_shell_tinted, folio_inline_bar,
     folio_masthead, folio_scrim_style, folio_sheet, folio_sheet_panel_style, folio_stack_bar,
 };
-pub(crate) use folio::{folio_diagonal_edges, folio_diagonal_wipe};
 #[cfg(test)]
 pub use gallery::accent_on_ink;
 pub use gallery::{
@@ -42,9 +42,6 @@ pub use layout::{
     hud, wrap_rows,
 };
 pub use overlay::{field_input, inert_backdrop};
-pub use r1_style::{
-    focus_row_style, ghost_button_style, rounded_button_style, soft_button_style, surface_style,
-};
 pub use sheet::{SheetPosition, SheetWindow};
 pub use style::{
     bg_style, box_style, flat_button_style, folio_button_style, folio_line_button_style,

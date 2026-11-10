@@ -264,6 +264,7 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
     let (panel_width, panel_height) = sheet.dims(viewport);
     let bar = super::shell::top_bar(
         &nav,
+        panel_width,
         scale,
         palette,
         reveal,

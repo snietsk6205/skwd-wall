@@ -201,7 +201,7 @@ fn cursor_panel<'a>(cursor: CursorView<'a>, ctx: TileCtx<'a>) -> Element<'a, Mes
         container(text(""))
             .width(Length::Fill)
             .height(Length::Fill)
-            .style(move |_| { crate::frontend::ui::ink_fill(palette.surface, 0.62 * fade) }),
+            .style(move |_| { crate::frontend::ui::ink_fill(palette.surface, 0.8 * fade) }),
         container(body).padding(9.0 * scale),
     ])
     .width(Length::Fixed(panel_width))

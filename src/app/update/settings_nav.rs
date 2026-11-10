@@ -377,6 +377,7 @@ fn key_inner(app: &mut App, key: SettingsKey) -> Option<Task<Message>> {
             {
                 tile_key(app, key)
             }
+            SettingsKey::FocusNext { backwards } if on_tile(app) => tile_tab(app, backwards),
             SettingsKey::Previous | SettingsKey::Next | SettingsKey::Up | SettingsKey::Down
                 if app.panels.settings.focused_choice.is_some() && on_gallery(app) =>
             {
@@ -1273,7 +1274,12 @@ pub(crate) fn scroll_to_focus(app: &App) -> Task<Message> {
         );
     }
     let rows = page.len();
-    let share = if rows < 2 || app.panels.settings.focus != SettingsFocus::Controls {
+    let first = page.iter().position(|row| row.control.is_focusable());
+    let share = if rows < 2
+        || app.panels.settings.focus != SettingsFocus::Controls
+        || Some(app.panels.settings.focused_control) == first
+    {
+        // On the page's first row the page starts at its very top.
         0.0
     } else {
         app.panels.settings.focused_control as f32 / (rows - 1) as f32
@@ -1346,6 +1352,26 @@ fn gallery_key(app: &mut App, key: SettingsKey) -> Option<Task<Message>> {
         SettingsKey::Down => (choice + columns < count).then_some(choice + columns),
         _ => return None,
     };
+    app.retick();
+    Some(scroll_to_focus(app))
+}
+
+/// Tab on a card leaves the whole grid (the arrows walk its cards): on to
+/// the first row after it, or back to the last row before it.
+fn tile_tab(app: &mut App, backwards: bool) -> Option<Task<Message>> {
+    let rows = page_rows(app);
+    let index = app.panels.settings.focused_control;
+    let is_tile =
+        |row: usize| rows.get(row).is_some_and(|row| matches!(row.control, Control::Tile { .. }));
+    let start = (0..=index).rev().take_while(|row| is_tile(*row)).last().unwrap_or(index);
+    let end = (index..rows.len()).take_while(|row| is_tile(*row)).last().unwrap_or(index) + 1;
+    let target = if backwards {
+        (0..start).rev().find(|row| rows[*row].control.is_focusable())?
+    } else {
+        (end..rows.len()).find(|row| rows[*row].control.is_focusable())?
+    };
+    app.panels.settings.focused_control = target;
+    app.panels.settings.focused_choice = None;
     app.retick();
     Some(scroll_to_focus(app))
 }

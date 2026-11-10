@@ -20,9 +20,13 @@ const FRAME_MS: u64 = 85;
 /// Rest on the last frame before the strip starts again.
 const HOLD_MS: u64 = 520;
 
-/// Whether cards may play (they show their middle frame otherwise).
+/// Whether cards may play (they show a still frame otherwise): not in
+/// Low-power mode, with Battery saver, with the window's animations off, or
+/// with transition previews turned off.
 pub(crate) fn motion_allowed(app: &App) -> bool {
-    !super::settings_nav::still(app) && !app.config.battery_saver_active()
+    !super::settings_nav::still(app)
+        && !app.config.battery_saver_active()
+        && app.config.flag_default_true(skwd_config::keys::transition::PREVIEW)
 }
 
 /// Whether the background renderer may work now.
@@ -205,7 +209,7 @@ fn sync_cursor(app: &mut App) {
         && app.panels.settings.nav.big_preview.is_none()
         && app.panels.settings.nav.palette.is_none()
         && app.panels.settings.nav.menu.is_none())
-    .then(|| app.panels.settings.nav.tile_hover)
+    .then_some(app.panels.settings.nav.tile_hover)
     .flatten()
     .and_then(|tile| strip_of(app, tile).map(|name| (tile, name)))
     .filter(|(_, name)| !name.starts_with(crate::frontend::settings::nav::SKETCH_STRIP_PREFIX));
@@ -219,27 +223,24 @@ fn sync_cursor(app: &mut App) {
     if current == wanted {
         return;
     }
-    match wanted {
-        Some(((row, option), shader)) => {
-            if app.panels.transition_preview.focus.as_deref() != Some(shader.as_str()) {
-                app.panels.transition_preview.stop();
-            }
-            app.panels.transition_preview.focus = Some(shader.clone());
-            app.panels.settings.nav.cursor_preview = Some(crate::app::state::CursorPreview {
-                row,
-                option,
-                title: crate::contracts::settings::transitions::label_of(&shader),
-                shader,
-                x: app.panels.settings.nav.cursor_x,
-                target_x: app.panels.settings.nav.cursor_x,
-            });
+    if let Some(((row, option), shader)) = wanted {
+        if app.panels.transition_preview.focus.as_deref() != Some(shader.as_str()) {
+            app.panels.transition_preview.stop();
         }
-        None => {
-            app.panels.settings.nav.cursor_preview = None;
-            if app.panels.settings.nav.big_preview.is_none() {
-                app.panels.transition_preview.focus = None;
-                app.panels.transition_preview.stop();
-            }
+        app.panels.transition_preview.focus = Some(shader.clone());
+        app.panels.settings.nav.cursor_preview = Some(crate::app::state::CursorPreview {
+            row,
+            option,
+            title: crate::contracts::settings::transitions::label_of(&shader),
+            shader,
+            x: app.panels.settings.nav.cursor_x,
+            target_x: app.panels.settings.nav.cursor_x,
+        });
+    } else {
+        app.panels.settings.nav.cursor_preview = None;
+        if app.panels.settings.nav.big_preview.is_none() {
+            app.panels.transition_preview.focus = None;
+            app.panels.transition_preview.stop();
         }
     }
     app.retick();

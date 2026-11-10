@@ -523,7 +523,7 @@ pub fn plain_row_style(palette: &Palette, fade: f32, focused: bool) -> container
     container::Style {
         background: Some(Background::Color(alpha(
             palette.primary,
-            if focused { 0.012 * fade } else { 0.0 },
+            if focused { 0.006 * fade } else { 0.0 },
         ))),
         border: Border {
             radius: (3.0).into(),

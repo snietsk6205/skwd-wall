@@ -57,7 +57,5 @@ pub const ICON_CLOSE: &str = "\u{f0156}";
 pub const ICON_CHECK: &str = "\u{f012c}";
 pub const ICON_PLAY: &str = "\u{f040a}";
 pub const ICON_PAUSE_SMALL: &str = "\u{f03e4}";
-pub const ICON_UNDO: &str = "\u{f054c}";
 pub const ICON_RESET: &str = "\u{f099b}";
-pub const ICON_HISTORY: &str = "\u{f02da}";
 pub const ICON_ACTION: &str = "\u{f140c}";

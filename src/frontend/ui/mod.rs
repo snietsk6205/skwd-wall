@@ -35,10 +35,9 @@ pub use color::{
 pub use help::{HelpIntent, help_overlay};
 #[cfg(test)]
 pub use misc::MIN_VIEWPORT;
-pub use misc::{
-    AnchorSide, anchored, focus_row_style, ghost_button_style, rounded_button_style,
-    soft_button_style, surface_style,
-};
+#[cfg(test)]
+pub(crate) use misc::folio_diagonal_edges;
+pub use misc::{AnchorSide, anchored};
 pub use misc::{
     DISPLAY_FONT, INK, MONO_FONT, TEXT_FONT, TEXT_STRONG_FONT, choice_button_style,
     filter_button_style, floating_panel_style, grid_pattern, hairline_style, ink_fill, ink_palette,
@@ -58,9 +57,7 @@ pub use misc::{
     label, legible_type_scale, logical_padding, mid_text, mirror_x, mirror_x_for, panel_style, rtl,
     scrim_style, start, start_for, workbench_input_style, wrap_rows,
 };
-pub(crate) use misc::{
-    FOLIO_RULE_THICKNESS, ellipsize_text, folio_diagonal_edges, folio_diagonal_wipe, row,
-};
+pub(crate) use misc::{FOLIO_RULE_THICKNESS, ellipsize_text, row};
 pub use pane::{PANE_WHEEL_STEP, pane_id, scroll_style, smooth_pane, thin_hbar, thin_vbar};
 pub use slider::folio_slider;
 pub use theme_bar::{THEME_BACKENDS, ThemeBar, backend_menu_options};

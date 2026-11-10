@@ -81,8 +81,17 @@ fn playlist_rows_follow_the_list() {
     let built = cards(&cfg);
     let (_, rows) = built.iter().find(|(card, _)| card.title == PLAYLIST_CARD).unwrap();
     let names = titles(rows);
-    assert!(names.contains(&String::from("1. Burn")), "{names:?}");
-    assert!(names.contains(&String::from("2. Iris then Glitch")), "{names:?}");
+    // R1b: one card per entry, in the list's order, with its turn as a tag.
+    assert!(names.contains(&String::from("Burn")), "{names:?}");
+    assert!(names.contains(&String::from("Iris then Glitch")), "{names:?}");
+    let turns: Vec<String> = rows
+        .iter()
+        .filter_map(|row| match &row.control {
+            Control::Tile { tile, .. } => tile.tags.first().map(|(tag, _)| tag.clone()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(turns, ["Plays first", "Turn 2"]);
     assert!(names.contains(&String::from("Use the playlist")));
     let order = rows.iter().find_map(|row| match &row.control {
         Control::Chips { path, current, .. } if path == keys::transition::PLAYLIST_ORDER => {

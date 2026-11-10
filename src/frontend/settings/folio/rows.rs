@@ -5,21 +5,17 @@
 
 use std::collections::{HashMap, HashSet};
 
-use iced::widget::{button, column, container, image, mouse_area, text};
-use iced::{Alignment, Color, Element, Length, Padding};
+use iced::widget::{button, column, container, mouse_area, text};
+use iced::{Alignment, Element, Length, Padding};
 
 use crate::app::Message;
 use crate::contracts::settings::{SettingsSource, schema};
 use crate::frontend::animation::MotionProfile;
 use crate::frontend::components::with_alpha;
 use crate::frontend::theme::Palette;
-use crate::frontend::ui::soft_button_style as reset_style;
-use crate::frontend::ui::{
-    AnchorSide, TEXT_FONT, TEXT_STRONG_FONT, TYPE_SMALL, anchored, label, legible_type_scale, row,
-    typed,
-};
+use crate::frontend::ui::{TEXT_FONT, TEXT_STRONG_FONT, label, legible_type_scale, row, typed};
 
-use super::super::nav::{self, ICON_CLOSE, ICON_RESET};
+use super::super::nav::{self, ICON_RESET};
 use super::super::{Control, Row, SettingsFocus, SettingsMsg};
 use super::folio::FocusCtx;
 
@@ -193,7 +189,6 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
         .map(|row| format!("{}: {}", row.title, row.desc));
     let row_width = width.min(ROW_MAX_WIDTH * scale);
     let mut run: Vec<super::cards::TileItem> = Vec::new();
-    let mut numbered = 1usize;
     let mut search: Option<(usize, (String, &'static str))> = None;
     if rows.is_empty() {
         return label(
@@ -214,12 +209,7 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
             continue;
         }
         if !run.is_empty() {
-            let count = run.len();
-            list = list.push(super::cards::tile_grid(
-                std::mem::take(&mut run),
-                super::cards::TileCtx { first_number: numbered, ..tile_ctx },
-            ));
-            numbered += count;
+            list = list.push(super::cards::tile_grid(std::mem::take(&mut run), tile_ctx));
         }
         if let Some(field) = toolbar_search(&setting.control) {
             search = Some((index, field));
@@ -306,10 +296,7 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
         list = list.push(container(item).width(Length::Fixed(width)));
     }
     if !run.is_empty() {
-        list = list.push(super::cards::tile_grid(
-            run,
-            super::cards::TileCtx { first_number: numbered, ..tile_ctx },
-        ));
+        list = list.push(super::cards::tile_grid(run, tile_ctx));
     }
     list.into()
 }

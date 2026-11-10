@@ -269,7 +269,9 @@ fn lone_preview_ticks_slow() {
     assert_eq!(app.tick_interval(), app.config.transition_preview_interval());
     assert!(app.tick_interval() > full);
 
-    app.config.set_key(skwd_config::keys::transition::PREVIEW, json!(false));
+    // R1b: the live preview only runs while the big preview (or the one
+    // that follows the cursor) is open.
+    app.panels.settings.nav.big_preview = None;
     assert!(!app.wants_transition_preview());
     assert_eq!(app.tick_interval(), full);
 }
