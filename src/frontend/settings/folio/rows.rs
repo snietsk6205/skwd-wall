@@ -15,7 +15,10 @@ use crate::frontend::components::with_alpha;
 use crate::frontend::theme::Palette;
 use crate::frontend::ui::focus_row_style as row_style;
 use crate::frontend::ui::soft_button_style as reset_style;
-use crate::frontend::ui::{AnchorSide, TYPE_SMALL, anchored, label, legible_type_scale, row};
+use crate::frontend::ui::{
+    AnchorSide, TEXT_FONT, TEXT_STRONG_FONT, TYPE_SMALL, anchored, label, legible_type_scale, row,
+    typed,
+};
 
 use super::super::nav::{self, ICON_CLOSE, ICON_RESET};
 use super::super::{Control, Row, SettingsFocus, SettingsMsg};
@@ -45,6 +48,37 @@ pub(super) struct RowsInput<'a> {
     pub more: &'a HashSet<String>,
     pub bubble: Option<BubbleView>,
     pub playlist: String,
+    /// R1b: what the cards show (pictures, the lit card).
+    pub pictures: &'a HashMap<String, iced::advanced::image::Handle>,
+    pub playing: Option<(&'a str, &'a iced::advanced::image::Handle)>,
+    pub tile_hover: Option<usize>,
+    pub tile_fade: f32,
+}
+
+/// Rows next to a card grid stay a comfortable reading width.
+const ROW_MAX_WIDTH: f32 = 800.0;
+
+/// The search field and the filter of a card grid (drawn as one line).
+fn toolbar_search(control: &Control) -> Option<(String, &'static str)> {
+    match control {
+        Control::TextField { key, placeholder, .. }
+            if key == crate::contracts::settings::keys::transition::LIBRARY_SEARCH =>
+        {
+            Some((key.clone(), *placeholder))
+        }
+        _ => None,
+    }
+}
+
+fn toolbar_filter(control: &Control) -> Option<(String, Vec<(String, String)>, String)> {
+    match control {
+        Control::Chips { path, options, current, .. }
+            if path == crate::contracts::settings::keys::transition::LIBRARY_FILTER =>
+        {
+            Some((path.clone(), options.clone(), current.clone()))
+        }
+        _ => None,
+    }
 }
 
 /// Whether `control` shows a value that differs from the schema default.
@@ -133,7 +167,36 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
         more,
         bubble,
         playlist,
+        pictures,
+        playing,
+        tile_hover,
+        tile_fade,
     } = input;
+    let keyboard_row =
+        (focus.keyboard_focus == SettingsFocus::Controls).then_some(focus.focused_control);
+    let tile_ctx = super::cards::TileCtx {
+        palette,
+        scale,
+        fade,
+        width,
+        pictures,
+        playing,
+        hover: tile_hover,
+        hover_fade: tile_fade,
+        focus: keyboard_row,
+        choice: focus.focused_choice,
+        first_number: 1,
+    };
+    let card_count = rows.iter().filter(|row| matches!(row.control, Control::Tile { .. })).count();
+    let lit_note = tile_hover
+        .or(keyboard_row)
+        .and_then(|index| rows.get(index))
+        .filter(|row| matches!(row.control, Control::Tile { .. }))
+        .map(|row| format!("{}: {}", row.title, row.desc));
+    let row_width = width.min(ROW_MAX_WIDTH * scale);
+    let mut run: Vec<super::cards::TileItem> = Vec::new();
+    let mut numbered = 1usize;
+    let mut search: Option<(usize, (String, &'static str))> = None;
     if rows.is_empty() {
         return label(
             crate::i18n::tr("settings-section-empty"),
@@ -146,6 +209,58 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
     let mut list = column![].spacing(2.0 * scale).width(Length::Fill);
     for (index, setting) in rows.into_iter().enumerate() {
         if matches!(setting.control, Control::Preview) {
+            continue;
+        }
+        if matches!(setting.control, Control::Tile { .. }) {
+            run.extend(super::cards::TileItem::from_row(index, setting));
+            continue;
+        }
+        if !run.is_empty() {
+            let count = run.len();
+            list = list.push(super::cards::tile_grid(
+                std::mem::take(&mut run),
+                super::cards::TileCtx { first_number: numbered, ..tile_ctx },
+            ));
+            numbered += count;
+        }
+        if let Some(field) = toolbar_search(&setting.control) {
+            search = Some((index, field));
+            continue;
+        }
+        if let Some(filter) = toolbar_filter(&setting.control) {
+            let found = search.take();
+            let note = lit_note
+                .clone()
+                .unwrap_or_else(|| format!("{card_count} shown. Point at a card to see it play."));
+            list = list.push(
+                container(super::cards::toolbar(
+                    super::cards::Toolbar {
+                        search_focus: found.as_ref().map(|(row, _)| *row) == keyboard_row
+                            && keyboard_row.is_some(),
+                        search: found.map(|(_, field)| field),
+                        values,
+                        filter: Some(filter),
+                        filter_focus: (keyboard_row == Some(index)).then_some(focus.focused_choice),
+                        note,
+                    },
+                    tile_ctx,
+                ))
+                .padding(Padding {
+                    top: 2.0 * scale,
+                    bottom: 6.0 * scale,
+                    ..Padding::ZERO
+                }),
+            );
+            continue;
+        }
+        let width = row_width;
+        if matches!(setting.control, Control::Segment) {
+            // The first heading of a page of cards says what the page title
+            // already says.
+            if index == 0 && card_count > 0 {
+                continue;
+            }
+            list = list.push(segment_heading(setting, index == 0, width, scale, palette, fade));
             continue;
         }
         let target = nav::bubble_target(&setting, &playlist);
@@ -164,7 +279,7 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
                 motion,
             ))
             .padding(Padding { top: top_pad * scale, bottom: 8.0 * scale, ..Padding::ZERO })
-            .width(Length::Fill)
+            .width(Length::Fixed(width))
             .into()
         } else {
             line(
@@ -197,9 +312,55 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
             }
             None => item,
         };
-        list = list.push(item);
+        list = list.push(container(item).width(Length::Fixed(width)));
+    }
+    if !run.is_empty() {
+        list = list.push(super::cards::tile_grid(
+            run,
+            super::cards::TileCtx { first_number: numbered, ..tile_ctx },
+        ));
     }
     list.into()
+}
+
+/// A small heading over a group of rows: its name and one sentence.
+fn segment_heading<'a>(
+    setting: Row,
+    first: bool,
+    width: f32,
+    scale: f32,
+    palette: &'a Palette,
+    fade: f32,
+) -> Element<'a, Message> {
+    let mut copy = column![typed(
+        setting.title,
+        TEXT_STRONG_FONT,
+        15.0,
+        scale,
+        with_alpha(palette.surface_text, fade)
+    )]
+    .spacing(4.0 * scale);
+    if !setting.desc.trim().is_empty() {
+        copy = copy.push(
+            typed(
+                setting.desc,
+                TEXT_FONT,
+                11.5,
+                scale,
+                with_alpha(palette.surface_text, 0.52 * fade),
+            )
+            .line_height(iced::widget::text::LineHeight::Relative(1.4))
+            .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+        );
+    }
+    container(copy)
+        .width(Length::Fixed(width))
+        .padding(Padding {
+            top: if first { 0.0 } else { 30.0 * scale },
+            bottom: 8.0 * scale,
+            ..Padding::ZERO
+        })
+        .into()
 }
 
 #[allow(clippy::too_many_arguments)]

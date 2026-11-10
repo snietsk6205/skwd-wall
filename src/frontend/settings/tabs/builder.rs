@@ -505,21 +505,26 @@ fn compose_motion(cfg: &dyn SettingsSource) -> Vec<(Card, Vec<Row>)> {
         picker_motion,
     );
 
-    let mut wallpaper_transitions =
-        take_card(&mut transitions, tr("settings-transitions-transitions-card"));
-    wallpaper_transitions
-        .extend(take_card(&mut transitions, tr("settings-transitions-preview-card")));
-    // Custom build (M3): library, playlist and combination cards share the
-    // section so the live preview stays in view.
-    let custom: Vec<(Card, Vec<Row>)> =
-        [super::LIBRARY_CARD, super::PLAYLIST_CARD, super::COMBO_CARD]
-            .iter()
-            .filter_map(|title| {
-                let index = transitions.iter().position(|(card, _)| card.title == *title)?;
-                Some(transitions.remove(index))
-            })
-            .collect();
-    wallpaper_transitions.extend(segmented_rows(custom));
+    let mut basics = take_card(&mut transitions, tr("settings-transitions-transitions-card"));
+    basics.extend(take_card(&mut transitions, tr("settings-transitions-preview-card")));
+    // Custom build (M3, R1b): one page. The library's cards come first, then
+    // how transitions play, then the playlist and the combination.
+    let mut custom = |title: &str| {
+        let index = transitions.iter().position(|(card, _)| card.title == title)?;
+        Some(transitions.remove(index))
+    };
+    let mut parts: Vec<(Card, Vec<Row>)> = Vec::new();
+    parts.extend(custom(super::LIBRARY_CARD));
+    parts.push((
+        Card {
+            title: super::transition_library::BASICS_CARD,
+            subtitle: "Whether a transition plays at all, which one, and how long it takes.",
+        },
+        basics,
+    ));
+    parts.extend(custom(super::PLAYLIST_CARD));
+    parts.extend(custom(super::COMBO_CARD));
+    let wallpaper_transitions = segmented_rows(parts);
     section(
         &mut out,
         tr("settings-section-wallpaper-transitions"),

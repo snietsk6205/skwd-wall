@@ -192,7 +192,7 @@ fn options_text(control: &Control) -> String {
         Control::Chips { options, .. } | Control::Dropdown { options, .. } => {
             options.iter().map(|(_, label)| label.as_str()).collect::<Vec<_>>().join(" ")
         }
-        Control::ActionChips { items } => {
+        Control::ActionChips { items } | Control::Tile { items, .. } => {
             items.iter().map(|(_, label)| label.as_str()).collect::<Vec<_>>().join(" ")
         }
         Control::ActionBtn { label, .. } => label.clone(),

@@ -28,8 +28,8 @@ pub(crate) use settings::{
     FolderUndo, KeybindCapture, SddmRollback, SettingsInputEdit, SettingsState, WeatherRefresh,
 };
 pub(crate) use settings_nav::{
-    Bubble, MENU_CLOSE_MS, PaletteState, SettingLabel, SettingsNav, TOAST_SECONDS, UNDO_STEPS,
-    UndoEntry, UndoToast,
+    Bubble, MENU_CLOSE_MS, PaletteState, PlayingStrip, SettingLabel, SettingsNav, TOAST_SECONDS,
+    UNDO_STEPS, UndoEntry, UndoToast,
 };
 pub(crate) use source_browser::SourceBrowserState;
 pub(crate) use tags::{SearchMode, TagState};

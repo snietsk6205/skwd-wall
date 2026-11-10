@@ -3,6 +3,7 @@ mod dir;
 mod fade_frame;
 mod feedback;
 mod folio;
+mod gallery;
 mod layout;
 mod overlay;
 mod r1_style;
@@ -25,6 +26,11 @@ pub use folio::{
     folio_masthead, folio_scrim_style, folio_sheet, folio_sheet_panel_style, folio_stack_bar,
 };
 pub(crate) use folio::{folio_diagonal_edges, folio_diagonal_wipe};
+pub use gallery::{
+    INK, accent_on_ink, filter_button_style, floating_panel_style, grid_pattern, hairline_style,
+    ink_fill, ink_palette, quiet_input_style, sheet_style, tag_style, text_button_style,
+    tile_action_style, tile_button_style, tile_style, veil_style,
+};
 pub(crate) use layout::FOLIO_RULE_THICKNESS;
 #[cfg(test)]
 pub use layout::MIN_VIEWPORT;
@@ -45,7 +51,8 @@ pub use style::{
 #[cfg(test)]
 pub use typography::sentence_case;
 pub use typography::{
-    NERD_FONT, TYPE_SMALL, UI_FONT, UI_FONT_FAMILY, label, legible_type_scale, mid_text,
+    DISPLAY_FONT, MONO_FONT, NERD_FONT, TEXT_FONT, TEXT_STRONG_FONT, TYPE_SMALL, UI_FONT,
+    UI_FONT_FAMILY, label, legible_type_scale, mid_text, typed,
 };
 pub(crate) use typography::{ellipsize_text, glyph_width, text_width};
 

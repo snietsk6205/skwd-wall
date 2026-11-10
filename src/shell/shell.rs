@@ -15,6 +15,14 @@ pub(super) static BENGALI_UI_FONT_BYTES: &[u8] =
     include_bytes!("../../assets/RobotoCondensed-Bold-BN.ttf");
 pub(super) static DEVANAGARI_UI_FONT_BYTES: &[u8] =
     include_bytes!("../../assets/RobotoCondensed-Bold-HI.ttf");
+/// R1b (custom build): the Settings window's own faces (all OFL, see
+/// `LICENSES/FONTS.md`): big titles, text, and numbers/tags.
+pub(super) static SETTINGS_FONT_BYTES: [&[u8]; 4] = [
+    include_bytes!("../../assets/Unbounded-SemiBold.ttf"),
+    include_bytes!("../../assets/Geist-Regular.ttf"),
+    include_bytes!("../../assets/Geist-Medium.ttf"),
+    include_bytes!("../../assets/GeistMono-Regular.ttf"),
+];
 const CTRL_IO_TIMEOUT: Duration = Duration::from_secs(2);
 const CTRL_READ_TIMEOUT: Duration = Duration::from_millis(300);
 #[cfg(target_os = "linux")]
@@ -581,7 +589,10 @@ pub(super) fn remove_ui_faces(db: &mut iced_wgpu::graphics::text::cosmic_text::f
 pub(super) fn startup_fonts() -> Vec<std::borrow::Cow<'static, [u8]>> {
     let config = crate::infrastructure::config::Config::load();
     crate::i18n::set_language(&config.str_path(skwd_config::keys::general::LANGUAGE));
-    vec![ui_font_bytes(crate::i18n::active_script()).into(), NERD_FONT_BYTES.into()]
+    let mut fonts: Vec<std::borrow::Cow<'static, [u8]>> =
+        vec![ui_font_bytes(crate::i18n::active_script()).into(), NERD_FONT_BYTES.into()];
+    fonts.extend(SETTINGS_FONT_BYTES.iter().map(|bytes| std::borrow::Cow::Borrowed(*bytes)));
+    fonts
 }
 
 fn run_winit() -> Result<(), String> {

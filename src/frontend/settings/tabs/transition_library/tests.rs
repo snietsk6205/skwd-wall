@@ -40,8 +40,7 @@ fn library_lists_every_real_transition_once() {
         .iter()
         .filter(|spec| !matches!(spec.key, "random" | "playlist" | "combo"))
         .count();
-    let listed =
-        rows.iter().filter(|row| matches!(row.control, Control::ActionChips { .. })).count();
+    let listed = rows.iter().filter(|row| matches!(row.control, Control::Tile { .. })).count();
     assert_eq!(listed, expected, "{names:?}");
     assert!(
         names.contains(&String::from("Light Leak")) && names.contains(&String::from("Random Mix"))

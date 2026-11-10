@@ -202,9 +202,10 @@ Read this first in a new session.
 - **M1b Speed follow-up (done, Phase 7 below).**
 - **M2 Window size everywhere (done, Phase 8 below).**
 - **M3 Transitions (done, Phase 9 below).**
-- **R1 Settings redesign, part 1: UNFINISHED** (branch `r1-wip` in skwd-wall and skwd-deck, see
-  "R1 (unfinished)" below). The user did not like the visual design and will redo it in a new
-  session, **keeping the structure**. Nothing of R1 is on `my-custom`.
+- **R1 Settings redesign, part 1: structure done, look rejected** (branch `r1-wip`, see "R1
+  (unfinished)" below). Nothing of R1 is on `my-custom` yet.
+- **R1b Settings redesign, the look: IN PROGRESS** (branch `r1-wip`, see "R1b (in progress)"
+  below). Step A (three screens) is shown to the user; step B waits for their OK.
 - **R2 Settings redesign, part 2:** page changes with 8 of the user's transitions ported to the
   picker (Inkwell Drop, Iris, Honeycomb, Lens, Triangles, Crossfade, Ripple, Slide; from where the
   user clicked; short; choosable or off), cards that follow the cursor, an optional liquid/blurred
@@ -595,6 +596,74 @@ Read this first in a new session.
   c1=0x6a2c70:c2=0xf08a5d:c3=0x1f8a8a:nb_colors=4:speed=0.015:r=24" -t 8 -vf gblur=sigma=2
   -pix_fmt yuv420p clip.mp4`, then `skwd-helm apply clip.mp4`), `ui page …`, `ui menu …`,
   `ui settings-key …`, `grim`.
+
+## R1b (in progress): Settings redesign, the look
+- **Status (2026-11-10):** step A of the user's plan is built and shown to the user: the new look on
+  three screens only (Home, Motion -> Transitions, an open group menu). **Waiting for the user's OK
+  or changes before converting the other pages (step B).** Do not convert other pages before that.
+  Work is on branch `r1-wip` (skwd-wall; skwd-deck unchanged so far) and on the session branch.
+- **The look ("gallery"):** always-dark neutral sheet, thin 1 px lines, small corners, ONE accent =
+  the theme's primary colour made readable on the dark sheet. Fonts (all OFL, originals, listed in
+  `LICENSES/FONTS.md`, loaded in `shell.rs` `SETTINGS_FONT_BYTES`): Unbounded SemiBold (big titles),
+  Geist Regular/Medium (text), Geist Mono (top bar, numbers, tags, hints). Constants `DISPLAY_FONT`,
+  `TEXT_FONT`, `TEXT_STRONG_FONT`, `MONO_FONT` and `typed()` in `frontend/ui/misc/typography.rs`.
+- **Shared styles** `frontend/ui/misc/gallery.rs` (the style ratchet forbids style structs elsewhere):
+  `ink_palette(theme)` (a normal `Palette`, so the old controls follow it; kept in
+  `SettingsNav.ink`, refreshed in `settings_strips::sync`, passed as `ChromeCtx.palette`),
+  `accent_on_ink`, `tile_style`, `tile_button_style`, `tag_style`, `text_button_style`,
+  `tile_action_style`, `filter_button_style`, `floating_panel_style`, `sheet_style`,
+  `quiet_input_style`, `veil_style`, `grid_pattern` (canvas), `hairline_style`, `ink_fill`.
+  `r1_style.rs` still serves the parts not converted yet (palette layer, toast, rows, bubble).
+- **Cards:** new `Control::Tile { items, tile: Tile }` (`frontend/settings/model.rs`; `items` are
+  the actions like `ActionChips`, so palette/search/keyboard code treats both alike; `Tile` =
+  picture name, tags, which action is the "+" and which the main one, active). Builder
+  `Builder::tile`. The transition library emits tiles (`tabs/transition_library.rs`, action order
+  Preview big, Use, playlist, favourite; `TILE_USE`, `TILE_FAVOURITE`). View
+  `frontend/settings/folio/cards.rs` (`tile_grid`, `toolbar`, `columns_for`, `wide_page_width`,
+  `card_height`); `folio/rows.rs` draws runs of Tile rows as a grid, the library's Search + Show
+  rows as one toolbar line, and `Control::Segment` as a small heading (the first heading of a
+  page of cards is skipped).
+- **Transitions page order** (`tabs/builder.rs`): library first, then "How transitions play"
+  (upstream's rows, `BASICS_CARD`), then Play in turns, Combine two.
+- **Pictures in cards** (no renderer per card): `infrastructure/preview/strips.rs` `StripWorker`:
+  two threads; "strip-make" runs `skwd-wall-vk --preview-stream --preview-once
+  --stream-no-header --preview-size 240x135 --duration-ms 1000` with
+  `SKWD_PAPER_PREVIEW_TEST=steps=13` once per transition at nice 19, keeps frames 1..=12 and
+  saves them side by side as one JPEG in `<cache>/settings-strips/<key>/<name>.jpg` (key = FNV
+  of the renderer file's size + change time, strip format, stock pictures; other keys' folders
+  are deleted); "strip-load" reads them. Events come back as `Wake::Strip(StripEvent)`.
+  App side `app/update/settings_strips.rs`: `sync` (after every update; signature skips the work
+  when nothing changed), `event`, `tick`, `picture`; state `SettingsNav.strips: CardStrips`.
+  A card shows frame `STRIP_MIDDLE` (4, a little before half-way); the ONE lit card (pointer, else
+  keyboard focus) plays the strip at 85 ms per frame through `SettingsNav::deadline()` (no
+  continuous redraw). Rendering is paused (and the running renderer killed) during the
+  benchmark, in Low-power mode, with Battery saver, and while Settings is hidden or closed.
+  Measured in the cloud (llvmpipe, software rendering): all 78 strips in under 45 s (well under 1 s each).
+- **Big preview:** `SettingsNav.big_preview` + `shell::big_preview_layer`: the existing live worker
+  in a large overlay over the blurred Home picture; "Preview big" (`ActionId::PreviewTransition`)
+  opens it, Esc / Close / a click beside it closes it. `wants_transition_preview` = big preview
+  open (or the old bubble, which still exists on non-card rows until step B removes it).
+- **Keyboard on cards** (`settings_nav::tile_key`): arrows move across the grid (Up/Down by the
+  column count from `card_columns`), Enter then Left/Right walk the card's actions, Enter runs,
+  Esc leaves. `scroll_to_focus` estimates the row position on pages with cards.
+- **New picker command:** `skwd-helm ui settings-hover <row|none>` (pointer on the card of that
+  row, for screenshots without a pointer); `ui state` reports `settings.big_preview`,
+  `card_hover`, `card_pictures {ready, to_render, playing}`.
+- **Home:** `folio/home.rs` rewritten: wallpaper under a dark veil, big title + Recently changed at
+  the top, empty middle, pinned pages as a row of 6 numbered cards at the bottom
+  (`HOME_COLUMNS` = 6 in both `home.rs` and `settings_nav.rs`).
+- **Step B to do after the user's OK** (their list, nothing of it is started): rows without boxes
+  (restyle `folio/rows.rs` `line` and the controls in `folio/control.rs`), cards for picker
+  layouts / sketch styles (strips with `SKWD_PAPER_SKETCH`) / bar presets / theme presets /
+  playlist entries / ways to combine two; "Preview style" setting (in the card, or a small live
+  preview that follows the cursor on a spring); remove R1's bubble (`nav/bubble.rs`,
+  `rows::bubble_panel`, state, tests); restyle the palette and the toast; Settings -> Look ->
+  "Settings appearance" keys in skwd-deck `skwd-config` (card size S/M/L, columns auto/2/3/4,
+  outlined or filled, grid pattern, bar clear or blurred, menu list or grid, preview style,
+  animations) with schema + tests; narrow windows (the top bar needs short labels under about
+  980 px); Tab should skip over a card grid; every text English only; then benchmark, clippy,
+  release build, merge `r1-wip` into `my-custom`, docs, R2 prompt.
+- Screenshots of step A: `custom/previews/r1b-a-*.jpg`.
 
 ## Testing in a cloud session
 - Scripts from the last session (recreate in the scratchpad): a headless sway + `skwd-walld` +

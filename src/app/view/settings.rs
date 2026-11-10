@@ -18,7 +18,7 @@ pub(super) fn settings_layer(app: &App) -> Element<'_, Message> {
         active_input: app.panels.settings.input_edit.as_ref().map(|edit| edit.key.as_str()),
         armed: app.panels.settings.armed.as_ref(),
     };
-    let chrome = settings::ChromeCtx {
+    let mut chrome = settings::ChromeCtx {
         viewport: app.scene.viewport,
         window: app.sheet_window(),
         rtl: crate::i18n::is_rtl(),
@@ -28,6 +28,9 @@ pub(super) fn settings_layer(app: &App) -> Element<'_, Message> {
     if settings::is_picker_layout_section(&app.panels.settings.tab, app.panels.settings.section) {
         return settings::picker_layout_workbench(&source, focus, chrome);
     }
+    // R1b: the Settings window has its own colours (neutral inks plus the
+    // theme's accent).
+    chrome.palette = &app.panels.settings.nav.ink;
     settings::settings_workbench(settings::WorkbenchInput {
         nav: nav_view(app),
         source,
@@ -58,7 +61,7 @@ pub(super) fn settings_layer(app: &App) -> Element<'_, Message> {
 
 /// R1: what the redesigned window shows (page, menus, Home, palette, ...).
 fn nav_view(app: &App) -> settings::NavView<'_> {
-    use crate::app::update::{settings_home, settings_nav};
+    use crate::app::update::{settings_home, settings_nav, settings_strips};
     use skwd_config::keys::settings_window as keys;
     let nav = &app.panels.settings.nav;
     let still = app.config.low_power();
@@ -84,6 +87,23 @@ fn nav_view(app: &App) -> settings::NavView<'_> {
         }
     });
     let recent = if nav.page.is_none() { nav.recent.clone() } else { Vec::new() };
+    let playing = nav.strips.playing.as_ref().and_then(|playing| {
+        playing.frames.get(playing.frame).map(|frame| (playing.name.as_str(), frame))
+    });
+    let menu_picture = nav.menu.and_then(|_| {
+        let page = settings::nav::page_index("motion/transitions")?;
+        let picture = settings_strips::picture(app, &settings_strips::menu_picture_name(app))?;
+        Some((page, picture))
+    });
+    let big = nav.big_preview.as_ref().map(|_| {
+        let (title, desc) = transition_caption(app);
+        settings::BigPreview {
+            title,
+            desc,
+            frame: app.panels.transition_preview.handle.clone(),
+            fade: ease(nav.big_anim.x),
+        }
+    });
     let picture = nav.home.frame.clone().or_else(|| nav.home.still.clone());
     settings::NavView {
         page: nav.page,
@@ -107,6 +127,14 @@ fn nav_view(app: &App) -> settings::NavView<'_> {
         toast: nav.toast.as_ref().map(|toast| (toast.text.clone(), toast.can_undo)),
         toast_fade: ease(nav.toast_anim.x),
         bubble,
+        tile_hover: nav.tile_hover,
+        tile_fade: ease(nav.tile_anim.x),
+        pictures: &nav.strips.middles,
+        playing,
+        strips_pending: nav.strips.pending.len(),
+        menu_picture,
+        big,
+        grid: true,
         backdrop: settings::Backdrop {
             picture,
             blurred: nav.home.blurred.clone(),
@@ -139,7 +167,7 @@ fn transition_caption(app: &App) -> (String, String) {
         )
     };
     if app.panels.transition_preview.focus.is_some() {
-        return (format!("Previewing: {}", transitions::label_of(&shader)), describe(&shader));
+        return (transitions::label_of(&shader), describe(&shader));
     }
     let chosen = app.config.str_path(skwd_config::keys::transition::SHADER);
     match chosen.as_str() {

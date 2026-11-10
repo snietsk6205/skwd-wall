@@ -307,6 +307,13 @@ pub(crate) fn ui_state_json(app: &App) -> String {
         json!(crate::app::update::settings_nav::palette_results(app).len());
     state[SETTINGS_FIELD]["bubble"] =
         json!(nav.bubble.as_ref().map(|bubble| bubble.shader.clone()));
+    state[SETTINGS_FIELD]["big_preview"] = json!(nav.big_preview);
+    state[SETTINGS_FIELD]["card_hover"] = json!(nav.tile_hover);
+    state[SETTINGS_FIELD]["card_pictures"] = json!({
+        "ready": nav.strips.middles.len(),
+        "to_render": nav.strips.pending.len(),
+        "playing": nav.strips.playing.as_ref().map(|playing| playing.name.clone()),
+    });
     state[SETTINGS_FIELD]["undo_steps"] = json!(nav.undo.len());
     state[SETTINGS_FIELD]["toast"] = json!(nav.toast.as_ref().map(|toast| toast.text.clone()));
     state[SETTINGS_FIELD]["edit_cards"] = json!(nav.edit_cards);
@@ -565,6 +572,27 @@ pub(super) fn run_ui_command(app: &mut App, cmd: &str) -> Task<Message> {
                 tasks.push(super::update_inner(
                     app,
                     Message::Settings(crate::frontend::settings::SettingsMsg::SearchInput(arg)),
+                ));
+            }
+            Task::batch(tasks)
+        }
+        // R1b: the pointer on the card of row N of the open page ("none"
+        // takes it off). For tests and screenshots without a pointer.
+        "settings-hover" => {
+            let previous = app.panels.settings.nav.tile_hover;
+            let mut tasks = Vec::new();
+            if let Some(row) = previous {
+                tasks.push(super::update_inner(
+                    app,
+                    Message::Settings(crate::frontend::settings::SettingsMsg::TileHover(
+                        row, false,
+                    )),
+                ));
+            }
+            if let Ok(row) = arg.parse::<usize>() {
+                tasks.push(super::update_inner(
+                    app,
+                    Message::Settings(crate::frontend::settings::SettingsMsg::TileHover(row, true)),
                 ));
             }
             Task::batch(tasks)

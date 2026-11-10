@@ -23,7 +23,7 @@ fn control_ids(control: &Control) -> Vec<String> {
         Control::ActionBtn { id, .. } | Control::ToggleAction { id, .. } => {
             vec![format!("action:{id:?}")]
         }
-        Control::ActionChips { items } => {
+        Control::ActionChips { items } | Control::Tile { items, .. } => {
             items.iter().map(|(id, _)| format!("action:{id:?}")).collect()
         }
         Control::Presets { mode, .. } => vec![format!("presets:{mode}")],
@@ -187,6 +187,7 @@ fn controls_match_schema() {
                     Control::ToggleAction { .. }
                     | Control::ActionBtn { .. }
                     | Control::ActionChips { .. }
+                    | Control::Tile { .. }
                     | Control::Presets { .. }
                     | Control::Details { .. }
                     | Control::StackBar { .. }
@@ -363,6 +364,7 @@ fn controls_emit_valid_values() {
                         Control::ToggleAction { .. }
                         | Control::ActionBtn { .. }
                         | Control::ActionChips { .. }
+                        | Control::Tile { .. }
                         | Control::Presets { .. }
                         | Control::Details { .. }
                         | Control::StackBar { .. }

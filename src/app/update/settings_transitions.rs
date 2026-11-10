@@ -19,23 +19,12 @@ fn list(app: &App, path: &str) -> Vec<String> {
 }
 
 /// Shows `name` (a transition key, "combo" or a combination name) in the
-/// preview bubble, pinned (R1: ▶ Preview pins the bubble bigger).
+/// big preview (R1b: the one live preview, in a large overlay).
 pub(super) fn preview(app: &mut App, name: Option<String>) {
-    let Some(name) = name else {
-        super::settings_nav::close_bubble(app);
-        return;
-    };
-    let row = app
-        .panels
-        .settings
-        .nav
-        .bubble
-        .as_ref()
-        .map_or(app.panels.settings.focused_control, |bubble| bubble.row);
-    let _ = super::settings_nav::update(
-        app,
-        crate::frontend::settings::SettingsMsg::BubblePin(name, row),
-    );
+    match name {
+        Some(name) => super::settings_nav::open_big_preview(app, name),
+        None => super::settings_nav::close_big_preview(app),
+    }
     app.invalidate_settings();
     app.retick();
 }

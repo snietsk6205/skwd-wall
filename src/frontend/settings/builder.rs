@@ -241,6 +241,24 @@ impl Builder<'_> {
         );
     }
 
+    /// R1b: a card with a picture inside and these actions.
+    pub(super) fn tile(
+        &mut self,
+        title: &str,
+        desc: &str,
+        tile: super::Tile,
+        items: &[(ActionId, &str)],
+    ) {
+        self.row(
+            title,
+            desc,
+            Control::Tile {
+                items: items.iter().map(|(id, label)| (id.clone(), (*label).to_string())).collect(),
+                tile,
+            },
+        );
+    }
+
     pub(super) fn resolution(
         &mut self,
         title: &str,

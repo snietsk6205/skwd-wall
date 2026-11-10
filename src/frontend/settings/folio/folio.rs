@@ -269,12 +269,15 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
         reveal,
         super::shell::bar_has_focus(focus.keyboard_focus),
     );
-    let content_width = (panel_width - 64.0 * scale).clamp(320.0 * scale, 860.0 * scale);
+    // Pages of rows keep a reading width; pages with cards (and Home) use
+    // the window.
+    let wide_width = super::cards::wide_page_width(panel_width, scale);
+    let content_width = wide_width.min(820.0 * scale);
     let body: Element<'a, Message> = match nav.page {
         None => super::home::home(
             &nav,
             focus.keyboard_focus,
-            content_width,
+            wide_width,
             panel_height - super::shell::bar_height(scale),
             scale,
             palette,
@@ -319,8 +322,18 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
                 } else {
                     None
                 };
+                let content_width =
+                    if rows.iter().any(|row| matches!(row.control, Control::Tile { .. })) {
+                        wide_width
+                    } else {
+                        content_width
+                    };
                 let content = super::rows::rows(
                     super::rows::RowsInput {
+                        pictures: nav.pictures,
+                        playing: nav.playing,
+                        tile_hover: nav.tile_hover,
+                        tile_fade: nav.tile_fade,
                         rows,
                         values: source.values,
                         has_selected_preset,
@@ -351,47 +364,54 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
         }
     };
     let on_home = nav.page.is_none();
-    let picture = nav.backdrop.picture.clone();
+    let picture = nav.backdrop.picture.clone().filter(|_| on_home);
+    // Home: the wallpaper under a dark veil. Pages: the bare sheet with an
+    // optional faint grid.
     let backdrop: Element<'a, Message> = match picture {
-        Some(handle) => {
-            super::shell::backdrop_image(handle, if on_home { reveal } else { 0.22 * reveal })
+        Some(handle) => stack![
+            super::shell::backdrop_image(handle, reveal),
+            container(text("")).width(Length::Fill).height(Length::Fill).style(move |_| {
+                crate::frontend::ui::veil_style(0.8 * reveal, 0.46 * reveal, 0.9 * reveal)
+            }),
+        ]
+        .into(),
+        None if nav.grid => {
+            crate::frontend::ui::grid_pattern(palette, 0.034 * reveal, 40.0 * scale)
         }
         None => iced::widget::Space::new().width(Length::Fill).height(Length::Fill).into(),
     };
-    let scrim_top = if on_home { 0.42 } else { 0.86 };
-    let scrim_bottom = if on_home { 0.7 } else { 0.92 };
-    let scrim = container(text("")).width(Length::Fill).height(Length::Fill).style(move |_| {
-        crate::frontend::ui::vertical_fade_style(
-            palette.surface,
-            scrim_top * reveal,
-            (scrim_top + 0.08) * reveal,
-            scrim_bottom * reveal,
-        )
-    });
     let blurred_bar: Element<'a, Message> = match (nav.bar_blur, nav.backdrop.blurred.clone()) {
-        (true, Some(handle)) => container(
+        (true, Some(handle)) => container(stack![
             iced::widget::image(handle)
                 .width(Length::Fill)
                 .height(Length::Fixed(panel_height))
                 .content_fit(iced::ContentFit::Cover)
                 .opacity(reveal),
-        )
+            container(text(""))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .style(move |_| { crate::frontend::ui::ink_fill(palette.surface, 0.55 * reveal) }),
+        ])
         .width(Length::Fill)
         .height(Length::Fixed(super::shell::bar_height(scale)))
         .clip(true)
         .into(),
         _ => iced::widget::Space::new().width(Length::Fill).height(Length::Fixed(0.0)).into(),
     };
-    let rule =
-        container(text("")).width(Length::Fill).height(Length::Fixed(1.0)).style(move |_| {
-            crate::frontend::ui::bg_style(Background::Color(with_alpha(
-                palette.outline,
-                0.25 * reveal,
-            )))
-        });
+    let bar_rule = super::shell::rule(palette, if on_home { 0.0 } else { 0.14 * reveal });
     let layout =
-        column![stack![blurred_bar, bar], rule, body].width(Length::Fill).height(Length::Fill);
-    let mut window_layers = stack![backdrop, scrim, layout];
+        column![stack![blurred_bar, bar], bar_rule, body].width(Length::Fill).height(Length::Fill);
+    let mut window_layers = stack![backdrop, layout];
+    if let Some(big) = &nav.big {
+        window_layers = window_layers.push(super::shell::big_preview_layer(
+            big,
+            nav.backdrop.blurred.clone(),
+            (panel_width, panel_height),
+            scale,
+            palette,
+            reveal,
+        ));
+    }
     if let Some((text_, can_undo)) = nav.toast.clone() {
         window_layers = window_layers.push(super::shell::toast_layer(
             text_,
@@ -409,11 +429,7 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
         .width(Length::Fixed(panel_width))
         .height(Length::Fixed(panel_height))
         .clip(true)
-        .style(move |_| {
-            let mut style = crate::frontend::ui::folio_sheet_panel_style(palette, reveal);
-            style.border.radius = (14.0).into();
-            style
-        });
+        .style(move |_| crate::frontend::ui::sheet_style(palette, reveal));
     let mut layers = stack![
         mouse_area(
             container(text(""))

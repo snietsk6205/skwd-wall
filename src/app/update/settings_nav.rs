@@ -16,7 +16,7 @@ use crate::frontend::settings::nav::{
 use crate::frontend::settings::{Card, Control, Row, SettingsFocus, SettingsKey, SettingsMsg};
 
 /// Home cards per row (keyboard Up/Down jump by this many).
-pub(crate) const HOME_COLUMNS: usize = 3;
+pub(crate) const HOME_COLUMNS: usize = 6;
 const PALETTE_LIMIT: usize = 9;
 
 pub(super) fn build_tab_for(app: &App, tab: &str) -> Vec<(Card, Vec<Row>)> {
@@ -146,6 +146,8 @@ pub(super) fn show(app: &mut App, page: Option<usize>, row: Option<usize>, push:
         nav.menu_close_at = None;
         nav.menu_anim.snap(0.0);
         nav.bubble = None;
+        nav.big_preview = None;
+        nav.tile_hover = None;
         nav.edit_cards = false;
         if changed {
             nav.show_all = false;
@@ -345,6 +347,10 @@ fn key_inner(app: &mut App, key: SettingsKey) -> Option<Task<Message>> {
     if key == SettingsKey::Search {
         return Some(open_palette(app));
     }
+    if key == SettingsKey::Cancel && app.panels.settings.nav.big_preview.is_some() {
+        close_big_preview(app);
+        return Some(Task::none());
+    }
     if key == SettingsKey::Cancel {
         if app.panels.settings.nav.bubble.as_ref().is_some_and(|bubble| bubble.pinned) {
             close_bubble(app);
@@ -361,6 +367,11 @@ fn key_inner(app: &mut App, key: SettingsKey) -> Option<Task<Message>> {
         SettingsFocus::Menu => Some(menu_key(app, key)),
         SettingsFocus::Home => Some(home_key(app, key)),
         SettingsFocus::Controls => match key {
+            SettingsKey::Previous | SettingsKey::Next | SettingsKey::Up | SettingsKey::Down
+                if on_tile(app) =>
+            {
+                tile_key(app, key)
+            }
             SettingsKey::Up
                 if app.panels.settings.focused_choice.is_none()
                     && first_focusable(app) == Some(app.panels.settings.focused_control) =>
@@ -1205,7 +1216,46 @@ fn run_action(app: &mut App, id: &str) -> Task<Message> {
 /// Scrolls the page so the focused row is in view (rows are close to the
 /// same height in R1, so its share of the list is a good guess).
 pub(crate) fn scroll_to_focus(app: &App) -> Task<Message> {
-    let rows = page_rows(app).len();
+    let page = page_rows(app);
+    if app.panels.settings.focus == SettingsFocus::Controls
+        && page.iter().any(|row| matches!(row.control, Control::Tile { .. }))
+    {
+        // A page with cards: work out roughly where the focused row is.
+        let (width, scale) = card_grid_width(app);
+        let columns = crate::frontend::settings::card_columns(width, scale);
+        let card = crate::frontend::settings::card_height(width, scale);
+        let focused = app.panels.settings.focused_control;
+        let mut y = 150.0 * scale;
+        let mut in_line = 0usize;
+        for (index, row) in page.iter().enumerate() {
+            let tile = matches!(row.control, Control::Tile { .. });
+            if !tile && in_line > 0 {
+                y += card;
+                in_line = 0;
+            }
+            if index == focused {
+                break;
+            }
+            if tile {
+                in_line += 1;
+                if in_line == columns {
+                    y += card;
+                    in_line = 0;
+                }
+            } else {
+                y += if matches!(row.control, Control::Segment) { 66.0 } else { 58.0 } * scale;
+            }
+        }
+        let (_, panel_height) = app.sheet_window().dims(app.scene.viewport);
+        return iced::widget::operation::scroll_to(
+            crate::frontend::ui::pane_id(crate::frontend::settings::READING_PANE),
+            iced::widget::scrollable::AbsoluteOffset {
+                x: 0.0,
+                y: (y - panel_height * 0.32).max(0.0),
+            },
+        );
+    }
+    let rows = page.len();
     let share = if rows < 2 || app.panels.settings.focus != SettingsFocus::Controls {
         0.0
     } else {
@@ -1215,6 +1265,94 @@ pub(crate) fn scroll_to_focus(app: &App) -> Task<Message> {
         crate::frontend::ui::pane_id(crate::frontend::settings::READING_PANE),
         iced::widget::scrollable::RelativeOffset { x: 0.0, y: share.clamp(0.0, 1.0) },
     )
+}
+
+// ---------- big preview ----------
+
+/// Opens the one live preview, large, playing `shader`.
+pub(crate) fn open_big_preview(app: &mut App, shader: String) {
+    close_bubble(app);
+    let nav = &mut app.panels.settings.nav;
+    if nav.big_preview.is_none() {
+        nav.big_anim.run(0.0, 1.0);
+    }
+    nav.big_preview = Some(shader.clone());
+    nav.menu = None;
+    if app.config.low_power() {
+        app.panels.settings.nav.big_anim.snap(1.0);
+    }
+    if app.panels.transition_preview.focus.as_deref() != Some(shader.as_str()) {
+        app.panels.transition_preview.stop();
+    }
+    app.panels.transition_preview.focus = Some(shader);
+    app.retick();
+}
+
+pub(crate) fn close_big_preview(app: &mut App) {
+    if app.panels.settings.nav.big_preview.take().is_some() {
+        app.panels.transition_preview.focus = None;
+        app.panels.transition_preview.stop();
+        app.retick();
+    }
+}
+
+// ---------- cards ----------
+
+/// Width of the open page's card grids.
+fn card_grid_width(app: &App) -> (f32, f32) {
+    let window = app.sheet_window();
+    let scale = window.scale();
+    let (panel_width, _) = window.dims(app.scene.viewport);
+    (crate::frontend::settings::wide_page_width(panel_width, scale), scale)
+}
+
+/// Whether the keyboard is on a card.
+fn on_tile(app: &App) -> bool {
+    page_rows(app)
+        .get(app.panels.settings.focused_control)
+        .is_some_and(|row| matches!(row.control, Control::Tile { .. }))
+}
+
+/// Arrow keys on a card: Left/Right and Up/Down move across the grid.
+/// With an action chosen (after Enter), Left/Right walk the actions.
+fn tile_key(app: &mut App, key: SettingsKey) -> Option<Task<Message>> {
+    let rows = page_rows(app);
+    let index = app.panels.settings.focused_control;
+    let is_tile =
+        |row: usize| rows.get(row).is_some_and(|row| matches!(row.control, Control::Tile { .. }));
+    let Control::Tile { items, .. } = &rows.get(index)?.control else {
+        return None;
+    };
+    if let Some(choice) = app.panels.settings.focused_choice {
+        let count = items.len().max(1);
+        match key {
+            SettingsKey::Previous => {
+                app.panels.settings.focused_choice = Some((choice + count - 1) % count);
+            }
+            SettingsKey::Next => app.panels.settings.focused_choice = Some((choice + 1) % count),
+            SettingsKey::Up | SettingsKey::Down => app.panels.settings.focused_choice = None,
+            _ => return None,
+        }
+        app.retick();
+        return Some(Task::none());
+    }
+    let start = (0..=index).rev().take_while(|row| is_tile(*row)).last().unwrap_or(index);
+    let end = (index..rows.len()).take_while(|row| is_tile(*row)).last().unwrap_or(index) + 1;
+    let (width, scale) = card_grid_width(app);
+    let columns = crate::frontend::settings::card_columns(width, scale);
+    let target = match key {
+        SettingsKey::Previous => index.saturating_sub(1).max(start),
+        SettingsKey::Next => (index + 1).min(end - 1),
+        SettingsKey::Up if index - start >= columns => index - columns,
+        SettingsKey::Up => (0..start).rev().find(|row| rows[*row].control.is_focusable())?,
+        SettingsKey::Down if index + columns < end => index + columns,
+        SettingsKey::Down if (index - start) / columns < (end - 1 - start) / columns => end - 1,
+        SettingsKey::Down => (end..rows.len()).find(|row| rows[*row].control.is_focusable())?,
+        _ => return None,
+    };
+    app.panels.settings.focused_control = target;
+    app.retick();
+    Some(scroll_to_focus(app))
 }
 
 // ---------- preview bubble ----------
@@ -1373,7 +1511,20 @@ fn update_inner(app: &mut App, msg: SettingsMsg) -> Task<Message> {
                 close_bubble(app);
             }
         }
-        SettingsMsg::BubblePin(shader, row) => show_bubble(app, shader, row, true),
+        SettingsMsg::BubblePin(shader, _) => open_big_preview(app, shader),
+        SettingsMsg::BigPreviewClose => close_big_preview(app),
+        SettingsMsg::TileHover(row, inside) => {
+            let nav = &mut app.panels.settings.nav;
+            if inside && nav.tile_hover != Some(row) {
+                nav.tile_hover = Some(row);
+                nav.tile_anim.run(0.0, 1.0);
+                if app.config.low_power() {
+                    app.panels.settings.nav.tile_anim.snap(1.0);
+                }
+            } else if !inside && nav.tile_hover == Some(row) {
+                nav.tile_hover = None;
+            }
+        }
         SettingsMsg::BubbleClose => close_bubble(app),
         other => return palette_update(app, other),
     }

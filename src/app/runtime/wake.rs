@@ -41,6 +41,7 @@ impl App {
                 );
                 true
             }
+            Wake::Strip(event) => crate::app::update::settings_strips::event(self, event),
             Wake::EffectSrc { card, source, rgba, w, h } => {
                 if let Some(effects) = self.panels.effects.as_mut()
                     && effects.matches_source(card, &source)

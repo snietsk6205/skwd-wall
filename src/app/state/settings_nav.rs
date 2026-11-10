@@ -41,6 +41,34 @@ pub(crate) struct Bubble {
     pub(crate) pinned: bool,
 }
 
+/// R1b: the card that plays its strip right now.
+pub(crate) struct PlayingStrip {
+    pub(crate) name: String,
+    /// Empty until the strip is read from disk.
+    pub(crate) frames: Vec<iced::advanced::image::Handle>,
+    pub(crate) frame: usize,
+    pub(crate) next_at: Instant,
+}
+
+/// R1b: the pictures inside the cards (frame strips rendered once in the
+/// background and cached on disk).
+#[derive(Default)]
+pub(crate) struct CardStrips {
+    /// Started the first time a page with cards opens.
+    pub(crate) worker: Option<crate::infrastructure::preview::StripWorker>,
+    /// Middle frame of each strip read so far.
+    pub(crate) middles: std::collections::HashMap<String, iced::advanced::image::Handle>,
+    /// Strips already asked for (read from disk or queued for rendering).
+    pub(crate) asked: std::collections::HashSet<String>,
+    /// Strips still to render.
+    pub(crate) pending: std::collections::HashSet<String>,
+    pub(crate) playing: Option<PlayingStrip>,
+    /// What the open page needs (skips the work while unchanged).
+    pub(crate) signature: String,
+    /// Row index → strip name of the page's cards.
+    pub(crate) tiles: Vec<(usize, String)>,
+}
+
 #[derive(Default)]
 pub(crate) struct HomeBackdrop {
     /// What the backdrop shows (a picture or video path); empty = none.
@@ -87,6 +115,15 @@ pub(crate) struct SettingsNav {
     pub(crate) bubble: Option<Bubble>,
     pub(crate) bubble_anim: Tween,
     pub(crate) home: HomeBackdrop,
+    /// R1b: the card under the pointer (row index of the page).
+    pub(crate) tile_hover: Option<usize>,
+    pub(crate) tile_anim: Tween,
+    pub(crate) strips: CardStrips,
+    /// R1b: the transition "Preview big" shows in the overlay.
+    pub(crate) big_preview: Option<String>,
+    pub(crate) big_anim: Tween,
+    /// R1b: the window's colours (neutral inks + the theme's accent).
+    pub(crate) ink: crate::frontend::theme::Palette,
     /// Expanded "more…" explanations (by row title + path).
     pub(crate) more: std::collections::HashSet<String>,
     /// "Recently changed" lines for Home, rebuilt when a setting changes.
@@ -134,6 +171,12 @@ impl Default for SettingsNav {
             bubble: None,
             bubble_anim: motion.tween(0.0, MotionTier::Fast),
             home: HomeBackdrop::default(),
+            tile_hover: None,
+            tile_anim: motion.tween(0.0, MotionTier::Fast),
+            strips: CardStrips::default(),
+            big_preview: None,
+            big_anim: motion.tween(0.0, MotionTier::Fast),
+            ink: crate::frontend::ui::ink_palette(&crate::frontend::theme::Palette::default()),
             more: std::collections::HashSet::new(),
             recent: Vec::new(),
             labels: None,
@@ -155,6 +198,8 @@ impl SettingsNav {
         motion.retime_tween(&mut self.card_anim, MotionTier::Fast);
         motion.retime_tween(&mut self.toast_anim, MotionTier::Fast);
         motion.retime_tween(&mut self.bubble_anim, MotionTier::Fast);
+        motion.retime_tween(&mut self.tile_anim, MotionTier::Fast);
+        motion.retime_tween(&mut self.big_anim, MotionTier::Fast);
     }
 
     pub(crate) fn animating(&self) -> bool {
@@ -163,6 +208,8 @@ impl SettingsNav {
             || !self.card_anim.settled()
             || !self.toast_anim.settled()
             || !self.bubble_anim.settled()
+            || !self.tile_anim.settled()
+            || !self.big_anim.settled()
     }
 
     /// When the window needs a tick without animating: a hover menu's close
@@ -172,7 +219,13 @@ impl SettingsNav {
             .toast
             .as_ref()
             .map(|toast| toast.since + std::time::Duration::from_secs_f32(TOAST_SECONDS));
-        [self.menu_close_at, toast].into_iter().flatten().min()
+        let strip = self
+            .strips
+            .playing
+            .as_ref()
+            .filter(|playing| !playing.frames.is_empty())
+            .map(|playing| playing.next_at);
+        [self.menu_close_at, toast, strip].into_iter().flatten().min()
     }
 
     pub(crate) fn tick(&mut self, dt: f32) {
@@ -181,6 +234,8 @@ impl SettingsNav {
         self.card_anim.tick(dt);
         self.toast_anim.tick(dt);
         self.bubble_anim.tick(dt);
+        self.tile_anim.tick(dt);
+        self.big_anim.tick(dt);
     }
 
     /// Ends every animation at its target (Low-power mode).
@@ -191,6 +246,8 @@ impl SettingsNav {
             &mut self.card_anim,
             &mut self.toast_anim,
             &mut self.bubble_anim,
+            &mut self.tile_anim,
+            &mut self.big_anim,
         ] {
             let target = tween.target;
             tween.snap(target);

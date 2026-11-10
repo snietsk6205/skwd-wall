@@ -62,6 +62,12 @@ pub enum Control {
     ActionChips {
         items: Vec<(ActionId, String)>,
     },
+    /// R1b: a card with a picture inside (a transition, ...). `items` are
+    /// its actions, like `ActionChips`; the keyboard walks them the same way.
+    Tile {
+        items: Vec<(ActionId, String)>,
+        tile: Tile,
+    },
     Presets {
         mode: String,
         items: Vec<(String, bool)>,
@@ -111,6 +117,23 @@ impl Control {
     pub fn is_focusable(&self) -> bool {
         !matches!(self, Self::Segment)
     }
+}
+
+/// R1b: what a card shows besides its name (the row title), sentence (the
+/// row description) and actions.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Tile {
+    /// What the picture inside shows (a transition key or combination name).
+    pub picture: String,
+    /// Small tags at the bottom; `true` marks a strong one (playing now).
+    pub tags: Vec<(String, bool)>,
+    /// The action shown as the "+" in the corner (index into the row's
+    /// actions) and whether it is on.
+    pub plus: Option<(usize, bool)>,
+    /// The main action (index into the row's actions).
+    pub primary: usize,
+    /// The card is the one in use.
+    pub active: bool,
 }
 
 #[derive(Debug, Clone)]

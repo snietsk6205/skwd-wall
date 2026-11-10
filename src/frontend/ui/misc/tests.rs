@@ -495,3 +495,33 @@ fn sheet_window_positions_dock_to_edges() {
     assert_eq!(at(SheetPosition::Left).align_y(), Vertical::Center);
     assert_eq!(at(SheetPosition::Left).edge_gap(), 22.0);
 }
+
+#[test]
+fn settings_ink_is_neutral_with_one_accent() {
+    use crate::frontend::theme::Palette;
+    let theme = Palette::default();
+    let ink = super::ink_palette(&theme);
+    // Surfaces are neutral (no theme tint), whatever the theme is.
+    for surface in [ink.surface, ink.surface_container, ink.surface_variant, ink.background] {
+        assert!((surface.r - surface.b).abs() < 0.03, "{surface:?}");
+        assert!(surface.r < 0.16);
+    }
+    assert_eq!(ink.primary, ink.tertiary);
+    assert_eq!(ink.primary_text, super::INK);
+}
+
+#[test]
+fn accent_stays_readable_on_the_ink() {
+    use iced::Color;
+    let luma = |color: Color| 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+    // A dark theme colour (light themes have one) is lifted, keeping its hue.
+    let dark_blue = super::accent_on_ink(Color::from_rgb(0.1, 0.2, 0.5));
+    assert!(luma(dark_blue) > 0.45, "{dark_blue:?}");
+    assert!(dark_blue.b > dark_blue.r && dark_blue.b > dark_blue.g);
+    // A light pastel stays about as it is.
+    let pastel = super::accent_on_ink(Color::from_rgb(1.0, 0.71, 0.67));
+    assert!(pastel.r > pastel.g && pastel.r > pastel.b && luma(pastel) > 0.6);
+    // Grey themes get a light grey, not a made-up colour.
+    let grey = super::accent_on_ink(Color::from_rgb(0.3, 0.3, 0.3));
+    assert!((grey.r - grey.b).abs() < 0.02 && grey.r > 0.75);
+}

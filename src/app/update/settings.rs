@@ -256,6 +256,8 @@ pub(super) fn update(app: &mut App, msg: SettingsMsg) -> Task<Message> {
         | SettingsMsg::CardAdd(_)
         | SettingsMsg::CardHover(_)
         | SettingsMsg::HomePause
+        | SettingsMsg::TileHover(..)
+        | SettingsMsg::BigPreviewClose
         | SettingsMsg::BubbleShow(..)
         | SettingsMsg::BubbleHide(_)
         | SettingsMsg::BubblePin(..)
@@ -709,7 +711,7 @@ fn settings_control_positions(
 fn choice_count(control: &Control) -> usize {
     match control {
         Control::Dropdown { options, .. } | Control::Chips { options, .. } => options.len(),
-        Control::ActionChips { items } => items.len(),
+        Control::ActionChips { items } | Control::Tile { items, .. } => items.len(),
         Control::KeyBinding { .. } => crate::domain::input::SLOTS,
         Control::Presets { items, .. } => 1 + items.len() * 2,
         _ => 0,
@@ -723,7 +725,7 @@ fn choice_enabled(control: &Control, index: usize) -> bool {
             options.get(index).is_some_and(|(key, _)| !disabled.contains(key))
         }
         Control::Presets { items, .. } => index < 1 + items.len() * 2,
-        Control::ActionChips { items } => index < items.len(),
+        Control::ActionChips { items } | Control::Tile { items, .. } => index < items.len(),
         Control::KeyBinding { .. } => index < crate::domain::input::SLOTS,
         _ => false,
     }
@@ -1013,7 +1015,7 @@ fn activate_settings_control(app: &mut App) -> Task<Message> {
             if disabled.contains(value) { Task::none() } else { settings_pick(app, &path, value) }
         }
         Control::ActionBtn { id, .. } | Control::ToggleAction { id, .. } => settings_run(app, id),
-        Control::ActionChips { items } => {
+        Control::ActionChips { items } | Control::Tile { items, .. } => {
             let Some(choice) = app.panels.settings.focused_choice else {
                 app.panels.settings.focused_choice = Some(0);
                 app.retick();

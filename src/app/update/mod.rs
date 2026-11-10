@@ -21,6 +21,7 @@ pub(in crate::app) mod settings_home;
 pub(in crate::app) mod settings_nav;
 pub(in crate::app) mod settings_policy;
 mod settings_profiles;
+pub(in crate::app) mod settings_strips;
 mod settings_transitions;
 mod spatial_nav;
 mod tags;

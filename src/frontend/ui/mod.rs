@@ -40,6 +40,12 @@ pub use misc::{
     rounded_button_style, soft_button_style, surface_style, vertical_fade_style,
 };
 pub use misc::{
+    DISPLAY_FONT, INK, MONO_FONT, TEXT_FONT, TEXT_STRONG_FONT, accent_on_ink, filter_button_style,
+    floating_panel_style, grid_pattern, hairline_style, ink_fill, ink_palette, quiet_input_style,
+    sheet_style, tag_style, text_button_style, tile_action_style, tile_button_style, tile_style,
+    typed, veil_style,
+};
+pub use misc::{
     EYE_CLOSED, FOLIO_BUTTON_HEIGHT, FOLIO_INDEX_WIDTH, FOLIO_RULE_ALPHA, FadeFrame, Flow,
     NERD_FONT, SheetPosition, SheetWindow, Spinner, TWISTY_CLOSED, TWISTY_OPEN, TYPE_SMALL,
     UI_FONT, UI_FONT_FAMILY, bg_style, box_style, diamond, end, field_input, flat_button_style,

@@ -22,6 +22,8 @@ pub enum Wake {
         h: u32,
     },
     Semantic(crate::infrastructure::semantic::SemanticResult),
+    /// R1b: a frame strip for the Settings cards was read or rendered.
+    Strip(crate::infrastructure::preview::StripEvent),
     /// R1: the Settings Home background, decoded (sharp, blurred).
     HomeBackdrop {
         source: String,

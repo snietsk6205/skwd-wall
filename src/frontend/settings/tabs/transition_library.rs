@@ -11,7 +11,13 @@ use super::{ActionId, Builder, Control};
 
 pub(crate) const LIBRARY_CARD: &str = "Transition library";
 pub(crate) const PLAYLIST_CARD: &str = "Play in turns";
+/// Heading of upstream's own transition rows on the page.
+pub(crate) const BASICS_CARD: &str = "How transitions play";
 pub(crate) const COMBO_CARD: &str = "Combine two";
+
+/// Order of a transition card's actions.
+pub(crate) const TILE_USE: usize = 1;
+pub(crate) const TILE_FAVOURITE: usize = 3;
 
 /// Library filters besides the families.
 const FILTERS: [(&str, &str); 3] =
@@ -114,13 +120,13 @@ fn pairs(options: &[(&str, &str)]) -> Vec<(String, String)> {
     options.iter().map(|(key, label)| ((*key).to_string(), (*label).to_string())).collect()
 }
 
-/// Search, filters and one row per transition with preview, star, playlist
-/// and use buttons.
+/// Search, filters and one card per transition (R1b): its picture inside,
+/// tags, and the actions Preview big, Use, playlist and favourite.
 pub(super) fn tab_library(builder: &mut Builder<'_>) {
     let cfg = builder.cfg;
     builder.card(
         LIBRARY_CARD,
-        "Every transition with a short description. Point at one (or move to it with the arrow keys) to see it play in a small bubble; ▶ Preview shows it bigger until you close it.",
+        "Every transition as a card. Point at one (or move to it with the arrow keys) and it plays inside the card; Preview big shows it large until you press Esc.",
     );
     builder.text_field(
         "Search",
@@ -147,28 +153,35 @@ pub(super) fn tab_library(builder: &mut Builder<'_>) {
         shown += 1;
         let starred = favourites.iter().any(|entry| entry == spec.key);
         let listed = playlist.iter().any(|entry| entry == spec.key);
-        let mut notes = vec![spec.family.label()];
-        if starred {
-            notes.push("favourite");
+        let playing = current == spec.key;
+        let mut tags = vec![(spec.family.label().to_string(), false)];
+        if playing {
+            tags.push((String::from("Playing now"), true));
         }
         if listed {
-            notes.push("in playlist");
+            tags.push((String::from("In playlist"), false));
         }
-        if current == spec.key {
-            notes.push("playing now");
+        if starred && tags.len() < 3 {
+            tags.push((String::from("Favourite"), false));
         }
-        let desc = format!("{} · {}", notes.join(" · "), spec.desc);
         let title = transitions::pretty(spec.key);
-        let star = if starred { "✓ Favourite" } else { "Favourite" };
-        let list = if listed { "✓ In playlist" } else { "+ Playlist" };
-        builder.action_chips(
+        let star = if starred { "Remove favourite" } else { "Favourite" };
+        let list = if listed { "In playlist ✓" } else { "+ Playlist" };
+        builder.tile(
             &title,
-            &desc,
+            spec.desc,
+            super::Tile {
+                picture: spec.key.to_string(),
+                tags,
+                plus: Some((TILE_FAVOURITE, starred)),
+                primary: TILE_USE,
+                active: playing,
+            },
             &[
-                (ActionId::PreviewTransition(spec.key.to_string()), "▶ Preview"),
-                (ActionId::FavouriteTransition(spec.key), star),
-                (ActionId::PlaylistToggle(spec.key.to_string()), list),
+                (ActionId::PreviewTransition(spec.key.to_string()), "Preview big"),
                 (ActionId::UseTransition(spec.key.to_string()), "Use"),
+                (ActionId::PlaylistToggle(spec.key.to_string()), list),
+                (ActionId::FavouriteTransition(spec.key), star),
             ],
         );
     }

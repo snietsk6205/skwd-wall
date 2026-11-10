@@ -230,6 +230,10 @@ pub enum SettingsMsg {
     CardAdd(usize),
     CardHover(Option<usize>),
     HomePause,
+    /// R1b: the pointer entered (`true`) or left the card of this row.
+    TileHover(usize, bool),
+    /// R1b: close the big preview.
+    BigPreviewClose,
     /// R1: preview bubble next to a row (shader, row).
     BubbleShow(String, usize),
     BubbleHide(usize),

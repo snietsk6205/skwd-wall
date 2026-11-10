@@ -11,12 +11,13 @@ use crate::app::Message;
 use crate::frontend::components::with_alpha;
 use crate::frontend::theme::Palette;
 use crate::frontend::ui::ghost_button_style as ghost;
-use crate::frontend::ui::{AnchorSide, TYPE_SMALL, anchored, label, legible_type_scale, row};
-
-use super::super::nav::{
-    self, GROUPS, ICON_BACK, ICON_CHEVRON, ICON_GRID, ICON_LIST, ICON_SPARK, PAGES, PaletteEntry,
-    PaletteValue,
+use crate::frontend::ui::text_button_style as quiet;
+use crate::frontend::ui::{
+    AnchorSide, DISPLAY_FONT, MONO_FONT, TEXT_FONT, TEXT_STRONG_FONT, anchored, label,
+    legible_type_scale, row, typed,
 };
+
+use super::super::nav::{self, GROUPS, ICON_BACK, PAGES, PaletteEntry, PaletteValue};
 use super::super::{SettingsFocus, SettingsMsg};
 
 /// One "Recently changed" line.
@@ -38,6 +39,15 @@ pub struct Backdrop {
     /// Why a video does not play right now ("Low-power mode", ...).
     pub held: Option<&'static str>,
     pub caption: String,
+}
+
+/// R1b: the one live preview in the big overlay.
+#[derive(Clone)]
+pub struct BigPreview {
+    pub title: String,
+    pub desc: String,
+    pub frame: Option<iced::advanced::image::Handle>,
+    pub fade: f32,
 }
 
 pub struct PaletteView<'a> {
@@ -70,6 +80,19 @@ pub struct NavView<'a> {
     pub toast: Option<(String, bool)>,
     pub toast_fade: f32,
     pub bubble: Option<super::rows::BubbleView>,
+    /// R1b: the card under the pointer (row) and how far its glow is.
+    pub tile_hover: Option<usize>,
+    pub tile_fade: f32,
+    /// Middle frames of the card strips, and the frame of the one that plays.
+    pub pictures: &'a std::collections::HashMap<String, iced::advanced::image::Handle>,
+    pub playing: Option<(&'a str, &'a iced::advanced::image::Handle)>,
+    /// Strips the background renderer still has to draw.
+    pub strips_pending: usize,
+    /// A page of the open menu that has a picture (page index, picture).
+    pub menu_picture: Option<(usize, iced::advanced::image::Handle)>,
+    pub big: Option<BigPreview>,
+    /// The faint grid behind pages.
+    pub grid: bool,
     pub backdrop: Backdrop,
     pub bar_blur: bool,
     pub more: &'a std::collections::HashSet<String>,
@@ -79,7 +102,7 @@ pub struct NavView<'a> {
 }
 
 pub(super) fn bar_height(scale: f32) -> f32 {
-    54.0 * scale
+    46.0 * scale
 }
 
 fn icon<'a>(glyph: &'static str, size: f32, scale: f32, color: Color) -> iced::widget::Text<'a> {
@@ -89,8 +112,33 @@ fn icon<'a>(glyph: &'static str, size: f32, scale: f32, color: Color) -> iced::w
         .color(color)
 }
 
-/// The top bar: groups in the centre, view switch, palette and close on the
-/// right.
+/// Text that takes its colour from the button around it (so it brightens
+/// on hover).
+fn plain<'a>(
+    content: impl iced::widget::text::IntoFragment<'a>,
+    font: iced::Font,
+    size: f32,
+    scale: f32,
+) -> iced::widget::Text<'a> {
+    text(content).font(font).size(size * legible_type_scale(scale))
+}
+
+fn spacer<'a>() -> Element<'a, Message> {
+    iced::widget::Space::new().width(Length::Fill).into()
+}
+
+/// A one-pixel horizontal line.
+pub(super) fn rule<'a>(palette: &'a Palette, opacity: f32) -> Element<'a, Message> {
+    container(text(""))
+        .width(Length::Fill)
+        .height(Length::Fixed(1.0))
+        .style(move |_| crate::frontend::ui::hairline_style(palette, opacity))
+        .into()
+}
+
+/// The top bar: small text-only group names in the centre (the open one
+/// bright with a thin underline); Find, the view switch, hide and close as
+/// quiet text on the right.
 pub(super) fn top_bar<'a>(
     nav: &NavView<'a>,
     scale: f32,
@@ -99,39 +147,26 @@ pub(super) fn top_bar<'a>(
     bar_focused: bool,
 ) -> Element<'a, Message> {
     let current_group = nav.page.map_or(0, |page| PAGES[page].group);
-    let mut groups = row![].spacing(4.0 * scale).align_y(Alignment::Center);
+    let bar_item = nav.bar_item;
+    let mut groups = row![].spacing(2.0 * scale).align_y(Alignment::Center);
     for (index, group) in GROUPS.iter().enumerate() {
         let active = index == current_group;
         let focused = bar_focused && nav.bar_item == index;
         let open = nav.menu == Some(index);
-        let mut title = row![
-            text(group.label)
-                .font(crate::frontend::ui::UI_FONT)
-                .size(13.0 * legible_type_scale(scale))
-        ]
-        .spacing(5.0 * scale)
-        .align_y(Alignment::Center);
-        if index > 0 {
-            title = title.push(
-                text(nav::ICON_CHEVRON_DOWN)
-                    .font(crate::frontend::ui::NERD_FONT)
-                    .size(10.0 * legible_type_scale(scale)),
-            );
-        }
         let underline =
-            container(text("")).width(Length::Fill).height(Length::Fixed(2.0)).style(move |_| {
-                crate::frontend::ui::bg_style(Background::Color(with_alpha(
-                    palette.primary,
-                    if active { fade } else { 0.0 },
-                )))
+            container(text("")).width(Length::Fill).height(Length::Fixed(1.0)).style(move |_| {
+                crate::frontend::ui::ink_fill(palette.primary, if active { fade } else { 0.0 })
             });
         let message =
             if index == 0 { SettingsMsg::OpenHome } else { SettingsMsg::MenuClick(index) };
-        let entry =
-            button(column![title, underline].spacing(4.0 * scale).align_x(Alignment::Center))
-                .padding([6.0 * scale, 10.0 * scale])
-                .on_press(Message::Settings(message))
-                .style(move |_theme, status| ghost(palette, fade, active || open, focused, status));
+        let entry = button(
+            column![plain(group.label, MONO_FONT, 12.0, scale), underline]
+                .spacing(5.0 * scale)
+                .align_x(Alignment::Center),
+        )
+        .padding([7.0 * scale, 11.0 * scale])
+        .on_press(Message::Settings(message))
+        .style(move |_theme, status| quiet(palette, fade, active || open, focused, status));
         let entry: Element<'a, Message> = if index == 0 {
             entry.into()
         } else {
@@ -141,120 +176,68 @@ pub(super) fn top_bar<'a>(
                 .into()
         };
         let panel = (nav.menu == Some(index)).then(|| menu_panel(nav, index, scale, palette));
-        groups = groups.push(anchored(entry, panel, AnchorSide::Below, 6.0 * scale));
+        groups = groups.push(anchored(entry, panel, AnchorSide::Below, 8.0 * scale));
     }
-    let view_switch = {
-        let focused = bar_focused && nav.bar_item == 6;
-        let chip = |text_: &'static str, on: bool| {
-            container(label(
-                text_,
-                11.0,
-                scale,
-                with_alpha(
-                    if on { palette.primary_text } else { palette.surface_text },
-                    if on { fade } else { 0.7 * fade },
-                ),
-            ))
-            .padding([4.0 * scale, 9.0 * scale])
-            .style(move |_| {
-                crate::frontend::ui::surface_style(
-                    with_alpha(palette.primary, if on { 0.92 * fade } else { 0.0 }),
-                    999.0,
-                    (0.0, Color::TRANSPARENT),
-                    None,
-                )
-            })
-        };
-        button(row![chip("Simple", nav.simple), chip("Advanced", !nav.simple)].spacing(2.0 * scale))
-            .padding(2.0 * scale)
-            .on_press(Message::Settings(SettingsMsg::ToggleView))
-            .style(move |_theme, status| {
-                let mut style = ghost(palette, fade, false, focused, status);
-                style.border = iced::Border {
-                    radius: (999.0).into(),
-                    width: 1.0,
-                    color: with_alpha(
-                        if focused { palette.primary } else { palette.outline },
-                        0.7 * fade,
-                    ),
-                };
-                style
-            })
-    };
-    let search = {
-        let focused = bar_focused && nav.bar_item == 7;
-        button(
-            row![
-                icon(nav::ICON_SEARCH, 13.0, scale, with_alpha(palette.surface_text, 0.8 * fade)),
-                label("Find", 12.0, scale, with_alpha(palette.surface_text, 0.8 * fade)),
-                container(label(
-                    "Ctrl K",
-                    9.5,
-                    scale,
-                    with_alpha(palette.surface_text, 0.55 * fade)
-                ))
-                .padding([2.0 * scale, 5.0 * scale])
-                .style(move |_| crate::frontend::ui::surface_style(
-                    Color::TRANSPARENT,
-                    5.0,
-                    (1.0, with_alpha(palette.outline, 0.6 * fade)),
-                    None
-                )),
-            ]
+    let dim = with_alpha(palette.surface_text, 0.34 * fade);
+    let search = button(
+        row![plain("Find", MONO_FONT, 11.5, scale), typed("Ctrl K", MONO_FONT, 10.0, scale, dim)]
             .spacing(7.0 * scale)
             .align_y(Alignment::Center),
-        )
-        .padding([6.0 * scale, 10.0 * scale])
-        .on_press(Message::Settings(SettingsMsg::PaletteOpen))
-        .style(move |_theme, status| ghost(palette, fade, false, focused, status))
-    };
-    let close =
-        button(icon(nav::ICON_CLOSE, 15.0, scale, with_alpha(palette.surface_text, 0.8 * fade)))
-            .padding([6.0 * scale, 8.0 * scale])
-            .on_press(Message::ToggleSettings)
-            .style(move |_theme, status| ghost(palette, fade, false, false, status));
-    let hide = button(icon(
-        crate::frontend::ui::EYE_CLOSED,
-        14.0,
-        scale,
-        with_alpha(palette.surface_text, 0.7 * fade),
-    ))
-    .padding([6.0 * scale, 8.0 * scale])
-    .on_press(Message::Stash)
-    .style(move |_theme, status| ghost(palette, fade, false, false, status));
-    let brand = row![
-        icon(ICON_SPARK, 14.0, scale, with_alpha(palette.primary, fade)),
-        label("Settings", 13.0, scale, with_alpha(palette.surface_text, 0.9 * fade)),
-    ]
-    .spacing(7.0 * scale)
-    .align_y(Alignment::Center);
-    let left = container(brand)
-        .width(Length::FillPortion(2))
-        .padding(Padding { left: 18.0 * scale, ..Padding::ZERO });
-    let right = container(
-        row![view_switch, search, hide, close].spacing(6.0 * scale).align_y(Alignment::Center),
     )
-    .width(Length::FillPortion(2))
+    .padding([6.0 * scale, 9.0 * scale])
+    .on_press(Message::Settings(SettingsMsg::PaletteOpen))
+    .style(move |_theme, status| quiet(palette, fade, false, bar_focused && bar_item == 7, status));
+    let word = |name: &'static str, on: bool| {
+        typed(
+            name,
+            MONO_FONT,
+            11.5,
+            scale,
+            with_alpha(palette.surface_text, if on { fade } else { 0.36 * fade }),
+        )
+    };
+    let view_switch = button(
+        row![
+            word("Simple", nav.simple),
+            typed("/", MONO_FONT, 11.5, scale, dim),
+            word("Advanced", !nav.simple)
+        ]
+        .spacing(6.0 * scale)
+        .align_y(Alignment::Center),
+    )
+    .padding([6.0 * scale, 9.0 * scale])
+    .on_press(Message::Settings(SettingsMsg::ToggleView))
+    .style(move |_theme, status| quiet(palette, fade, false, bar_focused && bar_item == 6, status));
+    let glyph_button = |glyph: &'static str, size: f32, message: Message| {
+        button(
+            text(glyph).font(crate::frontend::ui::NERD_FONT).size(size * legible_type_scale(scale)),
+        )
+        .padding([6.0 * scale, 8.0 * scale])
+        .on_press(message)
+        .style(move |_theme, status| quiet(palette, fade, false, false, status))
+    };
+    let right = container(
+        row![
+            search,
+            view_switch,
+            glyph_button(crate::frontend::ui::EYE_CLOSED, 13.0, Message::Stash),
+            glyph_button(nav::ICON_CLOSE, 14.0, Message::ToggleSettings),
+        ]
+        .spacing(4.0 * scale)
+        .align_y(Alignment::Center),
+    )
+    .width(Length::FillPortion(1))
     .align_x(crate::frontend::ui::end())
-    .padding(Padding { right: 12.0 * scale, ..Padding::ZERO });
+    .padding(Padding { right: 10.0 * scale, ..Padding::ZERO });
+    let left = container(text("")).width(Length::FillPortion(1));
     let content = row![left, container(groups).width(Length::Shrink), right]
         .align_y(Alignment::Center)
         .height(Length::Fixed(bar_height(scale)));
-    let bar_bg = if nav.bar_blur { 0.35 } else { 0.0 };
-    container(content)
-        .width(Length::Fill)
-        .style(move |_| {
-            crate::frontend::ui::surface_style(
-                with_alpha(palette.surface, bar_bg * fade),
-                0.0,
-                (0.0, Color::TRANSPARENT),
-                None,
-            )
-        })
-        .into()
+    container(content).width(Length::Fill).into()
 }
 
-/// A group's menu: icon, name and one sentence per page.
+/// A group's menu: a panel of numbered page cards with thin outlines; the
+/// hovered or focused card lights up. One column (list) or three (grid).
 fn menu_panel<'a>(
     nav: &NavView<'a>,
     group: usize,
@@ -266,9 +249,10 @@ fn menu_panel<'a>(
     let pages: Vec<usize> = nav::group_pages(group).map(|(index, _)| index).collect();
     let grid = nav.menu_grid;
     let columns = if grid { 3 } else { 1 };
-    let item_width = if grid { 212.0 } else { 372.0 } * scale;
-    let mut lines = column![].spacing(2.0 * scale);
-    let mut current = row![].spacing(4.0 * scale);
+    let gap = 6.0 * scale;
+    let item_width = if grid { 196.0 } else { 408.0 } * scale;
+    let mut lines = column![].spacing(gap);
+    let mut current = row![].spacing(gap);
     let mut in_row = 0;
     for (position, &page_index) in pages.iter().enumerate() {
         let page = &PAGES[page_index];
@@ -277,128 +261,141 @@ fn menu_panel<'a>(
         let unavailable = nav.menu_unavailable.contains(&page_index);
         let advanced = nav.simple && nav::ADVANCED_PAGES.contains(&page.key);
         let note = if unavailable { "Not used with your current settings." } else { page.sentence };
-        let name_row = row![label(
+        let strength = if unavailable { 0.45 } else { 1.0 } * ease;
+        let number = typed(
+            format!("{:02}", position + 1),
+            MONO_FONT,
+            10.0,
+            scale,
+            with_alpha(
+                if here { palette.primary } else { palette.surface_text },
+                if here { ease } else { 0.36 * ease },
+            ),
+        );
+        let glyph = container(icon(page.icon, 14.0, scale, with_alpha(palette.primary, strength)))
+            .width(Length::Fixed(20.0 * scale));
+        let name = typed(
             page.label,
+            TEXT_STRONG_FONT,
             13.0,
             scale,
-            with_alpha(palette.surface_text, if unavailable { 0.5 } else { 1.0 } * ease)
-        ),]
-        .push_maybe(advanced.then(|| {
-            container(label("Advanced", 8.5, scale, with_alpha(palette.surface_text, 0.6 * ease)))
-                .padding([1.0 * scale, 5.0 * scale])
-                .style(move |_| {
-                    crate::frontend::ui::surface_style(
-                        Color::TRANSPARENT,
-                        4.0,
-                        (1.0, with_alpha(palette.outline, 0.6 * ease)),
-                        None,
-                    )
-                })
-        }))
-        .spacing(6.0 * scale)
-        .align_y(Alignment::Center);
-        let copy = column![
-            name_row,
-            label(note, TYPE_SMALL, scale, with_alpha(palette.surface_text, 0.58 * ease))
-                .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
-        ]
-        .spacing(2.0 * scale);
-        let glyph = container(icon(page.icon, 17.0, scale, with_alpha(palette.primary, ease)))
-            .width(Length::Fixed(30.0 * scale))
-            .height(Length::Fixed(30.0 * scale))
-            .center(Length::Fixed(30.0 * scale))
-            .style(move |_| {
-                crate::frontend::ui::surface_style(
-                    with_alpha(palette.primary, 0.12 * ease),
-                    8.0,
-                    (0.0, Color::TRANSPARENT),
-                    None,
+            with_alpha(palette.surface_text, strength),
+        );
+        let sentence =
+            typed(note, TEXT_FONT, 11.0, scale, with_alpha(palette.surface_text, 0.54 * ease))
+                .line_height(iced::widget::text::LineHeight::Relative(1.35))
+                .wrapping(iced::widget::text::Wrapping::WordOrGlyph);
+        let tag = advanced.then(|| {
+            container(typed(
+                "Advanced",
+                MONO_FONT,
+                8.5,
+                scale,
+                with_alpha(palette.surface_text, 0.55 * ease),
+            ))
+            .padding([1.0 * scale, 5.0 * scale])
+            .style(move |_| crate::frontend::ui::tag_style(palette, ease, false))
+        });
+        let picture = nav.menu_picture.as_ref().filter(|(owner, _)| *owner == page_index).map(
+            |(_, handle)| {
+                container(
+                    image(handle.clone())
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .content_fit(iced::ContentFit::Cover)
+                        .opacity(ease),
                 )
-            });
+                .width(Length::Fixed(if grid { item_width - 22.0 * scale } else { 72.0 * scale }))
+                .height(Length::Fixed(if grid { 62.0 } else { 40.5 } * scale))
+                .clip(true)
+            },
+        );
         let body: Element<'a, Message> = if grid {
-            column![glyph, copy].spacing(8.0 * scale).into()
+            let mut body = column![
+                row![number, spacer(), glyph].align_y(Alignment::Center),
+                row![name].push_maybe(tag).spacing(6.0 * scale).align_y(Alignment::Center),
+                sentence,
+            ]
+            .spacing(6.0 * scale);
+            if let Some(picture) = picture {
+                body = body.push(picture);
+            }
+            body.into()
         } else {
-            row![glyph, copy].spacing(11.0 * scale).align_y(Alignment::Center).into()
+            row![
+                container(number).padding(Padding { top: 2.0 * scale, ..Padding::ZERO }),
+                glyph.padding(Padding { top: 1.0 * scale, ..Padding::ZERO }),
+                column![
+                    row![name].push_maybe(tag).spacing(6.0 * scale).align_y(Alignment::Center),
+                    sentence
+                ]
+                .spacing(3.0 * scale)
+                .width(Length::Fill),
+            ]
+            .push_maybe(picture)
+            .spacing(10.0 * scale)
+            .align_y(Alignment::Start)
+            .into()
         };
         let message = if nav.edit_cards && nav.page.is_none() {
             SettingsMsg::CardAdd(page_index)
         } else {
             SettingsMsg::OpenPage(page_index)
         };
-        let item = button(body)
+        let mut item = button(body)
             .width(Length::Fixed(item_width))
-            .padding([8.0 * scale, 10.0 * scale])
+            .padding([10.0 * scale, 11.0 * scale])
             .on_press(Message::Settings(message))
             .style(move |_theme, status| {
-                let mut style = ghost(palette, ease, here, selected, status);
-                if here && !selected {
-                    style.background =
-                        Some(Background::Color(with_alpha(palette.primary, 0.07 * ease)));
-                }
-                style
+                crate::frontend::ui::tile_button_style(palette, ease, selected, here, true, status)
             });
+        if grid {
+            item = item.height(Length::Fixed(118.0 * scale));
+        }
         current = current.push(item);
         in_row += 1;
         if in_row == columns || position + 1 == pages.len() {
-            lines = lines.push(std::mem::replace(&mut current, row![].spacing(4.0 * scale)));
+            lines = lines.push(std::mem::replace(&mut current, row![].spacing(gap)));
             in_row = 0;
         }
     }
     let group_info = &GROUPS[group];
     let header = row![
-        label(group_info.label, 11.0, scale, with_alpha(palette.primary, ease)),
-        container(text("")).width(Length::Fill),
-        label(
-            if grid { "grid" } else { "list" },
+        typed(group_info.label, DISPLAY_FONT, 13.0, scale, with_alpha(palette.surface_text, ease)),
+        spacer(),
+        typed(
+            format!("{} pages", pages.len()),
+            MONO_FONT,
             9.5,
             scale,
-            with_alpha(palette.surface_text, 0.45 * ease)
-        ),
-        icon(
-            if grid { ICON_GRID } else { ICON_LIST },
-            10.0,
-            scale,
-            with_alpha(palette.surface_text, 0.45 * ease)
+            with_alpha(palette.surface_text, 0.36 * ease)
         ),
     ]
-    .spacing(5.0 * scale)
     .align_y(Alignment::Center);
-    let footer = label(
+    let footer = typed(
         if nav.edit_cards && nav.page.is_none() {
             "Click a page to pin it on Home."
         } else {
-            "↑↓ ←→ choose · Enter open · Esc close"
+            "Arrow keys choose, Enter opens, Esc closes"
         },
+        MONO_FONT,
         9.5,
         scale,
-        with_alpha(palette.surface_text, 0.42 * ease),
+        with_alpha(palette.surface_text, 0.34 * ease),
     );
-    let panel_width =
-        item_width * columns as f32 + 4.0 * scale * (columns as f32 - 1.0) + 20.0 * scale;
-    let panel = container(column![header, lines, footer].spacing(8.0 * scale))
+    let panel_width = item_width * columns as f32 + gap * (columns as f32 - 1.0) + 24.0 * scale;
+    let panel = container(column![header, lines, footer].spacing(10.0 * scale))
         .width(Length::Fixed(panel_width))
-        .padding(Padding {
-            top: 12.0 * scale,
-            right: 10.0 * scale,
-            bottom: 10.0 * scale,
-            left: 10.0 * scale,
-        })
-        .style(move |_| {
-            crate::frontend::ui::surface_style(
-                with_alpha(palette.surface_container, ease),
-                14.0,
-                (1.0, with_alpha(palette.outline, 0.55 * ease)),
-                Some((with_alpha(Color::BLACK, 0.4 * ease), 14.0, 36.0)),
-            )
-        });
-    let slide = 10.0 * (1.0 - ease) * scale;
+        .padding(12.0 * scale)
+        .style(move |_| crate::frontend::ui::floating_panel_style(palette, ease));
+    let slide = if nav.still { 0.0 } else { 8.0 * (1.0 - ease) * scale };
     mouse_area(container(panel).padding(Padding { top: slide, ..Padding::ZERO }))
         .on_enter(Message::Settings(SettingsMsg::MenuHover(group)))
         .on_exit(Message::Settings(SettingsMsg::MenuLeave))
         .into()
 }
 
-/// "← Back   Motion › Transitions › Combine two".
+/// "← Back   Motion / Transitions / Combine two".
 pub(super) fn breadcrumb<'a>(
     nav: &NavView<'a>,
     page: usize,
@@ -408,54 +405,39 @@ pub(super) fn breadcrumb<'a>(
     fade: f32,
 ) -> Element<'a, Message> {
     let info = &PAGES[page];
-    let link = |content: Element<'a, Message>, message: SettingsMsg| {
+    let link = |content: Element<'a, Message>, message: SettingsMsg, active: bool| {
         button(content)
-            .padding([3.0 * scale, 6.0 * scale])
+            .padding([3.0 * scale, 5.0 * scale])
             .on_press(Message::Settings(message))
-            .style(move |_theme, status| ghost(palette, fade, false, false, status))
+            .style(move |_theme, status| quiet(palette, fade, active, false, status))
     };
-    let sep = || icon(ICON_CHEVRON, 11.0, scale, with_alpha(palette.surface_text, 0.4 * fade));
+    let sep = || typed("/", MONO_FONT, 11.0, scale, with_alpha(palette.surface_text, 0.26 * fade));
     let back = link(
         row![
-            icon(ICON_BACK, 13.0, scale, with_alpha(palette.surface_text, 0.85 * fade)),
-            label(
-                if nav.can_go_back { "Back" } else { "Home" },
-                11.5,
-                scale,
-                with_alpha(palette.surface_text, 0.85 * fade)
-            ),
+            text(ICON_BACK)
+                .font(crate::frontend::ui::NERD_FONT)
+                .size(12.0 * legible_type_scale(scale)),
+            plain(if nav.can_go_back { "Back" } else { "Home" }, MONO_FONT, 11.0, scale),
         ]
-        .spacing(5.0 * scale)
+        .spacing(6.0 * scale)
         .align_y(Alignment::Center)
         .into(),
         SettingsMsg::Back,
+        false,
     );
     let mut trail = row![
         back,
-        container(text("")).width(Length::Fixed(10.0 * scale)),
+        container(text("")).width(Length::Fixed(12.0 * scale)),
         link(
-            label(
-                GROUPS[info.group].label,
-                11.5,
-                scale,
-                with_alpha(palette.surface_text, 0.62 * fade)
-            )
-            .into(),
-            SettingsMsg::MenuClick(info.group)
+            plain(GROUPS[info.group].label, MONO_FONT, 11.0, scale).into(),
+            SettingsMsg::MenuClick(info.group),
+            false
         ),
         sep(),
         link(
-            label(
-                info.label,
-                11.5,
-                scale,
-                with_alpha(
-                    palette.surface_text,
-                    if segment.is_some() { 0.62 } else { 0.95 } * fade
-                )
-            )
-            .into(),
-            SettingsMsg::OpenPage(page)
+            plain(info.label, MONO_FONT, 11.0, scale).into(),
+            SettingsMsg::OpenPage(page),
+            segment.is_none()
         ),
     ]
     .spacing(2.0 * scale)
@@ -463,14 +445,21 @@ pub(super) fn breadcrumb<'a>(
     if let Some(segment) = segment {
         trail = trail.push(sep());
         trail = trail.push(
-            container(label(segment, 11.5, scale, with_alpha(palette.surface_text, 0.95 * fade)))
-                .padding([3.0 * scale, 6.0 * scale]),
+            container(typed(
+                segment,
+                MONO_FONT,
+                11.0,
+                scale,
+                with_alpha(palette.surface_text, fade),
+            ))
+            .padding([3.0 * scale, 5.0 * scale]),
         );
     }
     trail.into()
 }
 
-/// The page under the bar: breadcrumb, title, sentence, then the rows.
+/// The page under the bar: where you are, a big title with a short caption
+/// on the right, a thin rule, then the content.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn page_frame<'a>(
     nav: &NavView<'a>,
@@ -487,75 +476,64 @@ pub(super) fn page_frame<'a>(
     let slide = if nav.still {
         0.0
     } else {
-        14.0 * (1.0 - crate::frontend::animation::smoothstep(nav.page_fade)) * scale
+        10.0 * (1.0 - crate::frontend::animation::smoothstep(nav.page_fade)) * scale
     };
-    let page_fade =
-        fade * if nav.still { 1.0 } else { 0.25 + 0.75 * nav.page_fade.clamp(0.0, 1.0) };
-    let mut header = column![
-        breadcrumb(nav, page, segment, scale, palette, page_fade),
-        row![
-            container(icon(info.icon, 22.0, scale, with_alpha(palette.primary, page_fade)))
-                .padding(Padding { top: 4.0 * scale, ..Padding::ZERO }),
-            column![
-                text(info.label)
-                    .font(crate::frontend::ui::UI_FONT)
-                    .size(30.0 * scale.clamp(0.85, 1.1))
-                    .color(with_alpha(palette.surface_text, page_fade)),
-                label(
-                    info.sentence,
-                    12.0,
-                    scale,
-                    with_alpha(palette.surface_text, 0.62 * page_fade)
-                ),
-            ]
-            .spacing(2.0 * scale),
-        ]
-        .spacing(12.0 * scale)
-        .align_y(Alignment::Start),
-    ]
-    .spacing(14.0 * scale);
+    let page_fade = fade * if nav.still { 1.0 } else { 0.2 + 0.8 * nav.page_fade.clamp(0.0, 1.0) };
+    let title = text(info.label)
+        .font(DISPLAY_FONT)
+        .size(30.0 * scale.clamp(0.85, 1.15))
+        .color(with_alpha(palette.surface_text, page_fade));
+    let caption = container(
+        typed(
+            info.sentence,
+            TEXT_FONT,
+            12.5,
+            scale,
+            with_alpha(palette.surface_text, 0.56 * page_fade),
+        )
+        .line_height(iced::widget::text::LineHeight::Relative(1.45))
+        .align_x(iced::alignment::Horizontal::Right)
+        .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+    )
+    .width(Length::Fixed((width * 0.34).min(300.0 * scale)))
+    .align_x(crate::frontend::ui::end());
+    let mut crumbs = row![breadcrumb(nav, page, segment, scale, palette, page_fade), spacer()]
+        .spacing(8.0 * scale)
+        .align_y(Alignment::Center);
     if hidden > 0 {
-        header = header.push(
-            row![
-                label(
-                    format!(
-                        "Simple view hides {hidden} advanced setting{} here.",
-                        if hidden == 1 { "" } else { "s" }
-                    ),
-                    TYPE_SMALL,
-                    scale,
-                    with_alpha(palette.surface_text, 0.5 * page_fade),
-                ),
-                button(label(
-                    "Show them",
-                    TYPE_SMALL,
-                    scale,
-                    with_alpha(palette.primary, page_fade)
-                ))
-                .padding([2.0 * scale, 6.0 * scale])
+        crumbs = crumbs.push(typed(
+            format!(
+                "Simple view hides {hidden} advanced setting{} here",
+                if hidden == 1 { "" } else { "s" }
+            ),
+            MONO_FONT,
+            10.5,
+            scale,
+            with_alpha(palette.surface_text, 0.4 * page_fade),
+        ));
+        crumbs = crumbs.push(
+            button(plain("Show them", MONO_FONT, 10.5, scale))
+                .padding([3.0 * scale, 5.0 * scale])
                 .on_press(Message::Settings(SettingsMsg::ShowAllRows))
-                .style(move |_theme, status| ghost(palette, page_fade, false, false, status)),
-            ]
-            .spacing(6.0 * scale)
-            .align_y(Alignment::Center),
+                .style(move |_theme, status| quiet(palette, page_fade, true, false, status)),
         );
     }
-    let body = column![
-        header,
-        crate::frontend::ui::folio_horizontal_rule(with_alpha(palette.outline, 0.3 * page_fade)),
-        content
+    let header = column![
+        crumbs,
+        row![title, spacer(), caption].align_y(Alignment::End),
+        rule(palette, 0.2 * page_fade),
     ]
-    .spacing(16.0 * scale)
-    .width(Length::Fixed(width));
+    .spacing(12.0 * scale);
+    let body = column![header, content].spacing(16.0 * scale).width(Length::Fixed(width));
     let padded = container(body).width(Length::Fill).center_x(Length::Fill).padding(Padding {
-        top: 18.0 * scale + slide,
+        top: 12.0 * scale + slide,
         right: 24.0 * scale,
-        bottom: 64.0 * scale,
+        bottom: 72.0 * scale,
         left: 24.0 * scale,
     });
     scrollable(padded)
         .direction(scrollable::Direction::Vertical(
-            scrollable::Scrollbar::new().width(4.0 * scale).scroller_width(4.0 * scale),
+            scrollable::Scrollbar::new().width(3.0 * scale).scroller_width(3.0 * scale),
         ))
         .id(crate::frontend::ui::pane_id(super::folio::READING_PANE))
         .width(Length::Fill)
@@ -810,6 +788,103 @@ pub(super) fn toast_layer(
         .align_y(Alignment::End)
         .padding(Padding { bottom: 18.0 * scale + 10.0 * (1.0 - ease) * scale, ..Padding::ZERO })
         .into()
+}
+
+/// "Preview big": the one live preview, large, over a blurred and darkened
+/// copy of the background. Esc or a click beside it closes it.
+pub(super) fn big_preview_layer<'a>(
+    big: &BigPreview,
+    blurred: Option<iced::advanced::image::Handle>,
+    panel: (f32, f32),
+    scale: f32,
+    palette: &'a Palette,
+    fade: f32,
+) -> Element<'a, Message> {
+    let ease = crate::frontend::animation::smoothstep(big.fade.clamp(0.0, 1.0)) * fade;
+    let width = (panel.0 * 0.66).min((panel.1 - 190.0 * scale) * 16.0 / 9.0).max(320.0 * scale);
+    let height = width * 9.0 / 16.0;
+    let frame: Element<'a, Message> = match big.frame.clone() {
+        Some(handle) => image(handle)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .content_fit(iced::ContentFit::Cover)
+            .opacity(ease)
+            .into(),
+        None => container(typed(
+            "starting the preview",
+            MONO_FONT,
+            10.5,
+            scale,
+            with_alpha(palette.surface_text, 0.4 * ease),
+        ))
+        .center(Length::Fill)
+        .into(),
+    };
+    let stage = container(frame)
+        .width(Length::Fixed(width))
+        .height(Length::Fixed(height))
+        .clip(true)
+        .style(move |_| crate::frontend::ui::ink_fill(palette.surface_variant, ease));
+    let caption = row![
+        column![
+            typed(
+                big.title.clone(),
+                DISPLAY_FONT,
+                15.0,
+                scale,
+                with_alpha(palette.surface_text, ease)
+            ),
+            typed(
+                big.desc.clone(),
+                TEXT_FONT,
+                12.0,
+                scale,
+                with_alpha(palette.surface_text, 0.6 * ease)
+            )
+            .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+        ]
+        .spacing(5.0 * scale)
+        .width(Length::Fill),
+        button(
+            row![
+                plain("Close", MONO_FONT, 11.0, scale),
+                typed("Esc", MONO_FONT, 10.0, scale, with_alpha(palette.surface_text, 0.36 * ease)),
+            ]
+            .spacing(7.0 * scale)
+            .align_y(Alignment::Center)
+        )
+        .padding([5.0 * scale, 8.0 * scale])
+        .on_press(Message::Settings(SettingsMsg::BigPreviewClose))
+        .style(move |_theme, status| quiet(palette, ease, false, false, status)),
+    ]
+    .spacing(12.0 * scale)
+    .align_y(Alignment::Start)
+    .width(Length::Fixed(width));
+    let card = container(column![stage, caption].spacing(12.0 * scale))
+        .padding(12.0 * scale)
+        .style(move |_| crate::frontend::ui::floating_panel_style(palette, ease));
+    let blur: Element<'a, Message> = match blurred {
+        Some(handle) => image(handle)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .content_fit(iced::ContentFit::Cover)
+            .opacity(0.55 * ease)
+            .into(),
+        None => iced::widget::Space::new().width(Length::Fill).height(Length::Fill).into(),
+    };
+    let veil = mouse_area(
+        container(text(""))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(move |_| crate::frontend::ui::ink_fill(palette.surface, 0.8 * ease)),
+    )
+    .on_press(Message::Settings(SettingsMsg::BigPreviewClose));
+    stack![
+        iced::widget::opaque(blur),
+        veil,
+        container(iced::widget::opaque(card)).center(Length::Fill),
+    ]
+    .into()
 }
 
 /// The picture behind Home (sharp) or behind the bar (blurred).

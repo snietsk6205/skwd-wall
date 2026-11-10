@@ -16,7 +16,10 @@ pub use action::{
     ActionId, SettingsFocus, SettingsKey, SettingsMsg, WEATHER_REVIEW_TAB_COUNT, WeatherReviewTab,
 };
 pub use folio::READING_PANE;
-pub use folio::{Backdrop, BubbleView, NavView, PaletteView, RecentItem};
+pub use folio::{
+    Backdrop, BigPreview, BubbleView, NavView, PaletteView, RecentItem, card_columns, card_height,
+    wide_page_width,
+};
 pub use folio::{
     ChromeCtx, FocusCtx, FoldersCtx, KeybindCaptureView, ProcessPickerView, ProfilesCtx, SourceCtx,
     WorkbenchInput, picker_layout_workbench, settings_workbench, state_position,
@@ -32,8 +35,8 @@ pub use layout::{
     sheet_window,
 };
 pub use model::{
-    Card, Control, FolderLedger, FolderRow, ProfileEntry, ProfilesPage, Row, TagTone, TreeNode,
-    mark_folds,
+    Card, Control, FolderLedger, FolderRow, ProfileEntry, ProfilesPage, Row, TagTone, Tile,
+    TreeNode, mark_folds,
 };
 pub use search::{SettingsSearchResult, search_settings};
 pub(crate) use tables::SHADERS;

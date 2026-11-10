@@ -13,6 +13,34 @@ pub const UI_FONT: Font = Font {
     style: iced::font::Style::Normal,
 };
 
+/// R1b (custom build): the Settings window's faces. Big titles, reading
+/// text (regular and medium) and a monospace for numbers, tags and the top
+/// bar. Glyphs they lack fall back to the system fonts.
+pub const DISPLAY_FONT: Font = Font {
+    family: iced::font::Family::Name("Unbounded"),
+    weight: iced::font::Weight::Semibold,
+    stretch: iced::font::Stretch::Normal,
+    style: iced::font::Style::Normal,
+};
+pub const TEXT_FONT: Font = Font {
+    family: iced::font::Family::Name("Geist"),
+    weight: iced::font::Weight::Normal,
+    stretch: iced::font::Stretch::Normal,
+    style: iced::font::Style::Normal,
+};
+pub const TEXT_STRONG_FONT: Font = Font {
+    family: iced::font::Family::Name("Geist"),
+    weight: iced::font::Weight::Medium,
+    stretch: iced::font::Stretch::Normal,
+    style: iced::font::Style::Normal,
+};
+pub const MONO_FONT: Font = Font {
+    family: iced::font::Family::Name("Geist Mono"),
+    weight: iced::font::Weight::Normal,
+    stretch: iced::font::Stretch::Normal,
+    style: iced::font::Style::Normal,
+};
+
 pub const TYPE_SMALL: f32 = 11.0;
 
 pub fn legible_type_scale(scale: f32) -> f32 {
@@ -26,6 +54,17 @@ pub fn label<'a>(
     color: Color,
 ) -> iced::widget::Text<'a> {
     iced::widget::text(content).font(UI_FONT).size(size * legible_type_scale(scale)).color(color)
+}
+
+/// Text in one of the Settings faces.
+pub fn typed<'a>(
+    content: impl iced::widget::text::IntoFragment<'a>,
+    font: Font,
+    size: f32,
+    scale: f32,
+    color: Color,
+) -> iced::widget::Text<'a> {
+    iced::widget::text(content).font(font).size(size * legible_type_scale(scale)).color(color)
 }
 
 #[cfg(test)]

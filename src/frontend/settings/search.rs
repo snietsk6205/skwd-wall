@@ -245,7 +245,7 @@ fn control_search_text(control: &Control) -> String {
         Control::ActionBtn { label, .. } => {
             format!("{label} {}", tr("settings-search-control-action"))
         }
-        Control::ActionChips { items } => format!(
+        Control::ActionChips { items } | Control::Tile { items, .. } => format!(
             "{} {}",
             items.iter().map(|(_, label)| label.as_str()).collect::<Vec<_>>().join(" "),
             tr("settings-search-control-action")
@@ -318,7 +318,7 @@ fn control_value(control: &Control, cfg: &dyn SettingsSource) -> String {
             .map(|(label, path, _)| format!("{label} {} ms", cfg.number(path)))
             .collect::<Vec<_>>()
             .join(" · "),
-        Control::ActionBtn { .. } | Control::ActionChips { .. } => {
+        Control::ActionBtn { .. } | Control::ActionChips { .. } | Control::Tile { .. } => {
             String::from(tr("settings-control-action"))
         }
         Control::Presets { items, .. } => items

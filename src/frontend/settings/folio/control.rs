@@ -716,7 +716,7 @@ pub(super) fn widget<'a>(
                 motion,
             )
         }
-        Control::ActionChips { items } => wrapped_options(
+        Control::ActionChips { items } | Control::Tile { items, .. } => wrapped_options(
             items
                 .into_iter()
                 .enumerate()
