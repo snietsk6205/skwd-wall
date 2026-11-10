@@ -179,7 +179,7 @@ pub fn tag_style(palette: &Palette, fade: f32, strong: bool) -> container::Style
     container::Style {
         background: Some(Background::Color(alpha(
             palette.primary,
-            if strong { 0.1 * fade } else { 0.0 },
+            if strong { 0.04 * fade } else { 0.0 },
         ))),
         border: Border {
             radius: (2.0).into(),
@@ -280,7 +280,7 @@ pub fn filter_button_style(
     button::Style {
         background: Some(Background::Color(alpha(
             palette.primary,
-            if chosen { 0.1 * fade } else { 0.0 },
+            if chosen { 0.04 * fade } else { 0.0 },
         ))),
         border: Border {
             radius: (2.0).into(),
@@ -427,4 +427,109 @@ pub fn grid_pattern<'a, Message: 'a>(
         .width(Length::Fill)
         .height(Length::Fill)
         .into()
+}
+
+/// One choice among several (or an action) in a plain row: just the word.
+/// The chosen one gets a thin accent outline; the keyboard a ring; `strong`
+/// (a confirmation) fills with the accent.
+pub fn choice_button_style(
+    palette: &Palette,
+    fade: f32,
+    chosen: bool,
+    strong: bool,
+    focused: bool,
+    status: button::Status,
+) -> button::Style {
+    let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
+    let disabled = matches!(status, button::Status::Disabled);
+    if strong && chosen {
+        return button::Style {
+            background: Some(Background::Color(alpha(palette.primary, fade))),
+            border: Border {
+                radius: (2.0).into(),
+                width: 1.0,
+                color: alpha(palette.primary, fade),
+            },
+            text_color: alpha(palette.primary_text, fade),
+            ..Default::default()
+        };
+    }
+    let line = if focused {
+        alpha(palette.primary, fade)
+    } else if chosen {
+        alpha(palette.primary, 0.7 * fade)
+    } else if hovered && !disabled {
+        alpha(palette.outline, 0.45 * fade)
+    } else {
+        Color::TRANSPARENT
+    };
+    button::Style {
+        background: Some(Background::Color(alpha(
+            palette.primary,
+            if chosen { 0.04 * fade } else { 0.0 },
+        ))),
+        border: Border {
+            radius: (2.0).into(),
+            width: if focused { 1.5 } else { 1.0 },
+            color: line,
+        },
+        text_color: alpha(
+            palette.surface_text,
+            if disabled {
+                0.28 * fade
+            } else if chosen || hovered || focused {
+                fade
+            } else {
+                0.58 * fade
+            },
+        ),
+        ..Default::default()
+    }
+}
+
+/// The track of a switch: an outline when off, the accent when on.
+pub fn switch_track_style(palette: &Palette, fade: f32, on: bool, lit: bool) -> container::Style {
+    container::Style {
+        background: Some(Background::Color(alpha(palette.primary, if on { fade } else { 0.0 }))),
+        border: Border {
+            radius: (999.0).into(),
+            width: 1.0,
+            color: if on {
+                alpha(palette.primary, fade)
+            } else {
+                alpha(palette.outline, if lit { 0.8 } else { 0.45 } * fade)
+            },
+        },
+        ..Default::default()
+    }
+}
+
+/// The knob of a switch.
+pub fn switch_thumb_style(palette: &Palette, fade: f32, on: bool) -> container::Style {
+    container::Style {
+        background: Some(Background::Color(if on {
+            alpha(palette.primary_text, fade)
+        } else {
+            alpha(palette.surface_text, 0.62 * fade)
+        })),
+        border: Border { radius: (999.0).into(), width: 0.0, color: Color::TRANSPARENT },
+        ..Default::default()
+    }
+}
+
+/// A plain Settings row: nothing at rest, a thin accent ring and the
+/// faintest tint while the keyboard is on it.
+pub fn plain_row_style(palette: &Palette, fade: f32, focused: bool) -> container::Style {
+    container::Style {
+        background: Some(Background::Color(alpha(
+            palette.primary,
+            if focused { 0.012 * fade } else { 0.0 },
+        ))),
+        border: Border {
+            radius: (3.0).into(),
+            width: if focused { 1.0 } else { 0.0 },
+            color: alpha(palette.primary, 0.75 * fade),
+        },
+        ..Default::default()
+    }
 }

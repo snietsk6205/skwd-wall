@@ -64,7 +64,7 @@ fn nav_view(app: &App) -> settings::NavView<'_> {
     use crate::app::update::{settings_home, settings_nav, settings_strips};
     use skwd_config::keys::settings_window as keys;
     let nav = &app.panels.settings.nav;
-    let still = app.config.low_power();
+    let still = settings_nav::still(app);
     let ease = |x: f32| if still { 1.0 } else { x };
     let palette = nav.palette.as_ref().map(|palette| {
         let results = settings_nav::palette_results(app);
@@ -73,17 +73,6 @@ fn nav_view(app: &App) -> settings::NavView<'_> {
             selected: palette.selected.min(results.len().saturating_sub(1)),
             results: results.into_iter().map(|index| &palette.entries[index]).collect(),
             empty_query: palette.query.trim().is_empty(),
-        }
-    });
-    let bubble = nav.bubble.as_ref().map(|bubble| {
-        let (title, desc) = transition_caption(app);
-        settings::BubbleView {
-            row: bubble.row,
-            pinned: bubble.pinned,
-            title,
-            desc,
-            frame: app.panels.transition_preview.handle.clone(),
-            fade: ease(nav.bubble_anim.x),
         }
     });
     let recent = if nav.page.is_none() { nav.recent.clone() } else { Vec::new() };
@@ -126,15 +115,25 @@ fn nav_view(app: &App) -> settings::NavView<'_> {
         palette,
         toast: nav.toast.as_ref().map(|toast| (toast.text.clone(), toast.can_undo)),
         toast_fade: ease(nav.toast_anim.x),
-        bubble,
         tile_hover: nav.tile_hover,
+        follow_cursor: app.config.str_path(keys::PREVIEW_STYLE) == "cursor",
+        cursor: nav.cursor_preview.as_ref().map(|cursor| settings::CursorView {
+            row: cursor.row,
+            option: cursor.option,
+            x: cursor.x,
+            title: &cursor.title,
+            frame: app.panels.transition_preview.handle.as_ref(),
+            blurred: nav.home.blurred.as_ref(),
+            fade: 1.0,
+        }),
         tile_fade: ease(nav.tile_anim.x),
         pictures: &nav.strips.middles,
         playing,
         strips_pending: nav.strips.pending.len(),
         menu_picture,
         big,
-        grid: true,
+        grid: app.config.flag_default_config(keys::GRID_PATTERN),
+        card_layout: settings_nav::card_layout(app),
         backdrop: settings::Backdrop {
             picture,
             blurred: nav.home.blurred.clone(),
@@ -145,7 +144,6 @@ fn nav_view(app: &App) -> settings::NavView<'_> {
         },
         bar_blur: app.config.flag_default_config(keys::BAR_BLUR),
         more: &nav.more,
-        playlist: app.config.str_path(skwd_config::keys::transition::PLAYLIST),
         still,
     }
 }

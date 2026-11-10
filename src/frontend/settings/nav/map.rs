@@ -121,7 +121,7 @@ const fn entry(
     Page { key, group, icon, label, sentence, refs }
 }
 
-pub const PAGES: [Page; 43] = [
+pub const PAGES: [Page; 44] = [
     // Look
     entry(
         "look/layout",
@@ -193,6 +193,14 @@ pub const PAGES: [Page; 43] = [
         "Settings window",
         "Size and place of this window, its menus and Home.",
         &[text("picker", "Settings window")],
+    ),
+    entry(
+        "look/appearance",
+        1,
+        ICON_LOOK,
+        "Settings appearance",
+        "Cards, the grid pattern, the top bar, menus and animations of this window.",
+        &[text("picker", "Settings appearance")],
     ),
     entry(
         "look/colours",

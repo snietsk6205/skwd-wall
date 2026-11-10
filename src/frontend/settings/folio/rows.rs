@@ -1,7 +1,7 @@
 //! R1 (custom build): one row style for every page: name and one plain
 //! sentence on the left, the control on the right, a dot and a reset button
 //! when the value is not the default, "more…" for a longer explanation, and
-//! the floating preview bubble on transition rows. One column only.
+//! cards (see `cards.rs`) where a row is a card. One column only.
 
 use std::collections::{HashMap, HashSet};
 
@@ -13,7 +13,6 @@ use crate::contracts::settings::{SettingsSource, schema};
 use crate::frontend::animation::MotionProfile;
 use crate::frontend::components::with_alpha;
 use crate::frontend::theme::Palette;
-use crate::frontend::ui::focus_row_style as row_style;
 use crate::frontend::ui::soft_button_style as reset_style;
 use crate::frontend::ui::{
     AnchorSide, TEXT_FONT, TEXT_STRONG_FONT, TYPE_SMALL, anchored, label, legible_type_scale, row,
@@ -23,17 +22,6 @@ use crate::frontend::ui::{
 use super::super::nav::{self, ICON_CLOSE, ICON_RESET};
 use super::super::{Control, Row, SettingsFocus, SettingsMsg};
 use super::folio::FocusCtx;
-
-/// What the bubble shows, from the app.
-#[derive(Clone)]
-pub struct BubbleView {
-    pub row: usize,
-    pub pinned: bool,
-    pub title: String,
-    pub desc: String,
-    pub frame: Option<iced::advanced::image::Handle>,
-    pub fade: f32,
-}
 
 pub(super) struct RowsInput<'a> {
     pub rows: Vec<Row>,
@@ -46,15 +34,16 @@ pub(super) struct RowsInput<'a> {
     pub motion: MotionProfile,
     pub cfg: &'a dyn SettingsSource,
     pub more: &'a HashSet<String>,
-    pub bubble: Option<BubbleView>,
-    pub playlist: String,
     /// R1b: what the cards show (pictures, the lit card).
     pub pictures: &'a HashMap<String, iced::advanced::image::Handle>,
     pub playing: Option<(&'a str, &'a iced::advanced::image::Handle)>,
-    pub tile_hover: Option<usize>,
+    pub tile_hover: Option<(usize, usize)>,
     pub tile_fade: f32,
+    pub follow_cursor: bool,
+    pub cursor: Option<super::cards::CursorView<'a>>,
     /// Card pictures the background renderer still has to draw.
     pub pending: usize,
+    pub card_layout: super::cards::CardLayout,
 }
 
 /// Rows next to a card grid stay a comfortable reading width.
@@ -167,13 +156,14 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
         motion,
         cfg,
         more,
-        bubble,
-        playlist,
         pictures,
         playing,
         tile_hover,
         tile_fade,
+        follow_cursor,
+        cursor,
         pending,
+        card_layout,
     } = input;
     let keyboard_row =
         (focus.keyboard_focus == SettingsFocus::Controls).then_some(focus.focused_control);
@@ -186,12 +176,17 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
         playing,
         hover: tile_hover,
         hover_fade: tile_fade,
+        follow_cursor,
+        cursor,
         focus: keyboard_row,
         choice: focus.focused_choice,
         first_number: 1,
+        layout: card_layout,
     };
     let card_count = rows.iter().filter(|row| matches!(row.control, Control::Tile { .. })).count();
+    let gallery_width = width;
     let lit_note = tile_hover
+        .map(|(row, _)| row)
         .or(keyboard_row)
         .and_then(|index| rows.get(index))
         .filter(|row| matches!(row.control, Control::Tile { .. }))
@@ -209,7 +204,7 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
         )
         .into();
     }
-    let mut list = column![].spacing(2.0 * scale).width(Length::Fill);
+    let mut list = column![].width(Length::Fill);
     for (index, setting) in rows.into_iter().enumerate() {
         if matches!(setting.control, Control::Preview) {
             continue;
@@ -261,6 +256,10 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
             );
             continue;
         }
+        if nav::gallery(&setting.control).is_some() {
+            list = list.push(gallery_row(setting, index, gallery_width, tile_ctx, focus, cfg));
+            continue;
+        }
         let width = row_width;
         if matches!(setting.control, Control::Segment) {
             // The first heading of a page of cards says what the page title
@@ -271,7 +270,6 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
             list = list.push(segment_heading(setting, index == 0, width, scale, palette, fade));
             continue;
         }
-        let target = nav::bubble_target(&setting, &playlist);
         let item: Element<'a, Message> = if wide(&setting.control) {
             let top_pad = if matches!(setting.control, Control::Segment) { 18.0 } else { 8.0 };
             container(super::folio::field(
@@ -305,21 +303,6 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
                 more,
             )
         };
-        let item = match target {
-            Some(shader) => {
-                let panel = bubble
-                    .as_ref()
-                    .filter(|bubble| bubble.row == index)
-                    .map(|bubble| bubble_panel(bubble, &shader, scale, palette));
-                let hover = mouse_area(item)
-                    .on_enter(Message::Settings(SettingsMsg::BubbleShow(shader.clone(), index)))
-                    .on_exit(Message::Settings(SettingsMsg::BubbleHide(index)));
-                anchored(hover, panel, AnchorSide::AboveEnd, 6.0 * scale)
-                    .min_top(62.0 * scale)
-                    .into()
-            }
-            None => item,
-        };
         list = list.push(container(item).width(Length::Fixed(width)));
     }
     if !run.is_empty() {
@@ -329,6 +312,108 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
         ));
     }
     list.into()
+}
+
+/// A setting whose choices are cards: its name and sentence (with the
+/// changed dot and reset), then the grid.
+fn gallery_row<'a>(
+    setting: Row,
+    index: usize,
+    width: f32,
+    ctx: super::cards::TileCtx<'a>,
+    focus: FocusCtx<'_>,
+    cfg: &dyn SettingsSource,
+) -> Element<'a, Message> {
+    let super::cards::TileCtx { palette, scale, fade, .. } = ctx;
+    let changed = differs_from_default(&setting.control, cfg);
+    let focused = focus.keyboard_focus == SettingsFocus::Controls && focus.focused_control == index;
+    let Some(gallery) = nav::gallery(&setting.control) else {
+        return text("").into();
+    };
+    let items: Vec<super::cards::ChoiceItem> = gallery
+        .options
+        .iter()
+        .map(|(key, name)| super::cards::ChoiceItem {
+            key: key.clone(),
+            name: name.clone(),
+            picture: gallery.picture(key, cfg),
+            current: key == gallery.current,
+            disabled: gallery.disabled.contains(key),
+        })
+        .collect();
+    let path = gallery.path.to_string();
+    let previews = gallery.previews();
+    let dot = typed(
+        "●",
+        TEXT_FONT,
+        6.0,
+        scale,
+        with_alpha(palette.primary, if changed.is_some() { fade } else { 0.0 }),
+    );
+    let mut copy = column![
+        row![
+            typed(
+                setting.title,
+                TEXT_STRONG_FONT,
+                13.5,
+                scale,
+                with_alpha(palette.surface_text, fade)
+            ),
+            container(dot).padding(Padding { top: 5.0 * scale, ..Padding::ZERO }),
+        ]
+        .spacing(7.0 * scale)
+        .align_y(Alignment::Start)
+    ]
+    .spacing(4.0 * scale)
+    .width(Length::Fill);
+    if !setting.desc.trim().is_empty() {
+        copy = copy.push(
+            typed(
+                setting.desc,
+                TEXT_FONT,
+                11.5,
+                scale,
+                with_alpha(palette.surface_text, 0.54 * fade),
+            )
+            .line_height(iced::widget::text::LineHeight::Relative(1.42))
+            .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+        );
+    }
+    let reset: Element<'a, Message> = match changed {
+        Some(path) => button(
+            text(ICON_RESET)
+                .font(crate::frontend::ui::NERD_FONT)
+                .size(12.0 * legible_type_scale(scale)),
+        )
+        .padding([3.0 * scale, 5.0 * scale])
+        .on_press(Message::Settings(SettingsMsg::ResetPath(path)))
+        .style(move |_theme, status| {
+            crate::frontend::ui::text_button_style(palette, fade, false, false, status)
+        })
+        .into(),
+        None => text("").into(),
+    };
+    let ring = focused && focus.focused_choice.is_none();
+    let heading = mouse_area(
+        container(row![copy, reset].spacing(8.0 * scale).align_y(Alignment::Center))
+            .width(Length::Fixed(width.min(ROW_MAX_WIDTH * scale)))
+            .padding(Padding {
+                top: 13.0 * scale,
+                right: 4.0 * scale,
+                bottom: 11.0 * scale,
+                left: 10.0 * scale,
+            })
+            .style(move |_| crate::frontend::ui::plain_row_style(palette, fade, ring)),
+    )
+    .on_press(Message::Settings(SettingsMsg::FocusControl(index)));
+    column![
+        heading,
+        super::cards::choice_grid(index, &path, items, previews, ctx),
+        container(super::shell::rule(palette, 0.1 * fade))
+            .padding(Padding { top: 16.0 * scale, ..Padding::ZERO }),
+    ]
+    .spacing(4.0 * scale)
+    .into()
 }
 
 /// A small heading over a group of rows: its name and one sentence.
@@ -395,60 +480,52 @@ fn line<'a>(
     let more_id = format!("{index}:{path}");
     let open_more = explanation.is_some() && more.contains(&more_id);
     let control_width = (width * control_share(&control)).max(150.0 * scale);
-    // Room for the dot, the gaps, the unit after numbers and the reset button.
-    let copy_width = (width - control_width - 96.0 * scale).max(120.0 * scale);
-    let dot = label(
+    // Room for the dot, the gaps and the reset button.
+    let copy_width = (width - control_width - 76.0 * scale).max(120.0 * scale);
+    let dot = typed(
         "●",
-        7.0,
+        TEXT_FONT,
+        6.0,
         scale,
         with_alpha(palette.primary, if changed.is_some() { fade } else { 0.0 }),
     );
     let name = row![
-        container(dot).padding(Padding { top: 3.0 * scale, ..Padding::ZERO }),
-        label(title, 13.5, scale, with_alpha(palette.surface_text, fade))
+        typed(title, TEXT_STRONG_FONT, 13.5, scale, with_alpha(palette.surface_text, fade))
             .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
+        container(dot).padding(Padding { top: 5.0 * scale, ..Padding::ZERO }),
     ]
     .spacing(7.0 * scale)
     .align_y(Alignment::Start);
-    let mut copy = column![name].spacing(3.0 * scale).width(Length::Fixed(copy_width));
+    let mut copy = column![name].spacing(4.0 * scale).width(Length::Fixed(copy_width));
     if !desc.trim().is_empty() {
         copy = copy.push(
-            container(
-                label(desc, TYPE_SMALL + 0.5, scale, with_alpha(palette.surface_text, 0.6 * fade))
-                    .line_height(iced::widget::text::LineHeight::Relative(1.32))
-                    .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
-            )
-            .padding(Padding { left: 14.0 * scale, ..Padding::ZERO }),
+            typed(desc, TEXT_FONT, 11.5, scale, with_alpha(palette.surface_text, 0.54 * fade))
+                .line_height(iced::widget::text::LineHeight::Relative(1.42))
+                .wrapping(iced::widget::text::Wrapping::WordOrGlyph),
         );
     }
     if let Some(explanation) = explanation {
-        let toggle = button(label(
-            if open_more { "less" } else { "more…" },
-            TYPE_SMALL,
-            scale,
-            with_alpha(palette.primary, 0.9 * fade),
-        ))
+        let toggle = button(
+            text(if open_more { "less" } else { "more…" })
+                .font(crate::frontend::ui::MONO_FONT)
+                .size(10.5 * legible_type_scale(scale)),
+        )
         .padding([1.0 * scale, 0.0])
         .on_press(Message::Settings(SettingsMsg::ToggleMore(more_id)))
-        .style(|_theme, _status| button::Style::default());
-        copy =
-            copy.push(container(toggle).padding(Padding { left: 14.0 * scale, ..Padding::ZERO }));
+        .style(move |_theme, status| {
+            crate::frontend::ui::text_button_style(palette, fade, true, false, status)
+        });
+        copy = copy.push(toggle);
         if open_more {
             copy = copy.push(
-                container(
-                    label(
-                        explanation,
-                        TYPE_SMALL + 0.5,
-                        scale,
-                        with_alpha(palette.surface_text, 0.78 * fade),
-                    )
-                    .line_height(iced::widget::text::LineHeight::Relative(1.4)),
+                typed(
+                    explanation,
+                    TEXT_FONT,
+                    11.5,
+                    scale,
+                    with_alpha(palette.surface_text, 0.76 * fade),
                 )
-                .padding(Padding {
-                    left: 14.0 * scale,
-                    top: 2.0 * scale,
-                    ..Padding::ZERO
-                }),
+                .line_height(iced::widget::text::LineHeight::Relative(1.45)),
             );
         }
     }
@@ -459,7 +536,7 @@ fn line<'a>(
         focused,
         choice,
         control_width,
-        scale * 0.9,
+        scale,
         palette,
         fade,
         focus.armed,
@@ -470,14 +547,15 @@ fn line<'a>(
         Some(path) => button(
             text(ICON_RESET)
                 .font(crate::frontend::ui::NERD_FONT)
-                .size(13.0 * legible_type_scale(scale))
-                .color(with_alpha(palette.surface_text, 0.7 * fade)),
+                .size(12.0 * legible_type_scale(scale)),
         )
         .padding([3.0 * scale, 5.0 * scale])
         .on_press(Message::Settings(SettingsMsg::ResetPath(path)))
-        .style(move |_theme, status| reset_style(palette, fade, status))
+        .style(move |_theme, status| {
+            crate::frontend::ui::text_button_style(palette, fade, false, false, status)
+        })
         .into(),
-        None => container(text("")).width(Length::Fixed(24.0 * scale)).into(),
+        None => container(text("")).width(Length::Fixed(22.0 * scale)).into(),
     };
     let body = row![
         copy,
@@ -488,108 +566,20 @@ fn line<'a>(
     .spacing(8.0 * scale)
     .align_y(Alignment::Center);
     let highlight = focused;
-    mouse_area(
-        container(body)
-            .width(Length::Fill)
-            .padding(Padding {
-                top: 10.0 * scale,
-                right: 8.0 * scale,
-                bottom: 10.0 * scale,
-                left: 10.0 * scale,
-            })
-            .style(move |_| row_style(palette, fade, highlight)),
-    )
-    .on_press(Message::Settings(SettingsMsg::FocusControl(index)))
+    column![
+        mouse_area(
+            container(body)
+                .width(Length::Fill)
+                .padding(Padding {
+                    top: 13.0 * scale,
+                    right: 4.0 * scale,
+                    bottom: 13.0 * scale,
+                    left: 10.0 * scale,
+                })
+                .style(move |_| crate::frontend::ui::plain_row_style(palette, fade, highlight)),
+        )
+        .on_press(Message::Settings(SettingsMsg::FocusControl(index))),
+        super::shell::rule(palette, 0.1 * fade),
+    ]
     .into()
-}
-
-/// The floating preview: small while hovering or focused, bigger (with a
-/// caption and a close button) once pinned with ▶ Preview.
-fn bubble_panel<'a>(
-    bubble: &BubbleView,
-    shader: &str,
-    scale: f32,
-    palette: &'a Palette,
-) -> Element<'a, Message> {
-    let fade = bubble.fade;
-    let width = if bubble.pinned { 448.0 } else { 248.0 } * scale;
-    let height = width * 9.0 / 16.0;
-    let frame: Element<'a, Message> = match bubble.frame.clone() {
-        Some(handle) => image(handle)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .content_fit(iced::ContentFit::Cover)
-            .opacity(fade)
-            .into(),
-        None => container(label("…", 14.0, scale, with_alpha(palette.surface_text, 0.6 * fade)))
-            .center(Length::Fill)
-            .into(),
-    };
-    let stage = container(frame)
-        .width(Length::Fixed(width))
-        .height(Length::Fixed(height))
-        .clip(true)
-        .style(move |_| {
-            crate::frontend::ui::surface_style(
-                with_alpha(Color::BLACK, 0.92 * fade),
-                8.0,
-                (0.0, Color::TRANSPARENT),
-                None,
-            )
-        });
-    let mut content = column![stage].spacing(7.0 * scale);
-    let caption_row = if bubble.pinned {
-        row![
-            column![
-                label(bubble.title.clone(), 13.0, scale, with_alpha(palette.surface_text, fade)),
-                label(
-                    bubble.desc.clone(),
-                    TYPE_SMALL,
-                    scale,
-                    with_alpha(palette.surface_text, 0.62 * fade)
-                ),
-            ]
-            .spacing(2.0 * scale)
-            .width(Length::Fill),
-            button(
-                text(ICON_CLOSE)
-                    .font(crate::frontend::ui::NERD_FONT)
-                    .size(14.0 * legible_type_scale(scale))
-                    .color(with_alpha(palette.surface_text, fade)),
-            )
-            .padding([4.0 * scale, 6.0 * scale])
-            .on_press(Message::Settings(SettingsMsg::BubbleClose))
-            .style(move |_theme, status| reset_style(palette, fade, status)),
-        ]
-        .spacing(8.0 * scale)
-        .align_y(Alignment::Center)
-    } else {
-        row![
-            label(
-                bubble.title.clone(),
-                TYPE_SMALL + 0.5,
-                scale,
-                with_alpha(palette.surface_text, 0.86 * fade)
-            )
-            .width(Length::Fill),
-            button(label("Pin", TYPE_SMALL, scale, with_alpha(palette.primary, fade)))
-                .padding([2.0 * scale, 6.0 * scale])
-                .on_press(Message::Settings(SettingsMsg::BubblePin(shader.to_string())))
-                .style(move |_theme, status| reset_style(palette, fade, status)),
-        ]
-        .spacing(6.0 * scale)
-        .align_y(Alignment::Center)
-    };
-    content = content.push(caption_row.width(Length::Fixed(width)));
-    container(content)
-        .padding(8.0 * scale)
-        .style(move |_| {
-            crate::frontend::ui::surface_style(
-                with_alpha(palette.surface_container, fade),
-                12.0,
-                (1.0, with_alpha(palette.outline, 0.6 * fade)),
-                Some((with_alpha(Color::BLACK, 0.45 * fade), 10.0, 28.0)),
-            )
-        })
-        .into()
 }

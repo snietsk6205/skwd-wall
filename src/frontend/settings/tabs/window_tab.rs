@@ -15,6 +15,13 @@ const POSITIONS: [(&str, &str); 5] = [
 
 const OPEN_ON: [(&str, &str); 2] = [("home", "Home"), ("last", "Where I left off")];
 const MENU_STYLES: [(&str, &str); 2] = [("list", "List"), ("grid", "Grid")];
+pub(crate) const APPEARANCE_CARD: &str = "Settings appearance";
+const CARD_SIZES: [(&str, &str); 3] =
+    [("small", "Small"), ("medium", "Medium"), ("large", "Large")];
+const CARD_COLUMNS: [(&str, &str); 4] = [("auto", "Automatic"), ("2", "2"), ("3", "3"), ("4", "4")];
+const CARD_STYLES: [(&str, &str); 2] = [("outlined", "Outlined"), ("filled", "Filled")];
+const PREVIEW_STYLES: [(&str, &str); 2] =
+    [("card", "In the card"), ("cursor", "Follows the cursor")];
 const VIEWS: [(&str, &str); 2] = [("simple", "Simple"), ("advanced", "Advanced")];
 const BACKGROUNDS: [(&str, &str); 3] =
     [("wallpaper", "Current wallpaper"), ("custom", "A picture or video"), ("none", "None")];
@@ -136,19 +143,9 @@ pub(super) fn tab_window(builder: &mut Builder<'_>) {
         chips(window::OPEN_ON, &OPEN_ON, &cfg.text(window::OPEN_ON)),
     );
     builder.row(
-        "Menu style",
-        "How a group in the top bar shows its pages: a list (icon, name and sentence) or a grid of tiles.",
-        chips(window::MENU_STYLE, &MENU_STYLES, &cfg.text(window::MENU_STYLE)),
-    );
-    builder.row(
         "View",
         "Simple hides the advanced settings; Advanced shows every setting. The switch in the top bar does the same. Search (Ctrl+K) always finds everything.",
         chips(window::VIEW, &VIEWS, &cfg.text(window::VIEW)),
-    );
-    builder.toggle(
-        "Blurred top bar",
-        "Put a soft, blurred copy of the Home picture behind the top bar.",
-        window::BAR_BLUR,
     );
     builder.row(
         "Home background",
@@ -177,5 +174,49 @@ pub(super) fn tab_window(builder: &mut Builder<'_>) {
         "Add, remove and reorder the cards on Home.",
         ActionId::EditHomeCards,
         "Edit cards",
+    );
+    builder.card(
+        APPEARANCE_CARD,
+        "How this Settings window looks: its cards, the pattern behind pages, the top bar, the menus and its animations.",
+    );
+    builder.row(
+        "Card size",
+        "How big the cards are (transitions, layouts and other things you choose by picture). Smaller cards show more at once.",
+        chips(window::CARD_SIZE, &CARD_SIZES, &cfg.text(window::CARD_SIZE)),
+    );
+    builder.row(
+        "Cards per row",
+        "Automatic fits as many cards as the window and the card size allow. 2, 3 or 4 always puts that many in a row.",
+        chips(window::CARD_COLUMNS, &CARD_COLUMNS, &cfg.text(window::CARD_COLUMNS)),
+    );
+    builder.row(
+        "Card style",
+        "Outlined cards are only a thin line on the page. Filled cards have a slightly lighter background.",
+        chips(window::CARD_STYLE, &CARD_STYLES, &cfg.text(window::CARD_STYLE)),
+    );
+    builder.row(
+        "Preview style",
+        "Where a card's preview plays when you point at it: inside the card, or in a small live preview that follows the cursor and never covers the card.",
+        chips(window::PREVIEW_STYLE, &PREVIEW_STYLES, &cfg.text(window::PREVIEW_STYLE)),
+    );
+    builder.toggle(
+        "Grid pattern",
+        "A faint square grid behind the pages. Off gives a plain dark page.",
+        window::GRID_PATTERN,
+    );
+    builder.toggle(
+        "Blurred top bar",
+        "Put a soft, blurred copy of the Home picture behind the top bar. Off keeps the bar clear.",
+        window::BAR_BLUR,
+    );
+    builder.row(
+        "Menu style",
+        "How a group in the top bar shows its pages: a list (one page per line) or a grid of cards.",
+        chips(window::MENU_STYLE, &MENU_STYLES, &cfg.text(window::MENU_STYLE)),
+    );
+    builder.toggle(
+        "Animations",
+        "The window's own motion: menus dropping in, pages fading in, cards lighting up and playing their preview. Off shows everything at once. Low-power mode turns them off too.",
+        window::ANIMATIONS,
     );
 }

@@ -29,8 +29,9 @@ pub(crate) use folio::{folio_diagonal_edges, folio_diagonal_wipe};
 #[cfg(test)]
 pub use gallery::accent_on_ink;
 pub use gallery::{
-    INK, filter_button_style, floating_panel_style, grid_pattern, hairline_style, ink_fill,
-    ink_palette, quiet_input_style, sheet_style, tag_style, text_button_style, tile_action_style,
+    INK, choice_button_style, filter_button_style, floating_panel_style, grid_pattern,
+    hairline_style, ink_fill, ink_palette, plain_row_style, quiet_input_style, sheet_style,
+    switch_thumb_style, switch_track_style, tag_style, text_button_style, tile_action_style,
     tile_button_style, tile_style, veil_style,
 };
 pub(crate) use layout::FOLIO_RULE_THICKNESS;

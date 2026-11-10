@@ -305,10 +305,10 @@ pub(crate) fn ui_state_json(app: &App) -> String {
         json!(nav.palette.as_ref().map(|palette| palette.query.clone()));
     state[SETTINGS_FIELD]["palette_results"] =
         json!(crate::app::update::settings_nav::palette_results(app).len());
-    state[SETTINGS_FIELD]["bubble"] =
-        json!(nav.bubble.as_ref().map(|bubble| bubble.shader.clone()));
     state[SETTINGS_FIELD]["big_preview"] = json!(nav.big_preview);
     state[SETTINGS_FIELD]["card_hover"] = json!(nav.tile_hover);
+    state[SETTINGS_FIELD]["cursor_preview"] =
+        json!(nav.cursor_preview.as_ref().map(|cursor| cursor.shader.clone()));
     state[SETTINGS_FIELD]["card_pictures"] = json!({
         "ready": nav.strips.middles.len(),
         "to_render": nav.strips.pending.len(),
@@ -321,7 +321,6 @@ pub(crate) fn ui_state_json(app: &App) -> String {
         "menu": nav.menu_anim.x,
         "page": nav.page_anim.x,
         "toast": nav.toast_anim.x,
-        "bubble": nav.bubble_anim.x,
     });
     state["hover"] = json!(app.scene.hover);
     state[SETTINGS_FIELD][WEATHER_REVIEW_FIELD] =
@@ -579,21 +578,30 @@ pub(super) fn run_ui_command(app: &mut App, cmd: &str) -> Task<Message> {
         // R1b: the pointer on the card of row N of the open page ("none"
         // takes it off). For tests and screenshots without a pointer.
         "settings-hover" => {
-            let previous = app.panels.settings.nav.tile_hover;
+            use crate::frontend::settings::SettingsMsg;
             let mut tasks = Vec::new();
-            if let Some(row) = previous {
+            if let Some((row, option)) = app.panels.settings.nav.tile_hover {
                 tasks.push(super::update_inner(
                     app,
-                    Message::Settings(crate::frontend::settings::SettingsMsg::TileHover(
-                        row, false,
-                    )),
+                    Message::Settings(SettingsMsg::TileHover(row, option, false)),
                 ));
             }
-            if let Ok(row) = arg.parse::<usize>() {
+            // "<row>" or "<row>.<choice>", optionally " <x>" (the pointer's
+            // place on the card, for the preview that follows the cursor).
+            let mut words = arg.split_whitespace();
+            let place = words.next().unwrap_or("");
+            let (row, option) = place.split_once('.').unwrap_or((place, "0"));
+            if let (Ok(row), Ok(option)) = (row.parse::<usize>(), option.parse::<usize>()) {
                 tasks.push(super::update_inner(
                     app,
-                    Message::Settings(crate::frontend::settings::SettingsMsg::TileHover(row, true)),
+                    Message::Settings(SettingsMsg::TileHover(row, option, true)),
                 ));
+                if let Some(x) = words.next().and_then(|x| x.parse::<f32>().ok()) {
+                    tasks.push(super::update_inner(
+                        app,
+                        Message::Settings(SettingsMsg::CursorMoved(row, option, x)),
+                    ));
+                }
             }
             Task::batch(tasks)
         }

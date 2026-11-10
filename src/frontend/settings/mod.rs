@@ -17,8 +17,8 @@ pub use action::{
 };
 pub use folio::READING_PANE;
 pub use folio::{
-    Backdrop, BigPreview, BubbleView, NavView, PaletteView, RecentItem, card_columns, card_height,
-    wide_page_width,
+    Backdrop, BigPreview, CardLayout, CursorView, NavView, PaletteView, RecentItem, card_columns,
+    card_height, wide_page_width,
 };
 pub use folio::{
     ChromeCtx, FocusCtx, FoldersCtx, KeybindCaptureView, ProcessPickerView, ProfilesCtx, SourceCtx,

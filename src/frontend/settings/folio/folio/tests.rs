@@ -117,7 +117,7 @@ fn workbench_ctx_structs() {
 }
 
 /// R1: one row style, one column; the old two-column grids and the left
-/// index are gone, and the pinned transition preview became a bubble.
+/// index are gone; R1b: transition previews play inside cards.
 #[test]
 fn r1_one_column_rows_and_top_bar() {
     let folio = include_str!("../folio.rs");
@@ -131,8 +131,8 @@ fn r1_one_column_rows_and_top_bar() {
     assert!(folio.contains("super::rows::rows("));
     assert!(folio.contains("super::shell::top_bar("));
     assert!(rows.contains("SettingsMsg::ResetPath(path)"));
-    assert!(rows.contains("SettingsMsg::BubbleShow("));
-    assert!(rows.contains("AnchorSide::AboveEnd"));
+    assert!(!rows.contains("Bubble"), "the hover bubble came back");
+    assert!(rows.contains("super::cards::tile_grid("));
     assert!(shell.contains("SettingsMsg::MenuHover(index)"));
     assert!(shell.contains("SettingsMsg::MenuLeave"));
     assert!(shell.contains("SettingsMsg::PaletteChange("));

@@ -79,10 +79,13 @@ pub struct NavView<'a> {
     pub palette: Option<PaletteView<'a>>,
     pub toast: Option<(String, bool)>,
     pub toast_fade: f32,
-    pub bubble: Option<super::rows::BubbleView>,
     /// R1b: the card under the pointer (row) and how far its glow is.
-    pub tile_hover: Option<usize>,
+    pub tile_hover: Option<(usize, usize)>,
     pub tile_fade: f32,
+    /// "Preview style: follows the cursor", and that preview when a card
+    /// has the pointer.
+    pub follow_cursor: bool,
+    pub cursor: Option<super::cards::CursorView<'a>>,
     /// Middle frames of the card strips, and the frame of the one that plays.
     pub pictures: &'a std::collections::HashMap<String, iced::advanced::image::Handle>,
     pub playing: Option<(&'a str, &'a iced::advanced::image::Handle)>,
@@ -93,10 +96,10 @@ pub struct NavView<'a> {
     pub big: Option<BigPreview>,
     /// The faint grid behind pages.
     pub grid: bool,
+    pub card_layout: super::cards::CardLayout,
     pub backdrop: Backdrop,
     pub bar_blur: bool,
     pub more: &'a std::collections::HashSet<String>,
-    pub playlist: String,
     /// Low-power mode: no animations.
     pub still: bool,
 }

@@ -40,10 +40,11 @@ pub use misc::{
     soft_button_style, surface_style,
 };
 pub use misc::{
-    DISPLAY_FONT, INK, MONO_FONT, TEXT_FONT, TEXT_STRONG_FONT, filter_button_style,
-    floating_panel_style, grid_pattern, hairline_style, ink_fill, ink_palette, quiet_input_style,
-    sheet_style, tag_style, text_button_style, tile_action_style, tile_button_style, tile_style,
-    typed, veil_style,
+    DISPLAY_FONT, INK, MONO_FONT, TEXT_FONT, TEXT_STRONG_FONT, choice_button_style,
+    filter_button_style, floating_panel_style, grid_pattern, hairline_style, ink_fill, ink_palette,
+    plain_row_style, quiet_input_style, sheet_style, switch_thumb_style, switch_track_style,
+    tag_style, text_button_style, tile_action_style, tile_button_style, tile_style, typed,
+    veil_style,
 };
 pub use misc::{
     EYE_CLOSED, FOLIO_BUTTON_HEIGHT, FOLIO_INDEX_WIDTH, FOLIO_RULE_ALPHA, FadeFrame, Flow,

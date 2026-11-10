@@ -36,6 +36,8 @@ pub(crate) struct StripJob {
     pub(crate) name: String,
     pub(crate) shader: String,
     pub(crate) env: Vec<(String, String)>,
+    /// The renderer's `--duration-ms` (the strip's frames spread over it).
+    pub(crate) duration_ms: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -376,7 +378,7 @@ fn render(
         .arg("--preview-once")
         .arg("--stream-no-header")
         .arg("--duration-ms")
-        .arg("1000")
+        .arg(job.duration_ms.to_string())
         .env("SKWD_PAPER_PREVIEW_TEST", format!("steps={}", STRIP_FRAMES + 1))
         .env("SKWD_PAPER_TRANSITION_ORIGIN", "default")
         .envs(job.env.iter().map(|(name, value)| (name.as_str(), value.as_str())))

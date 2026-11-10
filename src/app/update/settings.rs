@@ -258,10 +258,7 @@ pub(super) fn update(app: &mut App, msg: SettingsMsg) -> Task<Message> {
         | SettingsMsg::HomePause
         | SettingsMsg::TileHover(..)
         | SettingsMsg::BigPreviewClose
-        | SettingsMsg::BubbleShow(..)
-        | SettingsMsg::BubbleHide(_)
-        | SettingsMsg::BubblePin(..)
-        | SettingsMsg::BubbleClose) => super::settings_nav::update(app, msg),
+        | SettingsMsg::CursorMoved(..)) => super::settings_nav::update(app, msg),
         SettingsMsg::WeatherReviewToggle(key) => {
             super::weather_review::toggle(app, &key);
             Task::none()
@@ -885,7 +882,6 @@ fn focus_keyboard_control(app: &mut App, page: usize, control: usize) {
     if page_changed {
         app.panels.settings.control_anim.run(0.0, 1.0);
     }
-    super::settings_nav::bubble_for_focus(app);
 }
 
 fn tab_within_motion_weights(app: &mut App, backwards: bool) -> Option<Task<Message>> {

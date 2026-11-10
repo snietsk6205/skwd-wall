@@ -1,190 +1,36 @@
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
 
-use iced::widget::canvas::{self, Frame, Path, Stroke};
-use iced::widget::{button, column, container, stack, text, text_input};
-use iced::{Alignment, Border, Color, Element, Event, Length, Point, Rectangle, mouse, window};
+use iced::widget::{button, column, container, text, text_input};
+use iced::{Alignment, Color, Element, Length};
 
 use crate::app::Message;
-use crate::frontend::animation::{MotionProfile, MotionTier};
+use crate::frontend::animation::MotionProfile;
 use crate::frontend::components::with_alpha;
 use crate::frontend::theme::Palette;
-use crate::frontend::ui::{
-    folio_diagonal_edges, folio_diagonal_wipe, label, legible_type_scale, mirror_x, row,
-};
+use crate::frontend::ui::{legible_type_scale, row};
 use crate::i18n::tr;
 
 use super::super::{ActionId, Control, PRESET_NAME_KEY, SettingsMsg};
 
-const BUTTON_FRAME: Duration = Duration::from_millis(16);
-const BUTTON_HEIGHT: f32 = 30.0;
-const BUTTON_MIN_WIDTH: f32 = 92.0;
+const BUTTON_HEIGHT: f32 = 26.0;
+const BUTTON_MIN_WIDTH: f32 = 48.0;
+
+/// Small text in the Settings text face.
+fn label<'a>(
+    content: impl iced::widget::text::IntoFragment<'a>,
+    size: f32,
+    scale: f32,
+    color: Color,
+) -> iced::widget::Text<'a> {
+    crate::frontend::ui::typed(content, crate::frontend::ui::TEXT_FONT, size, scale, color)
+}
 
 pub(super) fn button_width(label: &str, scale: f32) -> f32 {
     crate::frontend::ui::folio_action_width_in(label, scale, BUTTON_MIN_WIDTH, f32::INFINITY)
 }
 
-#[derive(Debug, Default)]
-struct ButtonFillState {
-    mix: f32,
-    target: bool,
-    initialized: bool,
-    last_frame: Option<Instant>,
-}
-
-impl ButtonFillState {
-    fn advance(&mut self, active: bool, now: Instant, motion: MotionProfile) -> bool {
-        if !self.initialized {
-            self.mix = if active { 1.0 } else { 0.0 };
-            self.target = active;
-            self.initialized = true;
-            self.last_frame = Some(now);
-            return false;
-        }
-        if self.target != active {
-            self.target = active;
-            self.last_frame = Some(now);
-        }
-        let dt = self
-            .last_frame
-            .replace(now)
-            .map_or(0.0, |last| now.saturating_duration_since(last).as_secs_f32().min(0.1));
-        let target = if self.target { 1.0 } else { 0.0 };
-        if dt > 0.0 {
-            self.mix = motion.approach(self.mix, target, dt, MotionTier::Fast);
-        }
-        if (self.mix - target).abs() < 0.002 {
-            self.mix = target;
-        }
-        self.mix != target
-    }
-}
-
-struct ButtonFill {
-    active: bool,
-    destructive: bool,
-    enabled: bool,
-    palette: Palette,
-    fade: f32,
-    motion: MotionProfile,
-}
-
-impl canvas::Program<Message> for ButtonFill {
-    type State = ButtonFillState;
-
-    fn update(
-        &self,
-        state: &mut Self::State,
-        event: &Event,
-        _bounds: Rectangle,
-        _cursor: mouse::Cursor,
-    ) -> Option<canvas::Action<Message>> {
-        match event {
-            Event::Window(window::Event::RedrawRequested(now)) => state
-                .advance(self.active, *now, self.motion)
-                .then(|| canvas::Action::request_redraw_at(*now + BUTTON_FRAME)),
-            _ => None,
-        }
-    }
-
-    fn draw(
-        &self,
-        state: &Self::State,
-        renderer: &iced::Renderer,
-        _theme: &iced::Theme,
-        bounds: Rectangle,
-        cursor: mouse::Cursor,
-    ) -> Vec<canvas::Geometry> {
-        let mut frame = Frame::new(renderer, bounds.size());
-        let hovered = self.enabled && cursor.is_over(bounds);
-        frame.fill(
-            &Path::rectangle(Point::ORIGIN, bounds.size()),
-            if hovered {
-                with_alpha(self.palette.surface_variant, 0.78 * self.fade)
-            } else if !self.enabled {
-                with_alpha(self.palette.surface_container, 0.42 * self.fade)
-            } else {
-                with_alpha(self.palette.surface_container, 0.92 * self.fade)
-            },
-        );
-
-        let mix = if self.enabled {
-            crate::frontend::animation::smoothstep(state.mix.clamp(0.0, 1.0))
-        } else {
-            0.0
-        };
-        if mix > 0.0 {
-            let fill = if self.destructive {
-                with_alpha(self.palette.tertiary, 0.96 * self.fade)
-            } else {
-                with_alpha(self.palette.primary, 0.96 * self.fade)
-            };
-            frame.fill(&folio_diagonal_wipe(bounds.width, bounds.height, mix), fill);
-            if mix < 1.0 {
-                let (top, bottom) = folio_diagonal_edges(bounds.width, bounds.height, mix);
-                let top = mirror_x(top, 0.0, bounds.width);
-                let bottom = mirror_x(bottom, 0.0, bounds.width);
-                frame.stroke(
-                    &Path::line(Point::new(top, 0.0), Point::new(bottom, bounds.height)),
-                    Stroke::default()
-                        .with_color(with_alpha(self.palette.tertiary, 0.9 * self.fade))
-                        .with_width(2.0),
-                );
-            }
-        }
-        vec![frame.into_geometry()]
-    }
-}
-
-fn overlay_style(
-    active: bool,
-    destructive: bool,
-    focused: bool,
-    fade: f32,
-    palette: &Palette,
-    status: button::Status,
-) -> button::Style {
-    let hovered = matches!(status, button::Status::Hovered);
-    let disabled = matches!(status, button::Status::Disabled);
-    button::Style {
-        background: Some(Color::TRANSPARENT.into()),
-        text_color: if disabled {
-            with_alpha(palette.surface_text, 0.34 * fade)
-        } else if active {
-            if destructive {
-                with_alpha(palette.background, fade)
-            } else {
-                with_alpha(palette.primary_text, fade)
-            }
-        } else if destructive {
-            with_alpha(palette.tertiary, fade)
-        } else {
-            with_alpha(palette.surface_text, 0.9 * fade)
-        },
-        border: Border {
-            color: if disabled {
-                with_alpha(palette.outline, 0.18 * fade)
-            } else if destructive {
-                with_alpha(palette.tertiary, if hovered || focused { fade } else { 0.62 * fade })
-            } else {
-                with_alpha(
-                    if focused || hovered { palette.primary } else { palette.outline },
-                    if focused {
-                        fade
-                    } else if hovered {
-                        0.76 * fade
-                    } else {
-                        0.4 * fade
-                    },
-                )
-            },
-            width: if focused && !disabled { 2.0 } else { 1.0 },
-            radius: 0.0.into(),
-        },
-        ..Default::default()
-    }
-}
-
+/// One word that is a button (a choice, an action). R1b: no box; the chosen
+/// one gets a thin accent outline, the keyboard a ring.
 pub(super) fn fixed_button<'a>(
     label: String,
     active: bool,
@@ -195,36 +41,97 @@ pub(super) fn fixed_button<'a>(
     palette: &'a Palette,
     fade: f32,
     width: f32,
-    motion: MotionProfile,
+    _motion: MotionProfile,
 ) -> Element<'a, Message> {
-    let enabled = message.is_some();
-    let backdrop: Element<'a, Message> = iced::widget::canvas(ButtonFill {
-        active,
-        destructive,
-        enabled,
-        palette: *palette,
-        fade,
-        motion,
-    })
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .into();
     let label = container(
-        text(label).font(crate::frontend::ui::UI_FONT).size(11.0 * legible_type_scale(scale)),
+        text(label)
+            .font(crate::frontend::ui::TEXT_STRONG_FONT)
+            .size(11.5 * legible_type_scale(scale))
+            .wrapping(iced::widget::text::Wrapping::None),
     )
     .width(Length::Fill)
     .height(Length::Fill)
     .align_x(iced::alignment::Horizontal::Center)
     .align_y(iced::alignment::Vertical::Center);
-    let hit_target = button(label).width(Length::Fill).height(Length::Fill).padding(0.0).style(
-        move |_theme, status| overlay_style(active, destructive, focused, fade, palette, status),
-    );
-    let hit_target =
-        if let Some(message) = message { hit_target.on_press(message) } else { hit_target };
-    container(stack![backdrop, hit_target])
+    let hit_target = button(label)
         .width(Length::Fixed(width))
         .height(Length::Fixed(BUTTON_HEIGHT * scale.max(1.0)))
-        .clip(true)
+        .padding(0.0)
+        .style(move |_theme, status| {
+            crate::frontend::ui::choice_button_style(
+                palette,
+                fade,
+                active,
+                destructive,
+                focused,
+                status,
+            )
+        });
+    if let Some(message) = message { hit_target.on_press(message) } else { hit_target }.into()
+}
+
+/// A button that does something (not a choice): a thin outline that fills
+/// on hover; `strong` (asking to confirm) uses the accent.
+fn action_button<'a>(
+    label: String,
+    strong: bool,
+    message: Message,
+    focused: bool,
+    scale: f32,
+    palette: &'a Palette,
+    fade: f32,
+    width: f32,
+) -> Element<'a, Message> {
+    button(
+        container(
+            text(label)
+                .font(crate::frontend::ui::TEXT_STRONG_FONT)
+                .size(11.5 * legible_type_scale(scale))
+                .wrapping(iced::widget::text::Wrapping::None),
+        )
+        .center(Length::Fill),
+    )
+    .width(Length::Fixed(width))
+    .height(Length::Fixed(BUTTON_HEIGHT * scale.max(1.0)))
+    .padding(0.0)
+    .on_press(message)
+    .style(move |_theme, status| {
+        crate::frontend::ui::tile_action_style(palette, fade, strong, focused, status)
+    })
+    .into()
+}
+
+/// A switch with its state in words next to it.
+fn switch<'a>(
+    on: bool,
+    words: (&'static str, &'static str),
+    message: Message,
+    focused: bool,
+    scale: f32,
+    palette: &'a Palette,
+    fade: f32,
+) -> Element<'a, Message> {
+    let knob = container(text(""))
+        .width(Length::Fixed(10.0 * scale))
+        .height(Length::Fixed(10.0 * scale))
+        .style(move |_| crate::frontend::ui::switch_thumb_style(palette, fade, on));
+    let track = container(knob)
+        .width(Length::Fixed(30.0 * scale))
+        .height(Length::Fixed(16.0 * scale))
+        .padding([0.0, 3.0 * scale])
+        .align_y(Alignment::Center)
+        .align_x(if on { crate::frontend::ui::end() } else { crate::frontend::ui::start() })
+        .style(move |_| crate::frontend::ui::switch_track_style(palette, fade, on, focused));
+    let word = text(if on { words.0 } else { words.1 })
+        .font(crate::frontend::ui::MONO_FONT)
+        .size(10.5 * legible_type_scale(scale))
+        .color(with_alpha(palette.surface_text, if on { 0.9 * fade } else { 0.46 * fade }));
+    button(row![word, track].spacing(9.0 * scale).align_y(Alignment::Center))
+        .padding([5.0 * scale, 6.0 * scale])
+        .on_press(message)
+        .style(move |_theme, status| {
+            crate::frontend::ui::text_button_style(palette, fade, on, focused, status)
+        })
         .into()
 }
 
@@ -358,39 +265,23 @@ pub(super) fn widget<'a>(
         Control::AppTheme { app, .. } => {
             label(app.name, crate::frontend::ui::TYPE_SMALL, scale, palette.surface_text).into()
         }
-        Control::Toggle { path, value } => fixed_button(
-            if value {
-                tr("settings-control-enabled").into()
-            } else {
-                tr("settings-control-disabled").into()
-            },
+        Control::Toggle { path, value } => switch(
             value,
-            false,
-            Some(Message::Settings(SettingsMsg::Toggle(path, !value))),
+            (tr("settings-app-themes-on"), tr("settings-app-themes-off")),
+            Message::Settings(SettingsMsg::Toggle(path, !value)),
             keyboard_focused,
             scale,
             palette,
             fade,
-            button_width(tr("settings-control-enabled"), scale)
-                .max(button_width(tr("settings-control-disabled"), scale)),
-            motion,
         ),
-        Control::ToggleAction { id, value } => fixed_button(
-            if value {
-                tr("settings-app-themes-on").into()
-            } else {
-                tr("settings-app-themes-off").into()
-            },
+        Control::ToggleAction { id, value } => switch(
             value,
-            false,
-            Some(Message::Settings(SettingsMsg::Run(id))),
+            (tr("settings-app-themes-on"), tr("settings-app-themes-off")),
+            Message::Settings(SettingsMsg::Run(id)),
             keyboard_focused,
             scale,
             palette,
             fade,
-            button_width(tr("settings-app-themes-on"), scale)
-                .max(button_width(tr("settings-app-themes-off"), scale)),
-            motion,
         ),
         Control::Number { key, unit, .. } => {
             let value = values.get(&key).map_or("", String::as_str);
@@ -401,20 +292,17 @@ pub(super) fn widget<'a>(
             row![
                 text_input(placeholder, value)
                     .id(super::super::workbench_input_id(&key))
-                    .font(crate::frontend::ui::UI_FONT)
+                    .font(crate::frontend::ui::MONO_FONT)
                     .on_input(move |raw| Message::Settings(SettingsMsg::Input(
                         message_key.clone(),
                         raw,
                     )))
                     .on_submit(Message::Settings(SettingsMsg::Commit))
-                    .size(16.0 * legible_type_scale(scale))
-                    .padding([7.0 * scale, 10.0 * scale])
-                    .width(Length::Fill)
-                    .style(move |_theme, _status| {
-                        crate::frontend::ui::workbench_input_style(
-                            with_alpha(palette.surface_text, fade),
-                            with_alpha(palette.primary, fade),
-                        )
+                    .size(13.0 * legible_type_scale(scale))
+                    .padding([6.0 * scale, 9.0 * scale])
+                    .width(Length::Fixed(88.0 * scale))
+                    .style(move |_theme, status| {
+                        crate::frontend::ui::quiet_input_style(palette, fade, status)
                     }),
                 label(
                     unit,
@@ -424,7 +312,7 @@ pub(super) fn widget<'a>(
                 ),
             ]
             .spacing(8.0 * scale)
-            .align_y(Alignment::End)
+            .align_y(Alignment::Center)
             .into()
         }
         Control::KeyBinding { path, default, .. } => {
@@ -445,7 +333,7 @@ pub(super) fn widget<'a>(
                 slots = slots.push(
                     button(
                         text(display)
-                            .font(crate::frontend::ui::UI_FONT)
+                            .font(crate::frontend::ui::TEXT_FONT)
                             .size(13.0 * legible_type_scale(scale))
                             .color(with_alpha(palette.surface_text, alpha * fade)),
                     )
@@ -453,7 +341,13 @@ pub(super) fn widget<'a>(
                     .width(Length::Fill)
                     .on_press(Message::Settings(SettingsMsg::KeybindCapture(path.clone(), slot)))
                     .style(move |_theme, status| {
-                        crate::frontend::ui::folio_button_style(slot_focused, false, &pal, status)
+                        crate::frontend::ui::tile_action_style(
+                            &pal,
+                            fade,
+                            false,
+                            slot_focused,
+                            status,
+                        )
                     }),
                 );
             }
@@ -466,15 +360,12 @@ pub(super) fn widget<'a>(
                 if enabled { placeholder } else { tr("settings-selector-preset-rename-hint") };
             let mut input = text_input(hint, value)
                 .id(super::super::workbench_input_id(&key))
-                .font(crate::frontend::ui::UI_FONT)
+                .font(crate::frontend::ui::TEXT_FONT)
                 .size(13.0 * legible_type_scale(scale))
                 .padding([8.0 * scale, 10.0 * scale])
                 .width(Length::Fill)
-                .style(move |_theme, _status| {
-                    crate::frontend::ui::workbench_input_style(
-                        with_alpha(palette.surface_text, fade),
-                        with_alpha(palette.primary, fade),
-                    )
+                .style(move |_theme, status| {
+                    crate::frontend::ui::quiet_input_style(palette, fade, status)
                 });
             if enabled {
                 if key == PRESET_NAME_KEY {
@@ -522,7 +413,7 @@ pub(super) fn widget<'a>(
             let height_key = key.clone();
             let width_input = text_input(width_placeholder, width)
                 .id(super::super::workbench_input_id(&format!("{key}.width")))
-                .font(crate::frontend::ui::UI_FONT)
+                .font(crate::frontend::ui::TEXT_FONT)
                 .on_input(move |raw| {
                     Message::Settings(SettingsMsg::ResolutionInput(width_key.clone(), true, raw))
                 })
@@ -530,15 +421,12 @@ pub(super) fn widget<'a>(
                 .size(13.0 * legible_type_scale(scale))
                 .padding([8.0 * scale, 10.0 * scale])
                 .width(Length::Fill)
-                .style(move |_theme, _status| {
-                    crate::frontend::ui::workbench_input_style(
-                        with_alpha(palette.surface_text, fade),
-                        with_alpha(palette.primary, fade),
-                    )
+                .style(move |_theme, status| {
+                    crate::frontend::ui::quiet_input_style(palette, fade, status)
                 });
             let height_input = text_input(height_placeholder, height)
                 .id(super::super::workbench_input_id(&format!("{key}.height")))
-                .font(crate::frontend::ui::UI_FONT)
+                .font(crate::frontend::ui::TEXT_FONT)
                 .on_input(move |raw| {
                     Message::Settings(SettingsMsg::ResolutionInput(height_key.clone(), false, raw))
                 })
@@ -546,11 +434,8 @@ pub(super) fn widget<'a>(
                 .size(13.0 * legible_type_scale(scale))
                 .padding([8.0 * scale, 10.0 * scale])
                 .width(Length::Fill)
-                .style(move |_theme, _status| {
-                    crate::frontend::ui::workbench_input_style(
-                        with_alpha(palette.surface_text, fade),
-                        with_alpha(palette.primary, fade),
-                    )
+                .style(move |_theme, status| {
+                    crate::frontend::ui::quiet_input_style(palette, fade, status)
                 });
             let dimensions = row![
                 column![
@@ -655,7 +540,7 @@ pub(super) fn widget<'a>(
                 let message_key = key.clone();
                 group = group.push(
                     column![
-                        crate::frontend::ui::label(
+                        self::label(
                             label,
                             10.0,
                             scale,
@@ -664,7 +549,7 @@ pub(super) fn widget<'a>(
                         row![
                             text_input("0", value)
                                 .id(super::super::workbench_input_id(&key))
-                                .font(crate::frontend::ui::UI_FONT)
+                                .font(crate::frontend::ui::TEXT_FONT)
                                 .on_input(move |raw| Message::Settings(SettingsMsg::Input(
                                     message_key.clone(),
                                     raw,
@@ -672,11 +557,8 @@ pub(super) fn widget<'a>(
                                 .on_submit(Message::Settings(SettingsMsg::Commit))
                                 .size(13.0 * legible_type_scale(scale))
                                 .padding([6.0 * scale, 8.0 * scale])
-                                .style(move |_theme, _status| {
-                                    crate::frontend::ui::workbench_input_style(
-                                        with_alpha(palette.surface_text, fade),
-                                        with_alpha(palette.primary, fade),
-                                    )
+                                .style(move |_theme, status| {
+                                    crate::frontend::ui::quiet_input_style(palette, fade, status)
                                 }),
                             fixed_button(
                                 "↺".into(),
@@ -703,17 +585,15 @@ pub(super) fn widget<'a>(
             let confirming = armed == Some(&id);
             let confirmation = crate::i18n::tr_args!("settings-control-confirm", label => &label);
             let width = button_width(&confirmation, scale).max(button_width(&label, scale));
-            fixed_button(
+            action_button(
                 if confirming { confirmation } else { label },
                 confirming,
-                confirming,
-                Some(Message::Settings(SettingsMsg::Run(id))),
+                Message::Settings(SettingsMsg::Run(id)),
                 keyboard_focused,
                 scale,
                 palette,
                 fade,
                 width,
-                motion,
             )
         }
         Control::ActionChips { items } | Control::Tile { items, .. } => wrapped_options(
@@ -724,17 +604,15 @@ pub(super) fn widget<'a>(
                     let width = button_width(&label, scale);
                     (
                         width,
-                        fixed_button(
+                        action_button(
                             label,
                             false,
-                            false,
-                            Some(Message::Settings(SettingsMsg::Run(id))),
+                            Message::Settings(SettingsMsg::Run(id)),
                             keyboard_focused && focused_choice == Some(index),
                             scale,
                             palette,
                             fade,
                             width,
-                            motion,
                         ),
                     )
                 })

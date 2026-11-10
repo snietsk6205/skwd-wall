@@ -88,16 +88,13 @@ impl App {
         !matches!(self.scene.mode, Mode::Slices | Mode::Depth) && self.scene.flip_open()
     }
 
-    /// R1 / R1b: the one live transition preview plays only in the big
-    /// preview (or the floating bubble).
+    /// R1b: the one live transition preview plays only in the big preview
+    /// (or the small one that follows the cursor).
     pub(in crate::app) fn wants_transition_preview(&self) -> bool {
         let nav = &self.panels.settings.nav;
         self.panels.settings.open
             && !self.runtime_state.stashed
-            && (nav.big_preview.is_some()
-                || (nav.bubble.is_some()
-                    && self.config.flag_default_true(skwd_config::keys::transition::ENABLED)
-                    && self.config.flag_default_true(skwd_config::keys::transition::PREVIEW)))
+            && (nav.big_preview.is_some() || nav.cursor_preview.is_some())
     }
 
     pub(in crate::app) fn animating(&self) -> bool {
@@ -543,6 +540,10 @@ impl App {
             self.panels.settings.control_anim.tick(dt);
             self.panels.settings.tick_profile(dt);
             self.panels.settings.nav.tick(dt);
+            if crate::app::update::settings_nav::still(self) {
+                // Low-power mode or animations off: everything at once.
+                self.panels.settings.nav.settle();
+            }
             crate::app::update::settings_nav::tick_menu(self, std::time::Instant::now());
             crate::app::update::settings_strips::tick(self, std::time::Instant::now());
         }

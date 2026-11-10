@@ -1,6 +1,6 @@
 //! R1 (custom build): the redesigned Settings window: top bar menus, pages,
 //! back, Home cards, Simple/Advanced, reset to default, the command palette,
-//! undo and the preview bubble.
+//! undo, the cards and the big preview.
 
 use std::time::{Duration, Instant};
 
@@ -8,7 +8,7 @@ use iced::Task;
 use serde_json::{Value, json};
 use skwd_config::keys::settings_window as keys;
 
-use crate::app::state::{Bubble, MENU_CLOSE_MS, PaletteState, UNDO_STEPS, UndoEntry, UndoToast};
+use crate::app::state::{MENU_CLOSE_MS, PaletteState, UNDO_STEPS, UndoEntry, UndoToast};
 use crate::app::{App, Message};
 use crate::frontend::settings::nav::{
     self, GROUPS, PAGES, PaletteAction, PaletteValue, page_content,
@@ -88,7 +88,22 @@ fn save_home_cards(app: &mut App, cards: &[usize]) {
 }
 
 fn low_power(app: &App) -> bool {
-    app.config.low_power()
+    still(app)
+}
+
+/// Whether the window shows everything at once: Low-power mode, or its
+/// animations are turned off (Settings appearance).
+pub(crate) fn still(app: &App) -> bool {
+    app.config.low_power() || !app.config.flag_default_config(keys::ANIMATIONS)
+}
+
+/// Size, columns and style of the cards (Settings appearance).
+pub(crate) fn card_layout(app: &App) -> crate::frontend::settings::CardLayout {
+    crate::frontend::settings::CardLayout::parse(
+        &app.config.str_path(keys::CARD_SIZE),
+        &app.config.str_path(keys::CARD_COLUMNS),
+        &app.config.str_path(keys::CARD_STYLE),
+    )
 }
 
 /// Called when Settings opens.
@@ -97,7 +112,6 @@ pub(super) fn on_open(app: &mut App) {
     nav.history.clear();
     nav.menu = None;
     nav.palette = None;
-    nav.bubble = None;
     nav.edit_cards = false;
     nav.toast = None;
     nav.show_all = false;
@@ -118,7 +132,6 @@ pub(crate) fn on_close(app: &mut App) {
     let nav = &mut app.panels.settings.nav;
     nav.menu = None;
     nav.palette = None;
-    nav.bubble = None;
     nav.toast = None;
     nav.edit_cards = false;
     nav.home.streamer = None;
@@ -145,7 +158,6 @@ pub(super) fn show(app: &mut App, page: Option<usize>, row: Option<usize>, push:
         nav.menu = None;
         nav.menu_close_at = None;
         nav.menu_anim.snap(0.0);
-        nav.bubble = None;
         nav.big_preview = None;
         nav.tile_hover = None;
         nav.edit_cards = false;
@@ -250,9 +262,6 @@ fn open_menu(app: &mut App, group: usize, sticky: bool, keyboard: bool) {
             .map(|(index, _)| index)
             .collect()
     };
-    if app.panels.settings.nav.bubble.as_ref().is_some_and(|bubble| !bubble.pinned) {
-        close_bubble(app);
-    }
     let nav = &mut app.panels.settings.nav;
     if nav.menu != Some(group) {
         nav.menu_item = 0;
@@ -352,10 +361,6 @@ fn key_inner(app: &mut App, key: SettingsKey) -> Option<Task<Message>> {
         return Some(Task::none());
     }
     if key == SettingsKey::Cancel {
-        if app.panels.settings.nav.bubble.as_ref().is_some_and(|bubble| bubble.pinned) {
-            close_bubble(app);
-            return Some(Task::none());
-        }
         if app.panels.settings.nav.menu.is_some() {
             close_menu(app);
             return Some(Task::none());
@@ -371,6 +376,11 @@ fn key_inner(app: &mut App, key: SettingsKey) -> Option<Task<Message>> {
                 if on_tile(app) =>
             {
                 tile_key(app, key)
+            }
+            SettingsKey::Previous | SettingsKey::Next | SettingsKey::Up | SettingsKey::Down
+                if app.panels.settings.focused_choice.is_some() && on_gallery(app) =>
+            {
+                gallery_key(app, key)
             }
             SettingsKey::Up
                 if app.panels.settings.focused_choice.is_none()
@@ -925,10 +935,7 @@ pub(super) fn open_palette(app: &mut App) -> Task<Message> {
         tasks.push(super::panels::toggle_settings(app));
     }
     close_menu(app);
-    // The bubble floats above everything; it would cover the palette.
-    if app.panels.settings.nav.bubble.is_some() {
-        close_bubble(app);
-    }
+    close_big_preview(app);
     let entries = {
         let mut build = memo(app);
         let mut rows = |index: usize| page_content(&PAGES[index], &mut build).rows(false);
@@ -1218,12 +1225,15 @@ fn run_action(app: &mut App, id: &str) -> Task<Message> {
 pub(crate) fn scroll_to_focus(app: &App) -> Task<Message> {
     let page = page_rows(app);
     if app.panels.settings.focus == SettingsFocus::Controls
-        && page.iter().any(|row| matches!(row.control, Control::Tile { .. }))
+        && page.iter().any(|row| {
+            matches!(row.control, Control::Tile { .. }) || nav::gallery(&row.control).is_some()
+        })
     {
         // A page with cards: work out roughly where the focused row is.
         let (width, scale) = card_grid_width(app);
-        let columns = crate::frontend::settings::card_columns(width, scale);
-        let card = crate::frontend::settings::card_height(width, scale);
+        let layout = card_layout(app);
+        let columns = crate::frontend::settings::card_columns(width, scale, layout);
+        let card = crate::frontend::settings::card_height(width, scale, layout);
         let focused = app.panels.settings.focused_control;
         let mut y = 150.0 * scale;
         let mut in_line = 0usize;
@@ -1233,7 +1243,12 @@ pub(crate) fn scroll_to_focus(app: &App) -> Task<Message> {
                 y += card;
                 in_line = 0;
             }
+            let gallery = nav::gallery(&row.control);
             if index == focused {
+                if gallery.is_some() {
+                    let line = app.panels.settings.focused_choice.unwrap_or(0) / columns;
+                    y += 70.0 * scale + line as f32 * card;
+                }
                 break;
             }
             if tile {
@@ -1242,6 +1257,8 @@ pub(crate) fn scroll_to_focus(app: &App) -> Task<Message> {
                     y += card;
                     in_line = 0;
                 }
+            } else if let Some(gallery) = gallery {
+                y += 90.0 * scale + gallery.options.len().div_ceil(columns) as f32 * card;
             } else {
                 y += if matches!(row.control, Control::Segment) { 66.0 } else { 58.0 } * scale;
             }
@@ -1271,7 +1288,6 @@ pub(crate) fn scroll_to_focus(app: &App) -> Task<Message> {
 
 /// Opens the one live preview, large, playing `shader`.
 pub(crate) fn open_big_preview(app: &mut App, shader: String) {
-    close_bubble(app);
     let nav = &mut app.panels.settings.nav;
     if nav.big_preview.is_none() {
         nav.big_anim.run(0.0, 1.0);
@@ -1304,6 +1320,34 @@ fn card_grid_width(app: &App) -> (f32, f32) {
     let scale = window.scale();
     let (panel_width, _) = window.dims(app.scene.viewport);
     (crate::frontend::settings::wide_page_width(panel_width, scale), scale)
+}
+
+/// Whether the keyboard is on a setting whose choices show as cards.
+fn on_gallery(app: &App) -> bool {
+    page_rows(app)
+        .get(app.panels.settings.focused_control)
+        .is_some_and(|row| nav::gallery(&row.control).is_some())
+}
+
+/// Arrow keys while walking the cards of one setting (after Enter):
+/// Left/Right and Up/Down move across them; moving off the grid goes back
+/// to the setting's row.
+fn gallery_key(app: &mut App, key: SettingsKey) -> Option<Task<Message>> {
+    let rows = page_rows(app);
+    let count =
+        nav::gallery(&rows.get(app.panels.settings.focused_control)?.control)?.options.len();
+    let choice = app.panels.settings.focused_choice?;
+    let (width, scale) = card_grid_width(app);
+    let columns = crate::frontend::settings::card_columns(width, scale, card_layout(app));
+    app.panels.settings.focused_choice = match key {
+        SettingsKey::Previous => choice.checked_sub(1),
+        SettingsKey::Next => Some((choice + 1).min(count.saturating_sub(1))),
+        SettingsKey::Up => choice.checked_sub(columns),
+        SettingsKey::Down => (choice + columns < count).then_some(choice + columns),
+        _ => return None,
+    };
+    app.retick();
+    Some(scroll_to_focus(app))
 }
 
 /// Whether the keyboard is on a card.
@@ -1339,7 +1383,7 @@ fn tile_key(app: &mut App, key: SettingsKey) -> Option<Task<Message>> {
     let start = (0..=index).rev().take_while(|row| is_tile(*row)).last().unwrap_or(index);
     let end = (index..rows.len()).take_while(|row| is_tile(*row)).last().unwrap_or(index) + 1;
     let (width, scale) = card_grid_width(app);
-    let columns = crate::frontend::settings::card_columns(width, scale);
+    let columns = crate::frontend::settings::card_columns(width, scale, card_layout(app));
     let target = match key {
         SettingsKey::Previous => index.saturating_sub(1).max(start),
         SettingsKey::Next => (index + 1).min(end - 1),
@@ -1353,70 +1397,6 @@ fn tile_key(app: &mut App, key: SettingsKey) -> Option<Task<Message>> {
     app.panels.settings.focused_control = target;
     app.retick();
     Some(scroll_to_focus(app))
-}
-
-// ---------- preview bubble ----------
-
-fn show_bubble(app: &mut App, shader: String, row: usize, pinned: bool) {
-    if !app.config.flag_default_true(skwd_config::keys::transition::ENABLED)
-        || !app.config.flag_default_true(skwd_config::keys::transition::PREVIEW)
-        || app.panels.settings.nav.palette.is_some()
-        || app.panels.settings.nav.menu.is_some()
-    {
-        return;
-    }
-    let nav = &mut app.panels.settings.nav;
-    if nav.bubble.as_ref().is_some_and(|bubble| bubble.pinned && !pinned) {
-        return;
-    }
-    if nav.bubble.is_none() {
-        nav.bubble_anim.run(0.0, 1.0);
-    }
-    nav.bubble = Some(Bubble { shader: shader.clone(), row, pinned });
-    if app.config.low_power() {
-        app.panels.settings.nav.bubble_anim.snap(1.0);
-    }
-    if app.panels.transition_preview.focus.as_deref() != Some(shader.as_str()) {
-        app.panels.transition_preview.stop();
-    }
-    app.panels.transition_preview.focus = Some(shader);
-    app.retick();
-}
-
-pub(crate) fn close_bubble(app: &mut App) {
-    app.panels.settings.nav.bubble = None;
-    app.panels.transition_preview.focus = None;
-    app.panels.transition_preview.stop();
-    app.retick();
-}
-
-/// Shows the bubble for keyboard focus on `row`, or hides an unpinned one.
-pub(crate) fn bubble_for_focus(app: &mut App) {
-    if app.panels.settings.focus != SettingsFocus::Controls {
-        return;
-    }
-    let index = app.panels.settings.focused_control;
-    let shader = page_rows(app).get(index).and_then(|row| bubble_shader(app, row));
-    match shader {
-        Some(shader) => show_bubble(app, shader, index, false),
-        None if app.panels.settings.nav.bubble.as_ref().is_some_and(|bubble| !bubble.pinned) => {
-            close_bubble(app);
-        }
-        None => {}
-    }
-}
-
-/// What the bubble plays for `row`, if the row is about transitions.
-pub(crate) fn bubble_shader(app: &App, row: &Row) -> Option<String> {
-    let target = crate::frontend::settings::nav::bubble_target(
-        row,
-        &app.config.str_path(skwd_config::keys::transition::PLAYLIST),
-    )?;
-    if !target.is_empty() {
-        return Some(target);
-    }
-    let chosen = app.config.str_path(skwd_config::keys::transition::SHADER);
-    Some(if chosen.is_empty() { String::from("random") } else { chosen })
 }
 
 // ---------- messages ----------
@@ -1498,34 +1478,29 @@ fn update_inner(app: &mut App, msg: SettingsMsg) -> Task<Message> {
             let paused = app.config.flag_default_config(keys::HOME_PAUSED);
             super::settings_policy::save_value(app, keys::HOME_PAUSED, &json!(!paused));
         }
-        SettingsMsg::BubbleShow(shader, row) => show_bubble(app, shader, row, false),
-        SettingsMsg::BubbleHide(row) => {
-            if app
-                .panels
-                .settings
-                .nav
-                .bubble
-                .as_ref()
-                .is_some_and(|bubble| !bubble.pinned && bubble.row == row)
-            {
-                close_bubble(app);
-            }
-        }
-        SettingsMsg::BubblePin(shader) => open_big_preview(app, shader),
         SettingsMsg::BigPreviewClose => close_big_preview(app),
-        SettingsMsg::TileHover(row, inside) => {
+        SettingsMsg::TileHover(row, option, inside) => {
             let nav = &mut app.panels.settings.nav;
-            if inside && nav.tile_hover != Some(row) {
-                nav.tile_hover = Some(row);
+            if inside && nav.tile_hover != Some((row, option)) {
+                nav.tile_hover = Some((row, option));
                 nav.tile_anim.run(0.0, 1.0);
-                if app.config.low_power() {
+                if still(app) {
                     app.panels.settings.nav.tile_anim.snap(1.0);
                 }
-            } else if !inside && nav.tile_hover == Some(row) {
+            } else if !inside && nav.tile_hover == Some((row, option)) {
                 nav.tile_hover = None;
             }
         }
-        SettingsMsg::BubbleClose => close_bubble(app),
+        SettingsMsg::CursorMoved(row, option, x) => {
+            app.panels.settings.nav.cursor_x = x;
+            if let Some(cursor) = app.panels.settings.nav.cursor_preview.as_mut()
+                && (cursor.row, cursor.option) == (row, option)
+            {
+                cursor.target_x = x;
+                app.retick();
+            }
+            return Task::none();
+        }
         other => return palette_update(app, other),
     }
     app.invalidate_settings();

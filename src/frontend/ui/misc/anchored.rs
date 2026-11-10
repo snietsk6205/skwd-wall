@@ -1,6 +1,7 @@
 //! R1 (custom build): content with a floating panel next to it, drawn above
 //! everything and taking no space. Unlike a tooltip it is opened by state,
-//! so the keyboard can open it too (preview bubble, group menus).
+//! so the keyboard can open it too (group menus, the preview that follows
+//! the cursor).
 
 use iced::advanced::layout::{self, Layout};
 use iced::advanced::overlay;
@@ -14,9 +15,10 @@ use iced::{Element, Event, Length, Point, Rectangle, Size, Vector, mouse};
 pub enum AnchorSide {
     /// Below the content, starting at its left edge.
     Below,
-    /// Above the content, aligned to its end (below it when there is no
-    /// room above).
-    AboveEnd,
+    /// Above the content (below it when there is no room above), centred
+    /// on the point `follow` pixels from the content's left edge. It never
+    /// covers the content.
+    Above,
 }
 
 pub struct Anchored<'a, Message, Theme, Renderer> {
@@ -25,9 +27,18 @@ pub struct Anchored<'a, Message, Theme, Renderer> {
     side: AnchorSide,
     gap: f32,
     min_top: f32,
+    follow: f32,
 }
 
 impl<Message, Theme, Renderer> Anchored<'_, Message, Theme, Renderer> {
+    /// For `AnchorSide::Above`: where the panel is centred, measured from
+    /// the content's left edge.
+    #[must_use]
+    pub fn follow(mut self, x: f32) -> Self {
+        self.follow = x;
+        self
+    }
+
     /// Keeps the panel below this y (for example under a top bar).
     #[must_use]
     pub fn min_top(mut self, min_top: f32) -> Self {
@@ -42,7 +53,7 @@ pub fn anchored<'a, Message, Theme, Renderer>(
     side: AnchorSide,
     gap: f32,
 ) -> Anchored<'a, Message, Theme, Renderer> {
-    Anchored { content: content.into(), panel, side, gap, min_top: 0.0 }
+    Anchored { content: content.into(), panel, side, gap, min_top: 0.0, follow: 0.0 }
 }
 
 impl<Message, Theme, Renderer> Widget<Message, Theme, Renderer>
@@ -178,6 +189,7 @@ where
                 side: self.side,
                 gap: self.gap,
                 min_top: self.min_top,
+                follow: self.follow,
             }))),
             _ => None,
         };
@@ -195,23 +207,25 @@ struct Panel<'a, 'b, Message, Theme, Renderer> {
     side: AnchorSide,
     gap: f32,
     min_top: f32,
+    follow: f32,
 }
 
 /// Top-left corner of a `size` panel next to `anchor` inside `viewport`.
-fn anchored_origin(
+pub(super) fn anchored_origin(
     anchor: Rectangle,
     size: Size,
     viewport: Size,
     side: AnchorSide,
     gap: f32,
     min_top: f32,
+    follow: f32,
 ) -> Point {
     let (x, y) = match side {
         AnchorSide::Below => (anchor.x, anchor.y + anchor.height + gap),
-        AnchorSide::AboveEnd => {
+        AnchorSide::Above => {
             let above = anchor.y - size.height - gap;
             let y = if above >= min_top { above } else { anchor.y + anchor.height + gap };
-            (anchor.x + anchor.width - size.width, y)
+            (anchor.x + follow - size.width / 2.0, y)
         }
     };
     Point::new(
@@ -234,8 +248,15 @@ where
             renderer,
             &layout::Limits::new(Size::ZERO, bounds),
         );
-        let origin =
-            anchored_origin(self.anchor, node.size(), bounds, self.side, self.gap, self.min_top);
+        let origin = anchored_origin(
+            self.anchor,
+            node.size(),
+            bounds,
+            self.side,
+            self.gap,
+            self.min_top,
+            self.follow,
+        );
         node.move_to(origin)
     }
 

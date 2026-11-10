@@ -22,7 +22,7 @@ const HOLD_MS: u64 = 520;
 
 /// Whether cards may play (they show their middle frame otherwise).
 pub(crate) fn motion_allowed(app: &App) -> bool {
-    !app.config.low_power() && !app.config.battery_saver_active()
+    !super::settings_nav::still(app) && !app.config.battery_saver_active()
 }
 
 /// Whether the background renderer may work now.
@@ -33,35 +33,57 @@ fn rendering_allowed(app: &App) -> bool {
         && motion_allowed(app)
 }
 
-/// The row whose card is lit: the one under the pointer, else the one the
-/// keyboard is on.
-pub(crate) fn lit_row(app: &App) -> Option<usize> {
+/// The card that is lit: the one under the pointer, else the one the
+/// keyboard is on (row of the page, choice; 0 for a card that is a row).
+pub(crate) fn lit_tile(app: &App) -> Option<(usize, usize)> {
     let settings = &app.panels.settings;
     settings.nav.tile_hover.or_else(|| {
         (settings.focus == SettingsFocus::Controls && settings.nav.page.is_some())
-            .then_some(settings.focused_control)
+            .then(|| (settings.focused_control, settings.focused_choice.unwrap_or(0)))
     })
 }
 
 fn signature(app: &App) -> String {
     use skwd_config::keys::transition as keys;
     let nav = &app.panels.settings.nav;
+    let text = |path: &str| app.config.str_path(path);
     format!(
-        "{:?}|{}|{}|{}|{}|{}|{}|{:?}",
+        "{:?}|{}|{}|{}|{}|{}|{}|{:?}|{}|{}|{}|{}",
         nav.page,
-        app.config.str_path(keys::LIBRARY_SEARCH),
-        app.config.str_path(keys::LIBRARY_FILTER),
-        app.config.str_path(keys::FAVOURITES),
-        app.config.str_path(keys::PLAYLIST),
-        app.config.str_path(keys::SHADER),
+        text(keys::LIBRARY_SEARCH),
+        text(keys::LIBRARY_FILTER),
+        text(keys::FAVOURITES),
+        text(keys::PLAYLIST),
+        text(keys::SHADER),
         super::settings_nav::hides_advanced(app),
         nav.menu,
+        text(keys::COMBO_FIRST),
+        text(keys::COMBO_SECOND),
+        text(keys::COMBO_SPLIT),
+        text(keys::COMBO_MODE),
     )
 }
 
-/// The renderer job for a strip name (a transition key or combination).
+/// The renderer job for a strip name: a transition key, a combination
+/// name, or "sketch:<style>" (that style drawing, then a plain fade).
 fn job(name: &str) -> StripJob {
-    StripJob { name: name.to_string(), shader: name.to_string(), env: Vec::new() }
+    match name.strip_prefix(crate::frontend::settings::nav::SKETCH_STRIP_PREFIX) {
+        Some(style) => StripJob {
+            name: name.to_string(),
+            shader: String::from("fade"),
+            env: vec![(
+                String::from("SKWD_PAPER_SKETCH"),
+                format!("style={style};ms=3000;base=1000;videos=1;scenes=1"),
+            )],
+            duration_ms: 4000,
+        },
+        None => StripJob {
+            name: name.to_string(),
+            shader: name.to_string(),
+            env: Vec::new(),
+            duration_ms: 1000,
+        },
+    }
 }
 
 /// Brings the strips in line with the open page (cheap while nothing
@@ -74,6 +96,8 @@ pub(crate) fn sync(app: &mut App) {
         if let Some(worker) = &strips.worker {
             worker.set_paused(true);
         }
+        app.panels.settings.nav.cursor_preview = None;
+        app.panels.settings.nav.tile_hover = None;
         return;
     }
     let signature = signature(app);
@@ -87,21 +111,31 @@ pub(crate) fn sync(app: &mut App) {
     {
         worker.set_paused(!allowed);
     }
+    sync_cursor(app);
     sync_playing(app);
 }
 
 /// Reads the page's cards and asks for the strips not seen yet.
 fn adopt_page(app: &mut App) {
-    let tiles: Vec<(usize, String)> = super::settings_nav::page_rows(app)
-        .iter()
-        .enumerate()
-        .filter_map(|(index, row)| match &row.control {
+    let mut tiles: Vec<((usize, usize), String)> = Vec::new();
+    for (index, row) in super::settings_nav::page_rows(app).iter().enumerate() {
+        match &row.control {
             Control::Tile { tile, .. } if !tile.picture.is_empty() => {
-                Some((index, tile.picture.clone()))
+                tiles.push(((index, 0), tile.picture.clone()));
             }
-            _ => None,
-        })
-        .collect();
+            control => {
+                if let Some(gallery) = crate::frontend::settings::nav::gallery(control) {
+                    for (option, (key, _)) in gallery.options.iter().enumerate() {
+                        if let crate::frontend::settings::nav::CardPicture::Strip(name) =
+                            gallery.picture(key, &app.config)
+                        {
+                            tiles.push(((index, option), name));
+                        }
+                    }
+                }
+            }
+        }
+    }
     let mut wanted: Vec<String> = tiles.iter().map(|(_, name)| name.clone()).collect();
     // The Motion menu shows the transition in use on its Transitions card.
     if app.panels.settings.nav.menu.is_some() {
@@ -149,13 +183,74 @@ pub(crate) fn menu_picture_name(app: &App) -> String {
     if name == "random" { String::from("random-mix") } else { name }
 }
 
+/// The strip name of a card of the open page.
+fn strip_of(app: &App, tile: (usize, usize)) -> Option<String> {
+    app.panels
+        .settings
+        .nav
+        .strips
+        .tiles
+        .iter()
+        .find(|(at, _)| *at == tile)
+        .map(|(_, name)| name.clone())
+}
+
+/// "Preview style: follows the cursor": the small live preview above the
+/// card the pointer is on (transitions and combinations; a sketch style
+/// plays in its card).
+fn sync_cursor(app: &mut App) {
+    use skwd_config::keys::settings_window as keys;
+    let wanted = (app.config.str_path(keys::PREVIEW_STYLE) == "cursor"
+        && motion_allowed(app)
+        && app.panels.settings.nav.big_preview.is_none()
+        && app.panels.settings.nav.palette.is_none()
+        && app.panels.settings.nav.menu.is_none())
+    .then(|| app.panels.settings.nav.tile_hover)
+    .flatten()
+    .and_then(|tile| strip_of(app, tile).map(|name| (tile, name)))
+    .filter(|(_, name)| !name.starts_with(crate::frontend::settings::nav::SKETCH_STRIP_PREFIX));
+    let current = app
+        .panels
+        .settings
+        .nav
+        .cursor_preview
+        .as_ref()
+        .map(|cursor| ((cursor.row, cursor.option), cursor.shader.clone()));
+    if current == wanted {
+        return;
+    }
+    match wanted {
+        Some(((row, option), shader)) => {
+            if app.panels.transition_preview.focus.as_deref() != Some(shader.as_str()) {
+                app.panels.transition_preview.stop();
+            }
+            app.panels.transition_preview.focus = Some(shader.clone());
+            app.panels.settings.nav.cursor_preview = Some(crate::app::state::CursorPreview {
+                row,
+                option,
+                title: crate::contracts::settings::transitions::label_of(&shader),
+                shader,
+                x: app.panels.settings.nav.cursor_x,
+                target_x: app.panels.settings.nav.cursor_x,
+            });
+        }
+        None => {
+            app.panels.settings.nav.cursor_preview = None;
+            if app.panels.settings.nav.big_preview.is_none() {
+                app.panels.transition_preview.focus = None;
+                app.panels.transition_preview.stop();
+            }
+        }
+    }
+    app.retick();
+}
+
 /// Starts or stops the one playing card.
 fn sync_playing(app: &mut App) {
+    let cursor =
+        app.panels.settings.nav.cursor_preview.as_ref().map(|cursor| (cursor.row, cursor.option));
     let wanted = if motion_allowed(app) && app.panels.settings.nav.big_preview.is_none() {
-        lit_row(app).and_then(|row| {
-            let strips = &app.panels.settings.nav.strips;
-            strips.tiles.iter().find(|(index, _)| *index == row).map(|(_, name)| name.clone())
-        })
+        lit_tile(app).filter(|tile| Some(*tile) != cursor).and_then(|tile| strip_of(app, tile))
     } else {
         None
     };

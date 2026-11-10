@@ -1,5 +1,5 @@
 //! R1 (custom build): state of the redesigned Settings window: which page is
-//! open, the top bar's menus, the command palette, undo, the preview bubble
+//! open, the top bar's menus, the command palette, undo, the cards' pictures, the big preview
 //! and the Home background.
 
 use std::time::Instant;
@@ -31,14 +31,18 @@ pub(crate) struct PaletteState {
     pub(crate) entries: Vec<PaletteEntry>,
 }
 
-/// The small floating transition preview next to a row.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Bubble {
-    /// What it plays (a transition key, a combination name, ...).
-    pub(crate) shader: String,
-    /// Row (in the page's row list) it floats next to.
+/// R1b: "Preview style: follows the cursor": the live preview above the
+/// card the pointer is on.
+pub(crate) struct CursorPreview {
     pub(crate) row: usize,
-    pub(crate) pinned: bool,
+    pub(crate) option: usize,
+    pub(crate) shader: String,
+    /// Its name in words.
+    pub(crate) title: String,
+    /// Where the panel is (from the card's left edge) and where the
+    /// pointer is; the first follows the second softly.
+    pub(crate) x: f32,
+    pub(crate) target_x: f32,
 }
 
 /// R1b: the card that plays its strip right now.
@@ -65,8 +69,8 @@ pub(crate) struct CardStrips {
     pub(crate) playing: Option<PlayingStrip>,
     /// What the open page needs (skips the work while unchanged).
     pub(crate) signature: String,
-    /// Row index → strip name of the page's cards.
-    pub(crate) tiles: Vec<(usize, String)>,
+    /// (row, choice) → strip name of the page's cards.
+    pub(crate) tiles: Vec<((usize, usize), String)>,
 }
 
 #[derive(Default)]
@@ -112,11 +116,14 @@ pub(crate) struct SettingsNav {
     pub(crate) undoing: bool,
     pub(crate) toast: Option<UndoToast>,
     pub(crate) toast_anim: Tween,
-    pub(crate) bubble: Option<Bubble>,
-    pub(crate) bubble_anim: Tween,
     pub(crate) home: HomeBackdrop,
-    /// R1b: the card under the pointer (row index of the page).
-    pub(crate) tile_hover: Option<usize>,
+    /// R1b: the card under the pointer (row of the page, choice; 0 for a
+    /// card that is a row of its own).
+    pub(crate) tile_hover: Option<(usize, usize)>,
+    /// R1b: the small live preview that follows the cursor.
+    pub(crate) cursor_preview: Option<CursorPreview>,
+    /// Where the pointer is on the card it is over (from its left edge).
+    pub(crate) cursor_x: f32,
     pub(crate) tile_anim: Tween,
     pub(crate) strips: CardStrips,
     /// R1b: the transition "Preview big" shows in the overlay.
@@ -168,10 +175,10 @@ impl Default for SettingsNav {
             undoing: false,
             toast: None,
             toast_anim: motion.tween(0.0, MotionTier::Fast),
-            bubble: None,
-            bubble_anim: motion.tween(0.0, MotionTier::Fast),
             home: HomeBackdrop::default(),
             tile_hover: None,
+            cursor_preview: None,
+            cursor_x: 120.0,
             tile_anim: motion.tween(0.0, MotionTier::Fast),
             strips: CardStrips::default(),
             big_preview: None,
@@ -197,7 +204,6 @@ impl SettingsNav {
         motion.retime_tween(&mut self.page_anim, MotionTier::Standard);
         motion.retime_tween(&mut self.card_anim, MotionTier::Fast);
         motion.retime_tween(&mut self.toast_anim, MotionTier::Fast);
-        motion.retime_tween(&mut self.bubble_anim, MotionTier::Fast);
         motion.retime_tween(&mut self.tile_anim, MotionTier::Fast);
         motion.retime_tween(&mut self.big_anim, MotionTier::Fast);
     }
@@ -207,9 +213,12 @@ impl SettingsNav {
             || !self.page_anim.settled()
             || !self.card_anim.settled()
             || !self.toast_anim.settled()
-            || !self.bubble_anim.settled()
             || !self.tile_anim.settled()
             || !self.big_anim.settled()
+            || self
+                .cursor_preview
+                .as_ref()
+                .is_some_and(|cursor| (cursor.x - cursor.target_x).abs() > 0.5)
     }
 
     /// When the window needs a tick without animating: a hover menu's close
@@ -233,9 +242,12 @@ impl SettingsNav {
         self.page_anim.tick(dt);
         self.card_anim.tick(dt);
         self.toast_anim.tick(dt);
-        self.bubble_anim.tick(dt);
         self.tile_anim.tick(dt);
         self.big_anim.tick(dt);
+        if let Some(cursor) = self.cursor_preview.as_mut() {
+            // A soft spring: most of the gap closes in a tenth of a second.
+            cursor.x = crate::frontend::animation::approach(cursor.x, cursor.target_x, dt, 0.07);
+        }
     }
 
     /// Ends every animation at its target (Low-power mode).
@@ -245,12 +257,14 @@ impl SettingsNav {
             &mut self.page_anim,
             &mut self.card_anim,
             &mut self.toast_anim,
-            &mut self.bubble_anim,
             &mut self.tile_anim,
             &mut self.big_anim,
         ] {
             let target = tween.target;
             tween.snap(target);
+        }
+        if let Some(cursor) = self.cursor_preview.as_mut() {
+            cursor.x = cursor.target_x;
         }
     }
 }

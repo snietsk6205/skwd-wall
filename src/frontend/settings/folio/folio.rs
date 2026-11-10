@@ -224,7 +224,7 @@ pub struct WorkbenchInput<'a> {
     pub chrome: ChromeCtx<'a>,
     pub profiles: ProfilesCtx<'a>,
     pub folders: FoldersCtx<'a>,
-    /// R1: pages, menus, Home, palette, toast and bubble.
+    /// R1: pages, menus, Home, palette and toast.
     pub nav: super::shell::NavView<'a>,
     pub tab: &'a str,
     pub selected_section: usize,
@@ -322,19 +322,24 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
                 } else {
                     None
                 };
-                let content_width =
-                    if rows.iter().any(|row| matches!(row.control, Control::Tile { .. })) {
-                        wide_width
-                    } else {
-                        content_width
-                    };
+                let content_width = if rows.iter().any(|row| {
+                    matches!(row.control, Control::Tile { .. })
+                        || super::super::nav::gallery(&row.control).is_some()
+                }) {
+                    wide_width
+                } else {
+                    content_width
+                };
                 let content = super::rows::rows(
                     super::rows::RowsInput {
                         pictures: nav.pictures,
                         playing: nav.playing,
                         tile_hover: nav.tile_hover,
                         tile_fade: nav.tile_fade,
+                        follow_cursor: nav.follow_cursor,
+                        cursor: nav.cursor,
                         pending: nav.strips_pending,
+                        card_layout: nav.card_layout,
                         rows,
                         values: source.values,
                         has_selected_preset,
@@ -345,8 +350,6 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
                         motion,
                         cfg: source.config,
                         more: nav.more,
-                        bubble: nav.bubble.clone(),
-                        playlist: nav.playlist.clone(),
                     },
                     focus,
                 );

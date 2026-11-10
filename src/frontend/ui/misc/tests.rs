@@ -525,3 +525,23 @@ fn accent_stays_readable_on_the_ink() {
     let grey = super::accent_on_ink(Color::from_rgb(0.3, 0.3, 0.3));
     assert!((grey.r - grey.b).abs() < 0.02 && grey.r > 0.75);
 }
+
+#[test]
+fn following_panel_never_covers_its_card() {
+    use super::anchored::{AnchorSide, anchored_origin};
+    use iced::{Rectangle, Size};
+    let card = Rectangle { x: 400.0, y: 300.0, width: 270.0, height: 220.0 };
+    let panel = Size::new(300.0, 200.0);
+    let screen = Size::new(1280.0, 720.0);
+    // Room above: it sits above the card, centred on the pointer.
+    let above = anchored_origin(card, panel, screen, AnchorSide::Above, 10.0, 60.0, 100.0);
+    assert!((above.x - 350.0).abs() < f32::EPSILON);
+    assert!(above.y + panel.height <= card.y);
+    // No room above (the card is right under the top bar): below the card.
+    let high = Rectangle { y: 120.0, ..card };
+    let below = anchored_origin(high, panel, screen, AnchorSide::Above, 10.0, 60.0, 100.0);
+    assert!(below.y >= high.y + high.height);
+    // It stays inside the window.
+    let edge = anchored_origin(card, panel, screen, AnchorSide::Above, 10.0, 60.0, 5000.0);
+    assert!(edge.x + panel.width <= screen.width);
+}
