@@ -64,14 +64,25 @@ Rendered with the real renderer (`skwd-wall-vk --preview-stream`, software Vulka
   - `m3-settings-combo.jpg`, `m3-settings-combo2.jpg`: *Combine two*: family then transition for
     each part, and how to combine them.
 
-## R1: Settings redesign (1280x720 unless noted)
+## R1 + R1b: the redesigned Settings (1280x720 unless noted)
 
-- `r1-home.jpg`: Home with the current (video) wallpaper behind pinned cards and Recently changed.
-- `r1-menu-list.jpg`, `r1-menu-grid.jpg`: a group menu as a list (Motion) and as a grid (Wallpapers).
-- `r1-page-simple.jpg`, `r1-page-advanced.jpg`: Playback & Power › Power & battery in Simple view
-  (3 advanced settings hidden) and in Advanced view; the dot and ↺ mark a changed value.
-- `r1-palette.jpg`: the command palette (Ctrl+K) with "battery saver"; Tab flipped the first result.
-- `r1-toast.jpg`: the undo note after that change.
-- `r1-bubble.jpg`, `r1-bubble-pinned.jpg`: the preview bubble next to a transition (small, pinned).
-- `r1-edit-cards.jpg`: Home in Edit cards mode.
-- `r1-large-home.jpg`, `r1-large-page.jpg`: the same at 2560x1440.
+- `r1b-home.jpg`: Home: the current (video) wallpaper under a dark veil, Recently changed at the
+  top, the pinned pages as numbered cards at the bottom.
+- `r1b-edit-cards.jpg`: Home in Edit cards mode.
+- `r1b-menu-list.jpg`, `r1b-menu-grid.jpg`: a group menu as a list (Motion) and as a grid
+  (Wallpapers).
+- `r1b-motion.jpg`: Motion -> Transitions: the card grid, one card lit (its preview plays, its
+  actions replace the tags).
+- `r1b-keyboard.jpg`: a card with keyboard focus, one of its actions chosen.
+- `r1b-playlist-combine.jpg`: further down the same page: the playlist as cards and Combine two.
+- `r1b-preview-big.jpg`: "Preview big": the one live preview in a large overlay.
+- `r1b-preview-cursor.jpg`: Preview style "Follows the cursor": the small live preview above the
+  card under the pointer.
+- `r1b-sketch.jpg`: Motion -> Sketch: the drawing styles as cards with their own previews.
+- `r1b-look.jpg`, `r1b-wallpapers.jpg`, `r1b-playback.jpg`, `r1b-system.jpg`: a page of each other
+  group (Bar, Folders, Power & battery, Keys & controls): plain rows, switches, thin lines.
+- `r1b-appearance.jpg`: Look -> Settings appearance.
+- `r1b-palette.jpg`: the command palette (Ctrl+K).
+- `r1b-large-screen.jpg`: the Transitions page on a 1920x1080 screen.
+- `r1b-bench-cloud.txt`: the benchmark report after R1b (cloud, software rendering: only idle
+  redraws and the per-click costs mean something).

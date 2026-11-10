@@ -165,37 +165,49 @@ restarting, the installer goes back to the previous state by itself.
     the library) combines two random transitions in a random way every time.
   - All of it also works after the "sketch before transition".
 
-- **Settings (R1), work in progress (branch `r1-wip`; the look will be redone):**
-  - A small **top bar**: Home, Look, Wallpapers, Motion, Playback & Power, Automation & System.
-    Point at a group (or click it, or use the arrow keys) and a **menu** shows its pages, each with
-    an icon and one plain sentence. Settings → Look → Settings window → Menu style switches the
-    menus between a **list** and a **grid**.
-  - Every page fills the window. At the top: **Back** and where you are (for example *Motion ›
-    Transitions › Combine two*). **Esc** goes back one step, and closes Settings from Home.
-  - One kind of row everywhere: the name and one sentence on the left, the control on the right.
-    A small **dot** means you changed it from the default; the **↺** button next to it puts the
-    default back. **more…** opens a longer explanation where a setting is confusing.
-  - **Simple / Advanced** (switch in the top bar): Simple hides the settings most people never need.
-    Nothing is lost: each page says how many it hides and has *Show them*.
-  - **Home**: your current wallpaper behind everything (a video wallpaper plays), pinned cards that
-    jump to their page, and *Recently changed* (click one to go back to it). *Edit cards*: Earlier,
-    Later, Remove, and *Add a card* (then pick any page from the menus). Keyboard: arrows choose,
-    Shift+arrows move a card, Delete removes, Esc finishes. The video pauses by itself in Low-power
-    mode, with Battery saver, and whenever Settings is closed; *Pause background* keeps it still.
-    Another picture or video: Look → Settings window → Home background (or *Use selected* takes
-    the wallpaper selected in the picker).
-  - **Find anything: Ctrl+K** (also straight from the picker; the old Ctrl+F still works). Type a few
-    letters of a setting, page, transition, layout or action (*benchmark*, *random wallpaper*,
-    *effects studio*, ...). **Tab** flips a switch or changes a choice right in the list, **Enter**
-    goes there, **Esc** closes. With nothing typed it shows what you used last. Change the key
-    under Automation & System → Keys & controls.
-  - **Undo**: after each change a small note says *Changed X to Y* with an **Undo** button;
-    **Ctrl+Z** undoes the last change, again and again (30 steps).
-  - **Transition previews only when you want them**: point at a transition (or move to it with the
-    arrow keys) and it plays in a small bubble next to it; *▶ Preview* or *Pin* shows it bigger until
-    you close it (Esc). Nothing takes space when you are not previewing.
-  - Settings → Look → Settings window also has: open on *Home* or *Where I left off*, and a
-    blurred picture behind the top bar.
+- **Redesigned Settings** (R1 + R1b). Everything from before is still there; it is arranged and
+  drawn differently:
+  - **Top bar:** Home, Look, Wallpapers, Motion, Playback & Power, Automation & System, as small
+    text in the middle. Point at a group (or click it, or use the arrow keys) and a **menu** shows
+    its pages as numbered cards. **Find** and **Simple / Advanced** are on the right.
+  - **Pages:** a big title, one sentence on the right, then the settings as plain rows: the name
+    and one sentence on the left, the control on the right. A small **dot** means you changed it;
+    the **↺** next to it puts the default back. **more…** opens a longer explanation where a
+    setting is confusing. **Back** and where you are (for example *Motion / Transitions*) are
+    at the top; **Esc** goes back one step and closes Settings from Home.
+  - **Simple / Advanced:** Simple hides the settings most people never need. Each page says how
+    many it hides and has *Show them*.
+  - **Cards for everything you choose by eye:** transitions, playlist entries, ways to combine
+    two transitions, sketch styles, bar styles and theme presets. A card has a number, its name,
+    the **preview inside**, and small tags (family, *Playing now*, *In playlist*, *In use*).
+    Point at a card (or move to it with the arrow keys): its outline lights up, the preview
+    plays, and its buttons appear: **Preview big**, **Use**, **+ Playlist**; the **+** in the
+    corner is *Favourite*. Above the transition cards: a search field and the filters.
+  - **Preview big** shows one transition large, live, until you press **Esc**.
+  - The small previews in the cards are drawn **once**, in the background, the first time you
+    open such a page (a few seconds on a normal graphics chip), then kept in
+    `~/.cache/skwd-wall-v2/settings-strips/`. They are not drawn during the benchmark, in
+    Low-power mode or with Battery saver. After an update of the renderer they are drawn again.
+  - **Home:** your current wallpaper behind everything (a video wallpaper plays), your pinned
+    pages as cards at the bottom, *Recently changed* at the top (click one to go back to it).
+    *Edit cards*: the arrows on a card move it, *Remove* takes it off, *Add a card* lets you
+    pick any page from the menus. The video pauses by itself in Low-power mode, with Battery
+    saver and whenever Settings is closed; *Pause background* keeps it still.
+  - **Find anything: Ctrl+K** (also straight from the picker). Type a few letters of a setting,
+    page, transition, layout or action. **Tab** changes a setting right in the list, **Enter**
+    goes there, **Esc** closes.
+  - **Undo:** after each change a small note says *Changed X to Y* with **Undo**; **Ctrl+Z**
+    undoes the last change, again and again (30 steps).
+  - **Keyboard:** arrows move between the bar, a menu, the rows and across a card grid. On a
+    card or a setting shown as cards, **Enter** steps into its buttons or cards, the arrows
+    choose, **Enter** uses it, **Esc** steps out. **Tab** jumps over a card grid.
+  - **Look -> Settings appearance** changes this window: card size (small, medium, large),
+    cards per row (automatic, 2, 3, 4), outlined or filled cards, where previews play (in the
+    card, or in a small live preview that **follows the cursor**), the faint grid pattern, a
+    blurred top bar, menus as a list or a grid, and animations on or off.
+  - **Look -> Settings window** still sets the size, place and scale (M2), what Settings opens
+    on (Home or where you left off) and the Home background.
+  - Settings is always dark and uses one accent colour: your theme's main colour.
   - Commands (for scripts): `~/.local/opt/skwd-custom/bin/skwd-helm ui page motion/transitions`
     opens a page (also `ui page home`, `ui menu motion`).
 

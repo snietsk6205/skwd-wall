@@ -202,16 +202,14 @@ Read this first in a new session.
 - **M1b Speed follow-up (done, Phase 7 below).**
 - **M2 Window size everywhere (done, Phase 8 below).**
 - **M3 Transitions (done, Phase 9 below).**
-- **R1 Settings redesign, part 1: structure done, look rejected** (branch `r1-wip`, see "R1
-  (unfinished)" below). Nothing of R1 is on `my-custom` yet.
-- **R1b Settings redesign, the look: IN PROGRESS** (branch
-  `claude/skwd-wall-settings-redesign-r4xnij` of skwd-wall, see "R1b (in progress)" below). Step A (three screens) is shown to the user; step B waits for their OK.
-- **R2 Settings redesign, part 2:** page changes with 8 of the user's transitions ported to the
-  picker (Inkwell Drop, Iris, Honeycomb, Lens, Triangles, Crossfade, Ripple, Slide; from where the
-  user clicked; short; choosable or off), cards that follow the cursor, an optional liquid/blurred
-  glass top bar, customisation of the new layout, polish from the user's R1 feedback.
-- **"Transitions problem" talk:** the user has a problem with transitions to discuss first (do
-  not change the renderer or the daemon's transition logic before that talk).
+- **R1 + R1b Settings redesign (done, Phase 10 below):** structure (R1) and the look (R1b).
+- **R2 Settings redesign, part 2 (next):** page changes with 8 of the user's transitions ported
+  to the picker (Inkwell Drop, Iris, Honeycomb, Lens, Triangles, Crossfade, Ripple, Slide;
+  starting where the user clicked; short; choosable or off), cards that tilt toward the cursor,
+  an optional liquid-glass top bar, and polish from the user's feedback on R1b (see "Not done /
+  candidates" in Phase 10).
+- **"Transitions problem" talk (after R2):** the user has a problem with transitions to discuss
+  first (do not change the renderer or the daemon's transition logic before that talk).
 - **M4 Sketch:** genuinely different original styles (only pencil is good today); controls for
   drawing order (by brightness/depth layers, edges first, one continuous line, scribble,
   stipple), stroke width, hatch direction, paper texture, colour vs mono, speed; tick several
@@ -501,175 +499,137 @@ Read this first in a new session.
   renderer drew `combo:split-circle:aurora:shutter`. Live: Settings in headless sway (screenshots),
   playlist order through the daemon (see above).
 
-## R1 (unfinished): Settings redesign, part 1 (branch `r1-wip`)
-- **Status:** stopped by the user mid-session. The user does **not** like the visual design and
-  will redo it in a new session, but wants to keep the structure (navigation map, state, update
-  logic, keys, commands). Branch `r1-wip` in **skwd-wall** and **skwd-deck** (skwd-paper unchanged).
-  Nothing was pushed to `my-custom`. Code builds (picker + deck crates). At the last full run all
-  1650 picker unit tests and all guard tests (module map, layers, ownership, style/scrim ratchets,
-  orphaned locale keys) passed and clippy (pedantic) was clean; small changes after that run (bench
-  exclusion from undo, Home-background signature, page scroll reset) were built but the final
-  test run was stopped. **First thing next session:** `cargo test --tests` and `cargo clippy
-  --all-targets` in skwd-wall, `cargo test -p skwd-config` in skwd-deck.
-- **Done and works** (tested in headless sway; screenshots `custom/previews/r1-*.jpg` show the
-  current — to be redone — look):
-  - **Navigation map** `src/frontend/settings/nav/` (pure, tests in `nav/tests.rs`):
-    `map.rs` = `GROUPS` (6: Home, Look, Wallpapers, Motion, Playback & Power, Automation & System)
-    and `PAGES` (43 pages, key "group/page", icon, label, one sentence). Each page lists `Ref`s to
-    **old** sections: `Ref::Section(tab, Title)` (by card title: `Title::Key` locale key or
-    `Title::Text` custom English card) or `Ref::Rest(tab)` (every section of that tab no other page
-    names: theme, displays, sources, language, integrations). Test
-    `every_section_has_exactly_one_page`. `find_page`, `static_tab`, `group_pages`, `page_index`.
-  - **Page content** `nav/content.rs`: `page_content(page, build)` (a `build(tab)` closure gives
-    one old tab), `PageContent::rows(simple)` (several sections → `Control::Segment` heading rows),
-    `simple_rows`, `primary()`, `locate(tab, section, row)`, `page_for_section`, `page_has_cards`.
-  - **Old tab/section mapping**: `app/update/settings.rs` `select_settings_section`,
-    `set_settings_tab`, `open_settings_search_result` map onto pages; `show()` sets
-    `settings.tab/section` to the page's primary section so folders, excluded, profiles and the
-    layout studio still use their special views; Home sets tab "home" (old section numbers then
-    count as "picker"). `skwd-helm ui tab/section/settings-search/settings-result/settings-scroll`
-    keep working.
-  - **New config keys** (skwd-deck `crates/skwd-config/src/{key_catalog,schema,keys_tests}.rs`):
-    `settingsWindow.homeCards` (default "motion/transitions,look/layout,wallpapers/folders,
-    look/colours,look/bar,playback/power"), `.openOn` (home/last), `.lastPage`, `.menuStyle`
-    (list/grid), `.barBlur`, `.view` (simple/advanced; default simple), `.homeBackground`
-    (wallpaper/custom/none), `.homeBackgroundPath`, `.homePaused`, `.recent`; `keys.palette`.
-    Their rows: `src/frontend/settings/tabs/window_tab.rs` (Settings window card; Columns and Narrow
-    index rows removed, keys kept). Palette keybind: `domain/input/action.rs` `InputAction::Palette`
-    (default ctrl+k), `contracts/picker/keybindings.rs`, locale `keybind-palette` (14 locales),
-    `app/input.rs` → `Message::OpenPalette`.
-  - **App state** `src/app/state/settings_nav.rs` (`SettingsState.nav: SettingsNav`): page/history,
-    menu, bar item, tweens, palette, undo + toast, bubble, Home backdrop, label cache, recent lines,
-    `deadline()` for the frame clock. `SettingsFocus` is now Controls | Bar | Menu | Home.
-  - **Update logic** `src/app/update/settings_nav.rs`: `show/back`, top bar + menu keyboard
-    (arrows, Enter, Esc; Up from first row → bar; Tab walks rows and wraps; Ctrl+Tab next page),
-    hover menus (close after 260 ms via the frame-clock deadline), Home cards, reset to default
-    (`default_value` from the schema), value words for the toast, palette, undo, bubble.
-  - **Command palette**: index + fuzzy search `nav/palette.rs` (every page, row incl. rows in
-    folds, transition, layout, 15 actions); app side `settings_nav.rs` (`open_palette`,
-    `palette_results`, Tab = change in place, Enter = run, empty query = recent picks + recently
-    changed + pages); Ctrl+K from the picker too; Ctrl+F and "/" open it.
-  - **Undo**: `settings_nav::record` (called from `settings_policy::stage_value/save_value`, only
-    while Settings is open and no benchmark runs; merges one path within 1.5 s), 30 steps, Ctrl+Z,
-    toast "Changed X to Y — Undo"; `apply_value` replays through the normal handlers.
-  - **Breadcrumb** (Back, Group › Page › heading of the focused row; `segment_of` in folio.rs).
-  - **Simple/Advanced**: `nav/advanced.rs` (`ADVANCED` paths, prefixes, `ADVANCED_PAGES`) — the
-    list of advanced rows is in that file with comments; "Simple view hides N … Show them".
-  - **More… texts**: `nav/explain.rs` (28 settings).
-  - **Edit cards** (Earlier/Later/Remove, Add via the menus, keyboard Shift+arrows/Delete) and
-    **Recently changed** (label cache `SettingLabel` with page/row, `refresh_recent`).
-  - **Helm/picker commands** (`app/update/ui_command.rs`): `ui page <group/page|page|group|home>`,
-    `ui menu <group>`, `ui settings-key <up|down|left|right|enter|esc|tab|undo|palette>`; `ui state`
-    reports settings.page/menu/palette/palette_results/bubble/undo_steps/toast/edit_cards/anim.
-  - **Preview bubble**: `nav/bubble.rs` (`bubble_target`: which rows preview what),
-    `ticks.rs::wants_transition_preview` = a bubble is shown (reuses the M3
-    `TransitionPreviewWorker`); keyboard focus and hover show it, ▶ Preview / Pin pins it bigger,
-    Esc closes; hidden while the palette or a menu is open. M3's pinned preview is removed.
-  - **Home background** `src/app/update/settings_home.rs` + `src/infrastructure/preview/
-    home_backdrop.rs` (`Wake::HomeBackdrop`): current wallpaper / custom file / none; picture decoded
-    and blurred once per change; video via `LiveStreamer` only on Home while Settings is open, not
-    stashed, not paused, not in Low-power mode or Battery saver. Measured: 0 idle redraws on a page
-    and on a paused Home; ~22 frames/s with a playing video.
-  - **Overlay widget** `src/frontend/ui/misc/anchored.rs` (`Anchored`, state-driven overlay: `Below`
-    for menus, `AboveEnd` + `min_top` for the bubble) and shared styles
-    `src/frontend/ui/misc/r1_style.rs` (the style ratchet forbids inline style structs elsewhere).
-- **Half done (the visual layer the user wants redone):**
-  - `src/frontend/settings/folio/shell.rs` (top bar, menus list/grid, breadcrumb, page frame,
-    palette layer, toast), `folio/rows.rs` (one-column row style, dot + reset, "more…", bubble
-    panel), `folio/home.rs` (Home cards, recent card, footer), `folio/folio.rs::settings_workbench`
-    (backdrop + gradient scrim + optional blurred bar strip). All functional; look not approved.
-  - Animations exist (menu fade/slide, page fade/slide, bubble/toast fade, card lift; off in
-    Low-power mode via `SettingsNav::settle` and the view's `still` flag) but follow the current
-    look and need redoing with it.
-  - Benchmark: done in the cloud (headless sway 512x288@144, debug-optimised build, a release
-    build compiling alongside, so noisy): settings click→frame p50 1.4 ms vs 1.2 ms before R1,
-    `update.settings` 0.59 vs 0.50 ms, idle 0 redraws, same redraw count per click. Re-run after the
-    redesign (`~/.local/opt/skwd-custom/bin/skwd-helm ui bench`).
-  - Docs: custom/README.md "Settings (R1)" section describes the current behaviour (marked work in
-    progress); custom/previews/README.md lists the r1 screenshots.
-- **Not started / not done:**
-  - Final release build of all programs (was running when stopped), final test + clippy run.
-  - Number values in palette results (shows "Setting"), remembering "more…" state, hover shots.
-  - Everything in R2 (page-change transitions, cursor-following cards, liquid glass bar).
-- Other notes: the headless test recipe in "Testing in a cloud session" still applies; extra
-  helpers used: a calm test video (`ffmpeg -f lavfi -i "gradients=s=1280x720:c0=0x0b1d3a:
-  c1=0x6a2c70:c2=0xf08a5d:c3=0x1f8a8a:nb_colors=4:speed=0.015:r=24" -t 8 -vf gblur=sigma=2
-  -pix_fmt yuv420p clip.mp4`, then `skwd-helm apply clip.mp4`), `ui page …`, `ui menu …`,
-  `ui settings-key …`, `grim`.
-
-## R1b (in progress): Settings redesign, the look
-- **Status (2026-11-10):** step A of the user's plan is built and shown to the user: the new look on
-  three screens only (Home, Motion -> Transitions, an open group menu). **Waiting for the user's OK
-  or changes before converting the other pages (step B).** Do not convert other pages before that.
-  The work is on branch **`claude/skwd-wall-settings-redesign-r4xnij`** of skwd-wall (it starts
-  from `r1-wip` 928f701; `r1-wip` itself still holds only the old R1). skwd-deck and skwd-paper
-  have no R1b changes yet (deck: use `r1-wip`; paper: `my-custom`).
-- Checks at this point: skwd-wall 1660 unit tests + all guard tests pass, clippy (pedantic, all
-  targets) clean; skwd-deck `skwd-config` 89 tests pass. Idle check in the cloud (headless sway
-  1280x720, software rendering): Transitions page with no card lit = 0 CPU ticks in 5 s; one
-  card playing = redraws at about 11 frames a second; 0 again after the pointer leaves.
+## Phase 10 = R1 + R1b (done): Settings redesign (structure, then the look)
+- What the user gets: custom/README.md "Redesigned Settings". Screenshots `custom/previews/r1b-*`.
+  R1 built the structure in one session (its look was rejected); R1b kept that plumbing and
+  replaced the look in the next session, in two steps: A = three screens shown for approval
+  (Home, Transitions, a group menu; the user said OK), B = every page.
 - **The look ("gallery"):** always-dark neutral sheet, thin 1 px lines, small corners, ONE accent =
-  the theme's primary colour made readable on the dark sheet. Fonts (all OFL, originals, listed in
-  `LICENSES/FONTS.md`, loaded in `shell.rs` `SETTINGS_FONT_BYTES`): Unbounded SemiBold (big titles),
-  Geist Regular/Medium (text), Geist Mono (top bar, numbers, tags, hints). Constants `DISPLAY_FONT`,
-  `TEXT_FONT`, `TEXT_STRONG_FONT`, `MONO_FONT` and `typed()` in `frontend/ui/misc/typography.rs`.
-- **Shared styles** `frontend/ui/misc/gallery.rs` (the style ratchet forbids style structs elsewhere):
-  `ink_palette(theme)` (a normal `Palette`, so the old controls follow it; kept in
-  `SettingsNav.ink`, refreshed in `settings_strips::sync`, passed as `ChromeCtx.palette`),
-  `accent_on_ink`, `tile_style`, `tile_button_style`, `tag_style`, `text_button_style`,
-  `tile_action_style`, `filter_button_style`, `floating_panel_style`, `sheet_style`,
-  `quiet_input_style`, `veil_style`, `grid_pattern` (canvas), `hairline_style`, `ink_fill`.
-  `r1_style.rs` still serves the parts not converted yet (palette layer, toast, rows, bubble).
-- **Cards:** new `Control::Tile { items, tile: Tile }` (`frontend/settings/model.rs`; `items` are
-  the actions like `ActionChips`, so palette/search/keyboard code treats both alike; `Tile` =
-  picture name, tags, which action is the "+" and which the main one, active). Builder
-  `Builder::tile`. The transition library emits tiles (`tabs/transition_library.rs`, action order
-  Preview big, Use, playlist, favourite; `TILE_USE`, `TILE_FAVOURITE`). View
-  `frontend/settings/folio/cards.rs` (`tile_grid`, `toolbar`, `columns_for`, `wide_page_width`,
-  `card_height`); `folio/rows.rs` draws runs of Tile rows as a grid, the library's Search + Show
-  rows as one toolbar line, and `Control::Segment` as a small heading (the first heading of a
-  page of cards is skipped).
+  the theme's primary colour made readable on the dark sheet. Colours blend in linear light, so
+  tints use very small alphas (0.006 to 0.04). Fonts (all OFL, unmodified originals, listed in
+  `LICENSES/FONTS.md`, loaded in `shell.rs` `SETTINGS_FONT_BYTES`): Unbounded SemiBold (big
+  titles), Geist Regular/Medium (text), Geist Mono (top bar, numbers, tags, hints). Constants
+  `DISPLAY_FONT`, `TEXT_FONT`, `TEXT_STRONG_FONT`, `MONO_FONT` and `typed()` in
+  `frontend/ui/misc/typography.rs`. The user said OK to step A, whose summary named the two
+  extra Geist fonts and the always-dark sheet as decisions they could veto.
+- **Shared styles** `frontend/ui/misc/gallery.rs` (the style ratchet forbids style structs
+  elsewhere): `ink_palette(theme)` (a normal `Palette`, so every old control follows it; kept in
+  `SettingsNav.ink`, refreshed in `settings_strips::sync`, passed as `ChromeCtx.palette`, also
+  to the layout studio), `accent_on_ink`, `tile_style`, `tile_button_style`, `tag_style`,
+  `text_button_style`, `tile_action_style`, `filter_button_style`, `choice_button_style`,
+  `switch_track_style`, `switch_thumb_style`, `plain_row_style`, `floating_panel_style`,
+  `sheet_style`, `quiet_input_style`, `veil_style`, `grid_pattern` (canvas), `hairline_style`,
+  `ink_fill`. R1's `r1_style.rs` is gone.
+- **Navigation map** `src/frontend/settings/nav/` (pure, tests in `nav/tests.rs`): `map.rs` =
+  `GROUPS` (6: Home, Look, Wallpapers, Motion, Playback & Power, Automation & System) and `PAGES`
+  (44 pages, key "group/page", icon, label, one sentence). Each page lists `Ref`s to **old**
+  sections: `Ref::Section(tab, Title)` (by card title: `Title::Key` locale key or `Title::Text`
+  custom English card) or `Ref::Rest(tab)` (every section of that tab no other page names). Test
+  `every_section_has_exactly_one_page`. `find_page`, `static_tab`, `group_pages`, `page_index`.
+  `content.rs`: `page_content(page, build)`, `PageContent::rows(simple)` (several sections →
+  `Control::Segment` heading rows), `simple_rows`, `primary()`, `locate`, `page_for_section`,
+  `page_has_cards`. `advanced.rs` (what Simple view hides), `explain.rs` ("more…" texts),
+  `palette.rs` (index + fuzzy search), `gallery.rs` (R1b, below), `icons.rs`.
+- **Old tab/section mapping**: `app/update/settings.rs` `select_settings_section`,
+  `set_settings_tab`, `open_settings_search_result` map onto pages; `show()` sets
+  `settings.tab/section` to the page's primary section so folders, excluded, profiles and the
+  layout studio keep their special views; Home sets tab "home". `skwd-helm ui tab/section/
+  settings-search/settings-result/settings-scroll` keep working.
+- **Config keys** (skwd-deck `crates/skwd-config/src/{key_catalog,schema,keys_tests}.rs`), all
+  under `settingsWindow.`: R1: `homeCards`, `openOn` (home/last), `lastPage`, `menuStyle`
+  (list/grid), `barBlur`, `view` (simple/advanced), `homeBackground` (wallpaper/custom/none),
+  `homeBackgroundPath`, `homePaused`, `recent`; plus `keys.palette` (ctrl+k). R1b: `cardSize`
+  (small/medium/large), `cardColumns` (auto/2/3/4), `cardStyle` (outlined/filled), `gridPattern`
+  (true), `previewStyle` (card/cursor), `animations` (true). Rows: `tabs/window_tab.rs`, cards
+  "Settings window" (page look/window) and "Settings appearance" (`APPEARANCE_CARD`, page
+  look/appearance).
+- **App state** `src/app/state/settings_nav.rs` (`SettingsState.nav: SettingsNav`): page/history,
+  menu, bar item, tweens, palette, undo + toast, Home backdrop, label cache, recent lines, and
+  R1b: `tile_hover: Option<(row, choice)>`, `strips: CardStrips`, `big_preview`,
+  `cursor_preview: Option<CursorPreview>` (+ `cursor_x`), `ink`. `deadline()` feeds the frame
+  clock (menu close delay, toast, next strip frame). `SettingsFocus` = Controls | Bar | Menu |
+  Home.
+- **Update logic** `src/app/update/settings_nav.rs`: `show/back`, top bar + menu keyboard, hover
+  menus (close after 260 ms), Home cards (`HOME_COLUMNS` = 6, also in `folio/home.rs`), reset
+  to default, toast words, palette (`open_palette`, Tab = change in place), undo (`record`
+  called from `settings_policy::stage_value/save_value`, never during the benchmark; 30 steps),
+  `still(app)` = Low-power mode OR `animations` off (the tick then settles every tween at once),
+  `card_layout(app)`, `open_big_preview/close_big_preview`, keyboard on cards: `tile_key`
+  (arrows across a grid of Tile rows, Enter then Left/Right walk the actions), `tile_tab` (Tab
+  leaves the grid), `gallery_key` (arrows across a setting's choice cards after Enter),
+  `scroll_to_focus` (estimates heights on pages with cards; a page's first row = top).
+- **Cards:** `Control::Tile { items, tile: Tile }` (`frontend/settings/model.rs`; `items` are the
+  actions like `ActionChips`, so palette/search/keyboard code treats both alike; `Tile` = picture
+  name, tags, which action is the "+" and which the main one, active). `Builder::tile`. Emitted
+  by `tabs/transition_library.rs`: the library (actions Preview big, Use, playlist, favourite;
+  `TILE_USE`, `TILE_FAVOURITE`) and the playlist entries (Preview big, Earlier, Later, Remove).
+  **Choice cards** need no new control: `nav/gallery.rs` `gallery(control)` says which
+  `Chips`/`Dropdown` rows show their choices as cards (sketch style, combine mode, split shape,
+  bar visual style, any dropdown with palettes = theme presets) and `Gallery::picture` gives the
+  card's picture (`CardPicture::Strip(name)`, `Swatches`, `Glyph`); the row stays one row, so
+  undo, reset, palette and "Recently changed" work unchanged. View: `folio/cards.rs`
+  (`tile_grid`, `choice_grid`, `toolbar`, `hover_area`, `cursor_panel`, `CardLayout`,
+  `columns_for`, `wide_page_width`, `card_height`); `folio/rows.rs` draws runs of Tile rows as a
+  grid, gallery rows as heading + `choice_grid`, the library's Search + Show rows as one toolbar
+  line, `Control::Segment` as a small heading (the first heading of a page of cards is skipped)
+  and every other row as a plain line (`line`: name, sentence, dot, reset, "more…", thin rule).
+  Pages with cards are wide (up to 1180 px), row pages 820 px.
+- **Controls** `folio/control.rs`: `fixed_button` = a word (chosen one outlined), `switch` (On/Off
+  with a track), `action_button` (outlined), quiet inputs; the old animated box buttons are gone.
+  Still in the old typography (colours follow): folds (`Details`/`StackBar` via `folio::field`),
+  the folders, profiles and weather-review pages, the layout studio's fields, key capture.
 - **Transitions page order** (`tabs/builder.rs`): library first, then "How transitions play"
   (upstream's rows, `BASICS_CARD`), then Play in turns, Combine two.
 - **Pictures in cards** (no renderer per card): `infrastructure/preview/strips.rs` `StripWorker`:
-  two threads; "strip-make" runs `skwd-wall-vk --preview-stream --preview-once
-  --stream-no-header --preview-size 240x135 --duration-ms 1000` with
-  `SKWD_PAPER_PREVIEW_TEST=steps=13` once per transition at nice 19, keeps frames 1..=12 and
+  thread "strip-make" runs `skwd-wall-vk '*' NEW --transition-from OLD --shader NAME
+  --preview-stream --preview-once --stream-no-header --preview-size 240x135 --duration-ms N`
+  with `SKWD_PAPER_PREVIEW_TEST=steps=13` once per strip at nice 19, keeps frames 1..=12 and
   saves them side by side as one JPEG in `<cache>/settings-strips/<key>/<name>.jpg` (key = FNV
   of the renderer file's size + change time, strip format, stock pictures; other keys' folders
-  are deleted); "strip-load" reads them. Events come back as `Wake::Strip(StripEvent)`.
-  App side `app/update/settings_strips.rs`: `sync` (after every update; signature skips the work
-  when nothing changed), `event`, `tick`, `picture`; state `SettingsNav.strips: CardStrips`.
-  A card shows frame `STRIP_MIDDLE` (4, a little before half-way); the ONE lit card (pointer, else
-  keyboard focus) plays the strip at 85 ms per frame through `SettingsNav::deadline()` (no
-  continuous redraw). Rendering is paused (and the running renderer killed) during the
-  benchmark, in Low-power mode, with Battery saver, and while Settings is hidden or closed.
-  Measured in the cloud (llvmpipe, software rendering): all 78 strips in under 45 s (well under 1 s each).
-- **Big preview:** `SettingsNav.big_preview` + `shell::big_preview_layer`: the existing live worker
-  in a large overlay over the blurred Home picture; "Preview big" (`ActionId::PreviewTransition`)
-  opens it, Esc / Close / a click beside it closes it. `wants_transition_preview` = big preview
-  open (or the old bubble, which still exists on non-card rows until step B removes it).
-- **Keyboard on cards** (`settings_nav::tile_key`): arrows move across the grid (Up/Down by the
-  column count from `card_columns`), Enter then Left/Right walk the card's actions, Enter runs,
-  Esc leaves. `scroll_to_focus` estimates the row position on pages with cards.
-- **New picker command:** `skwd-helm ui settings-hover <row|none>` (pointer on the card of that
-  row, for screenshots without a pointer); `ui state` reports `settings.big_preview`,
-  `card_hover`, `card_pictures {ready, to_render, playing}`.
-- **Home:** `folio/home.rs` rewritten: wallpaper under a dark veil, big title + Recently changed at
-  the top, empty middle, pinned pages as a row of 6 numbered cards at the bottom
-  (`HOME_COLUMNS` = 6 in both `home.rs` and `settings_nav.rs`).
-- **Step B to do after the user's OK** (their list, nothing of it is started): rows without boxes
-  (restyle `folio/rows.rs` `line` and the controls in `folio/control.rs`), cards for picker
-  layouts / sketch styles (strips with `SKWD_PAPER_SKETCH`) / bar presets / theme presets /
-  playlist entries / ways to combine two; "Preview style" setting (in the card, or a small live
-  preview that follows the cursor on a spring); remove R1's bubble (`nav/bubble.rs`,
-  `rows::bubble_panel`, state, tests); restyle the palette and the toast; Settings -> Look ->
-  "Settings appearance" keys in skwd-deck `skwd-config` (card size S/M/L, columns auto/2/3/4,
-  outlined or filled, grid pattern, bar clear or blurred, menu list or grid, preview style,
-  animations) with schema + tests; narrow windows (the top bar needs short labels under about
-  980 px); Tab should skip over a card grid; every text English only; then benchmark, clippy,
-  release build, merge `r1-wip` into `my-custom`, docs, R2 prompt.
-- Screenshots of step A: `custom/previews/r1b-a-*.jpg`.
+  are deleted); thread "strip-load" reads them. Events come back as `Wake::Strip(StripEvent)`.
+  Strip names: a transition key, a combination name, or `sketch:<style>` (shader "fade" with
+  `SKWD_PAPER_SKETCH=style=<style>;ms=3000;base=1000;...`, duration 4000). App side
+  `app/update/settings_strips.rs`: `sync` (after every update; a signature skips the work when
+  nothing changed), `event`, `tick`, `picture`, `motion_allowed`. A card shows frame
+  `STRIP_MIDDLE` (4, a little before half-way); the ONE lit card (pointer, else keyboard) plays
+  the strip at 85 ms per frame through `SettingsNav::deadline()` (no continuous redraw).
+  Rendering is paused (the running renderer killed) during the benchmark, in Low-power mode,
+  with Battery saver, with animations or transition previews off, and while Settings is hidden.
+  Cloud (software rendering): 78 transition strips in under 45 s.
+- **Live previews:** only one worker (`TransitionPreviewState`), and only while
+  `SettingsNav.big_preview` (overlay `shell::big_preview_layer`, opened by
+  `ActionId::PreviewTransition` / `PlaylistPreview`, closed by Esc, Close or a click beside it)
+  or `cursor_preview` (Preview style "cursor": `settings_strips::sync_cursor`; the panel hangs
+  above the hovered card through `Anchored` with `AnchorSide::Above` + `.follow(x)`, x eased in
+  `SettingsNav::tick`; cards send `SettingsMsg::CursorMoved` only in this style) is set. R1's
+  hover bubble is removed.
+- **Views:** `folio/shell.rs` (top bar incl. the narrow form under 1000 px, menus list/grid,
+  breadcrumb, page header, palette layer, toast, big preview), `folio/home.rs`,
+  `folio/folio.rs::settings_workbench` (Home: picture + veil; pages: sheet + optional grid
+  pattern; optional blurred bar strip).
+- **Home background** `app/update/settings_home.rs` + `infrastructure/preview/home_backdrop.rs`:
+  current wallpaper / custom file / none; picture decoded and blurred once per change; video
+  via `LiveStreamer` only on Home while Settings is open and not paused, in Low-power mode or
+  with Battery saver.
+- **Picker commands** (`app/update/ui_command.rs`): `ui page <group/page|page|group|home>`, `ui
+  menu <group>`, `ui settings-key <up|down|left|right|enter|esc|tab|undo|palette>`, `ui
+  settings-hover <row[.choice] [x]|none>` (the pointer on a card, for screenshots without a
+  pointer); `ui state` reports settings.page/menu/palette/palette_results/undo_steps/toast/
+  edit_cards/big_preview/cursor_preview/card_hover/card_pictures{ready,to_render,playing}/anim.
+- **Benchmark after R1b** (cloud, headless sway 512x288@144, dev build, software rendering; two
+  runs): idle 0 redraws; settings click → frame p50 1.5 to 1.7 ms (R1: 1.4, before R1: 1.2);
+  `update.settings` 0.62 to 0.75 ms (R1: 0.59); `view.settings` 0.40 to 0.43 ms. Report:
+  `custom/previews/r1b-bench-cloud.txt`. Idle check at 1280x720: a page of cards with no card
+  lit = 0 CPU ticks in 5 s; one playing card redraws about 11 times a second.
+- **Not done / candidates for R2 polish:** the pages and parts listed above as "still in the old
+  typography"; cards for picker layouts (the layout studio is its own side panel next to the
+  live picker) and for bar presets (Quick setup stays two buttons); number values in palette
+  results (shows "Setting"); remembering "more…"; Circle Crop's still frame is nearly black;
+  translating the new English texts.
+- Test recipe additions: a calm test video (`ffmpeg -f lavfi -i "gradients=s=1280x720:
+  c0=0x0b1d3a:c1=0x6a2c70:c2=0xf08a5d:c3=0x1f8a8a:nb_colors=4:speed=0.015:r=24" -t 8 -vf
+  gblur=sigma=2 -pix_fmt yuv420p clip.mp4`, then `skwd-helm apply clip.mp4`); for the bench
+  from a dev build, link `skwd-wall-v2` to `skwd-wall` next to `skwd-helm`.
 
 ## Testing in a cloud session
 - Scripts from the last session (recreate in the scratchpad): a headless sway + `skwd-walld` +
