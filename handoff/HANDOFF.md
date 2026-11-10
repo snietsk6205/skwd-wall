@@ -621,6 +621,14 @@ Read this first in a new session.
   `update.settings` 0.62 to 0.75 ms (R1: 0.59); `view.settings` 0.40 to 0.43 ms. Report:
   `custom/previews/r1b-bench-cloud.txt`. Idle check at 1280x720: a page of cards with no card
   lit = 0 CPU ticks in 5 s; one playing card redraws about 11 times a second.
+- Checks at the end of R1b (2026-11-10): `cargo fmt` on skwd-wall and skwd-deck; clippy clean
+  (pedantic, all targets) on skwd-wall. Tests: skwd-wall 1662 unit + all guard tests pass;
+  skwd-deck 1827 pass, only the known `skwd-e2e --test semantic` fails; skwd-paper (unchanged)
+  910 pass, only the known `paper-scene hlsl::tests::packed_audio_spectrum...` fails. Release
+  build of all 11 programs (installer's package list, `--locked`) OK in 33 min; the release
+  picker drew every card strip, sat at 0 CPU ticks on the Transitions page and ran the
+  one-command benchmark (idle 0 redraws, `update.settings` 0.64 ms). Merged by fast-forward:
+  skwd-wall and skwd-deck `my-custom` = `r1-wip` = the session branch; skwd-paper unchanged.
 - **Not done / candidates for R2 polish:** the pages and parts listed above as "still in the old
   typography"; cards for picker layouts (the layout studio is its own side panel next to the
   live picker) and for bar presets (Quick setup stays two buttons); number values in palette
