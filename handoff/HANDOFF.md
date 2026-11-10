@@ -204,8 +204,8 @@ Read this first in a new session.
 - **M3 Transitions (done, Phase 9 below).**
 - **R1 Settings redesign, part 1: structure done, look rejected** (branch `r1-wip`, see "R1
   (unfinished)" below). Nothing of R1 is on `my-custom` yet.
-- **R1b Settings redesign, the look: IN PROGRESS** (branch `r1-wip`, see "R1b (in progress)"
-  below). Step A (three screens) is shown to the user; step B waits for their OK.
+- **R1b Settings redesign, the look: IN PROGRESS** (branch
+  `claude/skwd-wall-settings-redesign-r4xnij` of skwd-wall, see "R1b (in progress)" below). Step A (three screens) is shown to the user; step B waits for their OK.
 - **R2 Settings redesign, part 2:** page changes with 8 of the user's transitions ported to the
   picker (Inkwell Drop, Iris, Honeycomb, Lens, Triangles, Crossfade, Ripple, Slide; from where the
   user clicked; short; choosable or off), cards that follow the cursor, an optional liquid/blurred
@@ -601,7 +601,13 @@ Read this first in a new session.
 - **Status (2026-11-10):** step A of the user's plan is built and shown to the user: the new look on
   three screens only (Home, Motion -> Transitions, an open group menu). **Waiting for the user's OK
   or changes before converting the other pages (step B).** Do not convert other pages before that.
-  Work is on branch `r1-wip` (skwd-wall; skwd-deck unchanged so far) and on the session branch.
+  The work is on branch **`claude/skwd-wall-settings-redesign-r4xnij`** of skwd-wall (it starts
+  from `r1-wip` 928f701; `r1-wip` itself still holds only the old R1). skwd-deck and skwd-paper
+  have no R1b changes yet (deck: use `r1-wip`; paper: `my-custom`).
+- Checks at this point: skwd-wall 1660 unit tests + all guard tests pass, clippy (pedantic, all
+  targets) clean; skwd-deck `skwd-config` 89 tests pass. Idle check in the cloud (headless sway
+  1280x720, software rendering): Transitions page with no card lit = 0 CPU ticks in 5 s; one
+  card playing = redraws at about 11 frames a second; 0 again after the pointer leaves.
 - **The look ("gallery"):** always-dark neutral sheet, thin 1 px lines, small corners, ONE accent =
   the theme's primary colour made readable on the dark sheet. Fonts (all OFL, originals, listed in
   `LICENSES/FONTS.md`, loaded in `shell.rs` `SETTINGS_FONT_BYTES`): Unbounded SemiBold (big titles),

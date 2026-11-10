@@ -36,11 +36,11 @@ pub use help::{HelpIntent, help_overlay};
 #[cfg(test)]
 pub use misc::MIN_VIEWPORT;
 pub use misc::{
-    AnchorSide, anchored, focus_row_style, ghost_button_style, pill_button_style,
-    rounded_button_style, soft_button_style, surface_style, vertical_fade_style,
+    AnchorSide, anchored, focus_row_style, ghost_button_style, rounded_button_style,
+    soft_button_style, surface_style,
 };
 pub use misc::{
-    DISPLAY_FONT, INK, MONO_FONT, TEXT_FONT, TEXT_STRONG_FONT, accent_on_ink, filter_button_style,
+    DISPLAY_FONT, INK, MONO_FONT, TEXT_FONT, TEXT_STRONG_FONT, filter_button_style,
     floating_panel_style, grid_pattern, hairline_style, ink_fill, ink_palette, quiet_input_style,
     sheet_style, tag_style, text_button_style, tile_action_style, tile_button_style, tile_style,
     typed, veil_style,

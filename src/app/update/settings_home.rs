@@ -109,7 +109,7 @@ pub(crate) fn sync(app: &mut App) {
     if app.panels.settings.nav.home.signature != signature {
         app.panels.settings.nav.home.signature = signature;
         let wanted = wanted(app);
-        adopt(app, wanted);
+        adopt(app, wanted.as_ref());
     }
     if plays(app) {
         let video = app.panels.settings.nav.home.source.clone();
@@ -149,8 +149,8 @@ fn signature(app: &App) -> String {
 }
 
 /// Switches the backdrop to `wanted` (decodes its picture once).
-fn adopt(app: &mut App, wanted: Option<(String, String, bool)>) {
-    let source = wanted.as_ref().map_or(String::new(), |(source, _, _)| source.clone());
+fn adopt(app: &mut App, wanted: Option<&(String, String, bool)>) {
+    let source = wanted.map_or(String::new(), |(source, _, _)| source.clone());
     if app.panels.settings.nav.home.source == source {
         return;
     }
@@ -160,8 +160,8 @@ fn adopt(app: &mut App, wanted: Option<(String, String, bool)>) {
     home.blurred = None;
     home.frame = None;
     home.streamer = None;
-    home.video = wanted.as_ref().is_some_and(|(_, _, video)| *video);
-    if let Some((_, poster, _)) = &wanted
+    home.video = wanted.is_some_and(|(_, _, video)| *video);
+    if let Some((_, poster, _)) = wanted
         && !poster.is_empty()
         && home.decoding != source
     {

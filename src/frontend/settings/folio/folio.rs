@@ -334,6 +334,7 @@ pub fn settings_workbench<'a>(input: WorkbenchInput<'a>) -> Element<'a, Message>
                         playing: nav.playing,
                         tile_hover: nav.tile_hover,
                         tile_fade: nav.tile_fade,
+                        pending: nav.strips_pending,
                         rows,
                         values: source.values,
                         has_selected_preset,

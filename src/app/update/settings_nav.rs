@@ -1104,7 +1104,7 @@ fn change_result(
         match &mut palette.entries[entry].value {
             PaletteValue::Toggle { value, .. } => *value = new.as_bool().unwrap_or(false),
             PaletteValue::Choice { current, .. } => {
-                *current = new.as_str().unwrap_or_default().to_string()
+                *current = new.as_str().unwrap_or_default().to_string();
             }
             PaletteValue::None => {}
         }
@@ -1511,7 +1511,7 @@ fn update_inner(app: &mut App, msg: SettingsMsg) -> Task<Message> {
                 close_bubble(app);
             }
         }
-        SettingsMsg::BubblePin(shader, _) => open_big_preview(app, shader),
+        SettingsMsg::BubblePin(shader) => open_big_preview(app, shader),
         SettingsMsg::BigPreviewClose => close_big_preview(app),
         SettingsMsg::TileHover(row, inside) => {
             let nav = &mut app.panels.settings.nav;

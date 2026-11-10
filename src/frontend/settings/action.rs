@@ -237,6 +237,6 @@ pub enum SettingsMsg {
     /// R1: preview bubble next to a row (shader, row).
     BubbleShow(String, usize),
     BubbleHide(usize),
-    BubblePin(String, usize),
+    BubblePin(String),
     BubbleClose,
 }

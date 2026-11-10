@@ -51,7 +51,6 @@ pub const ICON_PUZZLE: &str = "\u{f0a66}";
 
 pub const ICON_BACK: &str = "\u{f004d}";
 pub const ICON_CHEVRON: &str = "\u{f0142}";
-pub const ICON_CHEVRON_DOWN: &str = "\u{f0140}";
 pub const ICON_EDIT: &str = "\u{f0cb6}";
 pub const ICON_PLUS: &str = "\u{f0415}";
 pub const ICON_CLOSE: &str = "\u{f0156}";
@@ -61,7 +60,4 @@ pub const ICON_PAUSE_SMALL: &str = "\u{f03e4}";
 pub const ICON_UNDO: &str = "\u{f054c}";
 pub const ICON_RESET: &str = "\u{f099b}";
 pub const ICON_HISTORY: &str = "\u{f02da}";
-pub const ICON_SPARK: &str = "\u{f0674}";
-pub const ICON_GRID: &str = "\u{f11d9}";
-pub const ICON_LIST: &str = "\u{f0279}";
 pub const ICON_ACTION: &str = "\u{f140c}";

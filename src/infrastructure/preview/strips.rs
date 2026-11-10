@@ -138,7 +138,8 @@ pub(crate) fn decode_strip(bytes: &[u8]) -> Option<Vec<Vec<u8>>> {
     }
     let raw = sheet.as_raw();
     let row = sheet.width() as usize * 4;
-    let mut frames = vec![Vec::with_capacity(FRAME_BYTES); STRIP_FRAMES];
+    let mut frames: Vec<Vec<u8>> =
+        (0..STRIP_FRAMES).map(|_| Vec::with_capacity(FRAME_BYTES)).collect();
     for y in 0..STRIP_H as usize {
         let line = &raw[y * row..(y + 1) * row];
         for (index, frame) in frames.iter_mut().enumerate() {
@@ -335,31 +336,20 @@ fn make_loop(shared: &Shared, wakeups: &Receiver<()>, renderer: &Path, stock: &(
         if shared.path(&job.name).is_file() {
             continue;
         }
-        match render(shared, renderer, stock, &job) {
-            Some(bytes) => {
-                let target = shared.path(&job.name);
-                let temporary = target.with_extension("tmp");
-                if std::fs::write(&temporary, bytes).is_ok()
-                    && std::fs::rename(&temporary, &target).is_ok()
-                {
-                    shared.send(StripEvent::Made { name: job.name });
-                }
+        if let Some(bytes) = render(shared, renderer, stock, &job) {
+            let target = shared.path(&job.name);
+            let temporary = target.with_extension("tmp");
+            if std::fs::write(&temporary, bytes).is_ok()
+                && std::fs::rename(&temporary, &target).is_ok()
+            {
+                shared.send(StripEvent::Made { name: job.name });
             }
-            None => {
-                let interrupted =
-                    shared.paused.load(Ordering::SeqCst) || shared.stopped.load(Ordering::SeqCst);
-                if interrupted {
-                    // Stopped on purpose: it stays first in line.
-                    shared
-                        .queue
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .insert(0, job);
-                } else {
-                    log::warn!("settings strips: the renderer drew nothing for {}", job.shader);
-                    shared.send(StripEvent::Failed { name: job.name });
-                }
-            }
+        } else if shared.paused.load(Ordering::SeqCst) || shared.stopped.load(Ordering::SeqCst) {
+            // Stopped on purpose: it stays first in line.
+            shared.queue.lock().unwrap_or_else(std::sync::PoisonError::into_inner).insert(0, job);
+        } else {
+            log::warn!("settings strips: the renderer drew nothing for {}", job.shader);
+            shared.send(StripEvent::Failed { name: job.name });
         }
     }
 }

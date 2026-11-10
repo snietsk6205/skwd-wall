@@ -26,10 +26,12 @@ pub use folio::{
     folio_masthead, folio_scrim_style, folio_sheet, folio_sheet_panel_style, folio_stack_bar,
 };
 pub(crate) use folio::{folio_diagonal_edges, folio_diagonal_wipe};
+#[cfg(test)]
+pub use gallery::accent_on_ink;
 pub use gallery::{
-    INK, accent_on_ink, filter_button_style, floating_panel_style, grid_pattern, hairline_style,
-    ink_fill, ink_palette, quiet_input_style, sheet_style, tag_style, text_button_style,
-    tile_action_style, tile_button_style, tile_style, veil_style,
+    INK, filter_button_style, floating_panel_style, grid_pattern, hairline_style, ink_fill,
+    ink_palette, quiet_input_style, sheet_style, tag_style, text_button_style, tile_action_style,
+    tile_button_style, tile_style, veil_style,
 };
 pub(crate) use layout::FOLIO_RULE_THICKNESS;
 #[cfg(test)]
@@ -40,8 +42,7 @@ pub use layout::{
 };
 pub use overlay::{field_input, inert_backdrop};
 pub use r1_style::{
-    focus_row_style, ghost_button_style, pill_button_style, rounded_button_style,
-    soft_button_style, surface_style, vertical_fade_style,
+    focus_row_style, ghost_button_style, rounded_button_style, soft_button_style, surface_style,
 };
 pub use sheet::{SheetPosition, SheetWindow};
 pub use style::{

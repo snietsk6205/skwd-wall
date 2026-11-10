@@ -53,6 +53,8 @@ pub(super) struct RowsInput<'a> {
     pub playing: Option<(&'a str, &'a iced::advanced::image::Handle)>,
     pub tile_hover: Option<usize>,
     pub tile_fade: f32,
+    /// Card pictures the background renderer still has to draw.
+    pub pending: usize,
 }
 
 /// Rows next to a card grid stay a comfortable reading width.
@@ -171,6 +173,7 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
         playing,
         tile_hover,
         tile_fade,
+        pending,
     } = input;
     let keyboard_row =
         (focus.keyboard_focus == SettingsFocus::Controls).then_some(focus.focused_control);
@@ -229,9 +232,13 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
         }
         if let Some(filter) = toolbar_filter(&setting.control) {
             let found = search.take();
-            let note = lit_note
-                .clone()
-                .unwrap_or_else(|| format!("{card_count} shown. Point at a card to see it play."));
+            let note = lit_note.clone().unwrap_or_else(|| {
+                if pending > 0 {
+                    format!("{card_count} shown. Drawing their pictures once, {pending} to go.")
+                } else {
+                    format!("{card_count} shown. Point at a card to see it play.")
+                }
+            });
             list = list.push(
                 container(super::cards::toolbar(
                     super::cards::Toolbar {
@@ -240,7 +247,8 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
                         search: found.map(|(_, field)| field),
                         values,
                         filter: Some(filter),
-                        filter_focus: (keyboard_row == Some(index)).then_some(focus.focused_choice),
+                        filter_focused: keyboard_row == Some(index),
+                        filter_choice: focus.focused_choice,
                         note,
                     },
                     tile_ctx,
@@ -302,7 +310,7 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
                 let panel = bubble
                     .as_ref()
                     .filter(|bubble| bubble.row == index)
-                    .map(|bubble| bubble_panel(bubble, &shader, index, scale, palette));
+                    .map(|bubble| bubble_panel(bubble, &shader, scale, palette));
                 let hover = mouse_area(item)
                     .on_enter(Message::Settings(SettingsMsg::BubbleShow(shader.clone(), index)))
                     .on_exit(Message::Settings(SettingsMsg::BubbleHide(index)));
@@ -324,14 +332,14 @@ pub(super) fn rows<'a>(input: RowsInput<'a>, focus: FocusCtx<'_>) -> Element<'a,
 }
 
 /// A small heading over a group of rows: its name and one sentence.
-fn segment_heading<'a>(
+fn segment_heading(
     setting: Row,
     first: bool,
     width: f32,
     scale: f32,
-    palette: &'a Palette,
+    palette: &Palette,
     fade: f32,
-) -> Element<'a, Message> {
+) -> Element<'_, Message> {
     let mut copy = column![typed(
         setting.title,
         TEXT_STRONG_FONT,
@@ -500,7 +508,6 @@ fn line<'a>(
 fn bubble_panel<'a>(
     bubble: &BubbleView,
     shader: &str,
-    index: usize,
     scale: f32,
     palette: &'a Palette,
 ) -> Element<'a, Message> {
@@ -567,7 +574,7 @@ fn bubble_panel<'a>(
             .width(Length::Fill),
             button(label("Pin", TYPE_SMALL, scale, with_alpha(palette.primary, fade)))
                 .padding([2.0 * scale, 6.0 * scale])
-                .on_press(Message::Settings(SettingsMsg::BubblePin(shader.to_string(), index)))
+                .on_press(Message::Settings(SettingsMsg::BubblePin(shader.to_string())))
                 .style(move |_theme, status| reset_style(palette, fade, status)),
         ]
         .spacing(6.0 * scale)

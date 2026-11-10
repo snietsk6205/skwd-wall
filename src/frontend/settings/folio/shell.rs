@@ -128,7 +128,7 @@ fn spacer<'a>() -> Element<'a, Message> {
 }
 
 /// A one-pixel horizontal line.
-pub(super) fn rule<'a>(palette: &'a Palette, opacity: f32) -> Element<'a, Message> {
+pub(super) fn rule(palette: &Palette, opacity: f32) -> Element<'_, Message> {
     container(text(""))
         .width(Length::Fill)
         .height(Length::Fixed(1.0))

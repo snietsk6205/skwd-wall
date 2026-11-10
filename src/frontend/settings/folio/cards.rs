@@ -47,7 +47,6 @@ pub fn columns_for(width: f32, scale: f32) -> usize {
 pub(super) struct TileItem {
     pub index: usize,
     pub title: String,
-    pub desc: String,
     pub items: Vec<(ActionId, String)>,
     pub tile: Tile,
 }
@@ -56,7 +55,7 @@ impl TileItem {
     pub(super) fn from_row(index: usize, row: Row) -> Option<Self> {
         match row.control {
             super::super::Control::Tile { items, tile } => {
-                Some(Self { index, title: row.title, desc: row.desc, items, tile })
+                Some(Self { index, title: row.title, items, tile })
             }
             _ => None,
         }
@@ -163,7 +162,7 @@ fn actions<'a>(item: &TileItem, ctx: TileCtx<'a>, height: f32) -> Element<'a, Me
     container(line).height(Length::Fixed(height)).align_y(Alignment::Center).into()
 }
 
-fn card<'a>(item: TileItem, number: usize, width: f32, ctx: TileCtx<'a>) -> Element<'a, Message> {
+fn card<'a>(item: &TileItem, number: usize, width: f32, ctx: TileCtx<'a>) -> Element<'a, Message> {
     let TileCtx { palette, scale, fade, .. } = ctx;
     let hovered = ctx.hover == Some(item.index);
     let focused = ctx.focus == Some(item.index);
@@ -225,9 +224,9 @@ fn card<'a>(item: TileItem, number: usize, width: f32, ctx: TileCtx<'a>) -> Elem
     .align_y(Alignment::Center)
     .height(Length::Fixed(20.0 * scale));
     let footer =
-        if lit { actions(&item, ctx, footer_height) } else { tags(&item, ctx, footer_height) };
+        if lit { actions(item, ctx, footer_height) } else { tags(item, ctx, footer_height) };
     let index = item.index;
-    let body = column![header, picture(&item, ctx, picture_height), footer].spacing(9.0 * scale);
+    let body = column![header, picture(item, ctx, picture_height), footer].spacing(9.0 * scale);
     mouse_area(
         container(body)
             .width(Length::Fixed(width))
@@ -241,7 +240,7 @@ fn card<'a>(item: TileItem, number: usize, width: f32, ctx: TileCtx<'a>) -> Elem
 }
 
 /// A grid of cards that fits the width.
-pub(super) fn tile_grid<'a>(items: Vec<TileItem>, ctx: TileCtx<'a>) -> Element<'a, Message> {
+pub(super) fn tile_grid(items: Vec<TileItem>, ctx: TileCtx<'_>) -> Element<'_, Message> {
     let gap = GAP * ctx.scale;
     let columns = columns_for(ctx.width, ctx.scale);
     let width = ((ctx.width - gap * (columns as f32 - 1.0)) / columns as f32).floor();
@@ -249,7 +248,7 @@ pub(super) fn tile_grid<'a>(items: Vec<TileItem>, ctx: TileCtx<'a>) -> Element<'
     let mut line = row![].spacing(gap);
     let mut in_line = 0;
     for (position, item) in items.into_iter().enumerate() {
-        line = line.push(card(item, ctx.first_number + position, width, ctx));
+        line = line.push(card(&item, ctx.first_number + position, width, ctx));
         in_line += 1;
         if in_line == columns {
             grid = grid.push(std::mem::replace(&mut line, row![].spacing(gap)));
@@ -269,8 +268,9 @@ pub(super) struct Toolbar<'a> {
     pub values: &'a HashMap<String, String>,
     /// The filter: its path, choices and the chosen one.
     pub filter: Option<(String, Vec<(String, String)>, String)>,
-    /// Row of the filter and the choice the keyboard is on.
-    pub filter_focus: Option<Option<usize>>,
+    /// The keyboard is on the filter, and the choice it is on.
+    pub filter_focused: bool,
+    pub filter_choice: Option<usize>,
     pub search_focus: bool,
     /// A short note at the end (what the lit card does, or a count).
     pub note: String,
@@ -307,7 +307,7 @@ pub(super) fn toolbar<'a>(input: Toolbar<'a>, ctx: TileCtx<'a>) -> Element<'a, M
     if let Some((path, options, current)) = input.filter {
         for (position, (key, name)) in options.into_iter().enumerate() {
             let chosen = key == current;
-            let keyboard = input.filter_focus == Some(Some(position));
+            let keyboard = input.filter_focused && input.filter_choice == Some(position);
             line = line.push(
                 button(text(name).font(MONO_FONT).size(10.5 * legible_type_scale(scale)))
                     .padding([4.0 * scale, 8.0 * scale])

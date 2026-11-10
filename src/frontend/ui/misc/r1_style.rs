@@ -47,19 +47,6 @@ pub fn rounded_button_style(
     }
 }
 
-/// A top-to-bottom gradient of one colour at three opacities (scrims).
-pub fn vertical_fade_style(color: Color, top: f32, middle: f32, bottom: f32) -> container::Style {
-    container::Style {
-        background: Some(Background::Gradient(iced::Gradient::Linear(
-            iced::gradient::Linear::new(std::f32::consts::PI)
-                .add_stop(0.0, Color { a: top, ..color })
-                .add_stop(0.45, Color { a: middle, ..color })
-                .add_stop(1.0, Color { a: bottom, ..color }),
-        ))),
-        ..Default::default()
-    }
-}
-
 fn alpha(color: Color, a: f32) -> Color {
     Color { a, ..color }
 }
@@ -89,32 +76,6 @@ pub fn ghost_button_style(
             if active { palette.primary } else { palette.surface_text },
             if active || hovered || focused { fade } else { 0.78 * fade },
         ),
-        None,
-    )
-}
-
-/// Round pill on the Home picture (strong = the primary colour).
-pub fn pill_button_style(
-    palette: &crate::frontend::theme::Palette,
-    fade: f32,
-    status: button::Status,
-    strong: bool,
-) -> button::Style {
-    let hovered = matches!(status, button::Status::Hovered | button::Status::Pressed);
-    rounded_button_style(
-        alpha(
-            if strong { palette.primary } else { palette.surface },
-            if strong {
-                0.9 * fade
-            } else if hovered {
-                0.82 * fade
-            } else {
-                0.62 * fade
-            },
-        ),
-        999.0,
-        (1.0, alpha(palette.outline, 0.5 * fade)),
-        alpha(if strong { palette.primary_text } else { palette.surface_text }, fade),
         None,
     )
 }

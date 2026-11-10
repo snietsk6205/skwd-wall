@@ -223,7 +223,7 @@ pub(crate) fn tick(app: &mut App, now: Instant) {
     if playing.frames.is_empty() || now < playing.next_at {
         return;
     }
-    playing.frame = (playing.frame + 1) % playing.frames.len().min(STRIP_FRAMES).max(1);
+    playing.frame = (playing.frame + 1) % playing.frames.len().clamp(1, STRIP_FRAMES);
     let last = playing.frame + 1 == playing.frames.len();
     playing.next_at = now + Duration::from_millis(if last { HOLD_MS } else { FRAME_MS });
 }
